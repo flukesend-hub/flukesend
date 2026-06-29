@@ -14,7 +14,8 @@ import { NextResponse, type NextRequest } from "next/server";
 // tokened guest gallery (/g/<token>, plus its download and open routes) is
 // public: guests have no operator session and reach it only by their token.
 // The cron endpoint is public to the proxy but guards itself with CRON_SECRET.
-const PUBLIC_PATHS = ["/login", "/g", "/api/cron"];
+// The marketing pages ("/", /pricing) are public too.
+const PUBLIC_PATHS = ["/login", "/g", "/api/cron", "/", "/pricing"];
 
 function isPublic(path: string) {
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
