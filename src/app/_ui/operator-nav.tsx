@@ -38,13 +38,13 @@ export function OperatorNav({ operatorName }: { operatorName: string }) {
           </nav>
 
           <div style={pill}>
+            <span style={{ fontSize: "13px", fontWeight: 600 }}>{operatorName}</span>
+            <span style={divider} />
             <form action={signout}>
               <button type="submit" style={signoutBtn} title="Sign out">
                 Sign out
               </button>
             </form>
-            <span style={divider} />
-            <span style={{ fontSize: "13px", fontWeight: 600 }}>{operatorName}</span>
           </div>
         </div>
       </div>
@@ -57,11 +57,9 @@ const wrap: React.CSSProperties = {
   top: 0,
   zIndex: 50,
   background: "var(--ink)",
-  padding: "14px 22px",
+  padding: "14px 28px",
 };
 const inner: React.CSSProperties = {
-  maxWidth: "1200px",
-  margin: "0 auto",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",

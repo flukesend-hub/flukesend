@@ -48,7 +48,7 @@ export default async function SendPage() {
   return (
     <>
       <OperatorNav operatorName={operator?.name ?? "Operator"} />
-      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "16px 22px 80px" }}>
+      <main style={{ padding: "16px 28px 80px" }}>
         <div className="fl-eyebrow">New send</div>
         <h1 className="fl-h1" style={{ fontSize: "32px" }}>
           Today&apos;s send

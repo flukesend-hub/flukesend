@@ -131,7 +131,7 @@ function RowBetween({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-const shell: React.CSSProperties = { maxWidth: "1200px", margin: "0 auto", padding: "16px 22px 80px" };
+const shell: React.CSSProperties = { padding: "16px 28px 80px" };
 const h3: React.CSSProperties = { margin: "0 0 14px", fontSize: "15px", fontWeight: 600 };
 const sendRow: React.CSSProperties = {
   display: "flex",
