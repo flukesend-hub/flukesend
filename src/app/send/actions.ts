@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
+import { getTrialUsage, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
 
 const PHOTO_TYPES = [
   "image/png",
@@ -118,7 +119,7 @@ export type CreateSendInput = {
 };
 
 export type CreateSendResult =
-  | { error: string }
+  | { error: string; upgrade?: boolean }
   | { ok: true; deliveryId: string; recipientCount: number; emailed: number };
 
 export async function createSend(
@@ -147,6 +148,25 @@ export async function createSend(
   );
   if (!emails.length) {
     return { error: "Add at least one valid guest email." };
+  }
+
+  // Free trial gate. Operators on the trial can send up to TRIAL_TRANSFERS
+  // transfers or TRIAL_EMAILS guest emails, whichever comes first. Active
+  // (paid) operators are unlimited.
+  const usage = await getTrialUsage(supabase, operatorId);
+  if (usage.status !== "active") {
+    if (usage.transfers >= TRIAL_TRANSFERS) {
+      return {
+        error: `Your free trial covers ${TRIAL_TRANSFERS} transfers, and you have used them. Upgrade to keep sending.`,
+        upgrade: true,
+      };
+    }
+    if (usage.emails + emails.length > TRIAL_EMAILS) {
+      return {
+        error: `This send would pass your ${TRIAL_EMAILS} free trial guest emails (${usage.emails} used so far). Upgrade to keep sending.`,
+        upgrade: true,
+      };
+    }
   }
 
   // Retention is set per operator and stamped onto each delivery, so the

@@ -6,6 +6,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OperatorNav } from "@/app/_ui/operator-nav";
+import { getTrialUsage, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
 import { SendForm } from "./send-form";
 
 export default async function SendPage() {
@@ -45,6 +46,8 @@ export default async function SendPage() {
     .eq("operator_id", membership.operator_id)
     .order("sort_order", { ascending: true });
 
+  const usage = await getTrialUsage(supabase, membership.operator_id);
+
   return (
     <>
       <OperatorNav operatorName={operator?.name ?? "Operator"} />
@@ -57,6 +60,33 @@ export default async function SendPage() {
           Fill the trip, drop the photos, paste the guest emails. Each guest gets
           their own gallery link and their own review ask later this evening.
         </p>
+
+        {usage.status === "trial" ? (
+          <div
+            style={{
+              marginTop: "16px",
+              padding: "11px 16px",
+              borderRadius: "11px",
+              border: "1px solid rgba(231,177,76,.35)",
+              background: "rgba(231,177,76,.1)",
+              fontSize: "13px",
+              color: "#f3e3b8",
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <span>
+              Free trial: <strong>{usage.transfers}</strong> of {TRIAL_TRANSFERS}{" "}
+              transfers and <strong>{usage.emails}</strong> of {TRIAL_EMAILS}{" "}
+              guest emails used.
+            </span>
+            <a href="/pricing" style={{ color: "var(--signal)", fontWeight: 600, marginLeft: "auto" }}>
+              See plans
+            </a>
+          </div>
+        ) : null}
 
         <SendForm
           defaultMessage={branding?.default_message ?? ""}
