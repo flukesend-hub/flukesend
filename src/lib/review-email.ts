@@ -1,12 +1,9 @@
 /*
-  The branded review ask. Built and sent server side by the nightly job. The
-  actual send goes through Resend, which is wired only once a sending domain is
-  verified, so sendReviewEmail returns "skipped" when no API key is set. That
-  keeps the job safe to run early: it finds who is due without sending or
-  marking anything, and the same recipients send for real once Resend is live.
-
-  No review gating: every guest who downloads gets asked, and the tip jar (when
-  it exists) stays separate from these buttons, per the FTC rules in the spec.
+  The branded review ask, styled from the design handoff. Built and sent by the
+  nightly job. Same brand color and trip details as the gallery, a warm line,
+  and one button per review link (first solid, the rest outlined). No review
+  gating: every guest who downloads is asked. The tip jar is a later Stripe bolt
+  on and is deliberately not in this email yet.
 */
 import "server-only";
 import { escapeHtml, sendEmail } from "@/lib/email";
@@ -33,53 +30,32 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   html: string;
 } {
   const subject = `How was your trip with ${input.operatorName}?`;
-  const hi = input.recipientName
-    ? `Hi ${escapeHtml(input.recipientName)},`
-    : "Hi there,";
   const brand = escapeHtml(input.brandColor);
+  const name = escapeHtml(input.operatorName);
 
-  const header = input.logoUrl
-    ? `<img src="${escapeHtml(input.logoUrl)}" alt="${escapeHtml(
-        input.operatorName,
-      )}" style="height:40px;width:auto;" />`
-    : `<div style="font-size:18px;font-weight:700;color:#ffffff;">${escapeHtml(
-        input.operatorName,
-      )}</div>`;
+  const intro = input.tripLine
+    ? `It was a good one out there, ${escapeHtml(input.tripLine)}. `
+    : "";
 
   const buttons = input.reviewLinks
-    .map(
-      (l) =>
-        `<a href="${escapeHtml(
-          l.url,
-        )}" style="display:inline-block;background:${brand};color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600;margin:6px 8px 0 0;">${escapeHtml(
-          l.label,
-        )}</a>`,
+    .map((l, i) =>
+      i === 0
+        ? `<a href="${escapeHtml(l.url)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:${brand};color:#ffffff;padding:13px;border-radius:11px">${escapeHtml(l.label)}</a>`
+        : `<a href="${escapeHtml(l.url)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:transparent;color:${brand};border:1px solid ${brand};padding:12px;border-radius:11px">${escapeHtml(l.label)}</a>`,
     )
     .join("");
 
-  const tripLine = input.tripLine
-    ? `<p style="margin:0 0 16px;color:#5f7882;">${escapeHtml(input.tripLine)}</p>`
-    : "";
-
   const html = `<!doctype html>
 <html>
-  <body style="margin:0;background:#faf8f4;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1c2b2e;">
-    <div style="max-width:560px;margin:0 auto;">
-      <div style="background:${brand};padding:24px;">${header}</div>
-      <div style="padding:24px;">
-        <p style="margin:0 0 12px;">${hi}</p>
-        <p style="margin:0 0 16px;">
-          Thanks again for spending the day with ${escapeHtml(input.operatorName)}.
-          We hope you love your photos.
-        </p>
-        ${tripLine}
-        <p style="margin:0 0 12px;">
-          If you have a minute, a quick review really helps a small crew like ours.
-        </p>
-        <div style="margin:8px 0 20px;">${buttons}</div>
-        <p style="margin:0;color:#8ba4ac;font-size:13px;">
-          Thank you, the team at ${escapeHtml(input.operatorName)}
-        </p>
+  <body style="margin:0;background:#faf8f4;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1c2b2e">
+    <div style="max-width:560px;margin:0 auto;background:#faf8f4;border-radius:18px;overflow:hidden">
+      <div style="height:7px;background:${brand}"></div>
+      <div style="padding:28px 26px 30px">
+        <div style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:17px;color:${brand}">${name}</div>
+        <div style="font-family:'Fraunces',Georgia,serif;font-size:22px;margin:16px 0 12px;line-height:1.25">Hope the trip made your day</div>
+        <p style="font-size:14px;color:#46555a;margin:0 0 16px">${intro}If you have a minute, a short review helps a small crew like ours more than you would guess.</p>
+        <div style="display:flex;flex-direction:column;gap:9px">${buttons}</div>
+        <p style="font-size:11.5px;color:#9aa6a8;margin:18px 0 0;text-align:center">You got this because you downloaded photos from your trip. One note only, we will not chase you.</p>
       </div>
     </div>
   </body>
@@ -88,8 +64,6 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   return { subject, html };
 }
 
-// Caller leaves the recipient pending on "skipped" (no key) or "error", so the
-// review sends for real on a later run.
 export async function sendReviewEmail(to: string, subject: string, html: string) {
   return sendEmail(to, subject, html);
 }

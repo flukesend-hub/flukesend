@@ -1,35 +1,36 @@
 /*
-  Flukesend global styles.
-  Two worlds, one source of truth for color. The operator works in the deep
-  (dark workspace chrome). The guest surfaces into the light (warm branded
-  gallery and email driven by the operator's chosen brand color). Ported from
-  the clickable mockup in docs/mockup.html. No em dashes anywhere.
+  Flukesend global styles. Ported from the Claude Design handoff
+  (docs/design-brief.md, docs/mockup.html). Two worlds: the operator works in
+  the dark "deep water" workspace (this file's defaults), and guest surfaces
+  (the gallery and emails) are light and driven by the operator's own brand
+  color. No em dashes anywhere.
 */
 
 :root {
   /* operator workspace: deep water */
   --ink: #0c1a21;
+  --ink-2: #0f2027;
   --panel: #11242d;
   --panel-2: #16313b;
   --line: rgba(255, 255, 255, 0.08);
   --line-strong: rgba(255, 255, 255, 0.16);
   --text: #e8f0f1;
+  --text-2: #cdd9db;
   --muted: #8ba4ac;
   --muted-2: #5f7882;
 
-  /* surface light: golden hour action color */
+  /* golden hour action color */
   --signal: #e7b14c;
   --signal-ink: #3a2c0a;
   --good: #4fb286;
   --bad: #e87b6b;
 
-  /* guest brand color (operator picks this, drives guest surfaces) */
+  /* guest brand color (operator picks this; default only) */
   --brand: #0b5563;
-  --brand-soft: #0b556312;
   --paper: #faf8f4;
   --paper-ink: #1c2b2e;
 
-  --radius: 14px;
+  --radius: 16px;
 }
 
 * {
@@ -46,20 +47,18 @@ html {
   min-height: 100%;
 }
 
-/*
-  Stopgap light theme for the operator screens. They are built as light cards,
-  so the page is light and text is dark until the design pass brings back the
-  mockup's dark "deep water" workspace. The :root palette above is kept for that
-  pass. No em dashes.
-*/
 body {
   min-height: 100vh;
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--ink);
+  color: var(--text);
   font-family: var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.45;
+}
+
+::selection {
+  background: rgba(231, 177, 76, 0.3);
 }
 
 a {
@@ -67,25 +66,197 @@ a {
   text-decoration: none;
 }
 
-/* shared operator type styles, reused across the workspace screens */
-.eyebrow {
+/* ---- form controls ---- */
+.fl-input,
+.fl-textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 11px 12px;
+  outline: none;
+}
+.fl-textarea {
+  resize: vertical;
+  min-height: 74px;
+}
+.fl-input:focus,
+.fl-textarea:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--signal) !important;
+  box-shadow: 0 0 0 3px rgba(231, 177, 76, 0.14);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--signal);
+  cursor: pointer;
+  border: 3px solid var(--panel-2);
+  box-shadow: 0 0 0 1px var(--signal);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--signal);
+  cursor: pointer;
+  border: 3px solid var(--panel-2);
+}
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  border: none;
+  background: none;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 9px;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---- reusable atoms ---- */
+.fl-card {
+  background: linear-gradient(180deg, var(--panel), var(--panel) 60%, var(--ink-2));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+}
+.fl-label-text {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.fl-hint {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.fl-eyebrow {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--signal);
   font-weight: 600;
 }
-
-h1.title {
+.fl-display {
+  font-family: var(--font-fraunces), serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.fl-h1 {
   font-family: var(--font-fraunces), serif;
   font-weight: 600;
   font-size: 30px;
   letter-spacing: -0.01em;
   margin: 8px 0 4px;
 }
-
-.sub {
+.fl-muted {
   color: var(--muted);
-  font-size: 14px;
-  max-width: 62ch;
+}
+
+.fl-btn {
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--signal);
+  color: var(--signal-ink);
+  border: 0;
+  border-radius: 11px;
+  padding: 12px 22px;
+}
+.fl-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.fl-btn-ghost {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 8px 14px;
+}
+.fl-link {
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ---- responsive layout helpers ---- */
+.fl-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.fl-side {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .fl-cols,
+  .fl-side {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@keyframes fl-wave {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+@keyframes fl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }

@@ -1,7 +1,6 @@
 /*
   Operator setup screen. Shown to a signed in user who has no operator yet. If
-  they already have one we send them on to the dashboard, so this route is only
-  ever the first run experience.
+  they already have one we send them to the dashboard.
 */
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -26,36 +25,16 @@ export default async function OnboardingPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        display: "grid",
-        placeItems: "center",
-        padding: "1.5rem",
-        background: "#f1f5f9",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "26rem",
-          background: "white",
-          borderRadius: "0.9rem",
-          padding: "2rem",
-          boxShadow: "0 10px 30px rgba(15, 23, 42, 0.08)",
-        }}
-      >
-        <h1 style={{ margin: "0 0 0.25rem", fontSize: "1.4rem" }}>
-          Set up your operator
-        </h1>
-        <p
-          style={{ margin: "0 0 1.5rem", color: "#64748b", fontSize: "0.9rem" }}
-        >
-          A few details to brand your galleries and review asks. You can change
-          these any time.
-        </p>
-        <OnboardingForm />
-      </div>
+    <main style={{ maxWidth: "1040px", margin: "0 auto", padding: "34px 22px 80px" }}>
+      <div className="fl-eyebrow">One time setup</div>
+      <h1 className="fl-h1" style={{ fontSize: "32px" }}>
+        Set up your workspace
+      </h1>
+      <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "62ch", margin: 0 }}>
+        Set this once. Every send reuses it, so your galleries and the nightly
+        review asks always look like you and point to the right places.
+      </p>
+      <OnboardingForm />
     </main>
   );
 }

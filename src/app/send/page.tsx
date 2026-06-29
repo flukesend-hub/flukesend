@@ -1,7 +1,7 @@
 /*
-  New send screen. Requires a signed in operator. Passes the operator's default
-  guest message so the custom message field can hint at what guests see when it
-  is left blank.
+  New send screen, dark workspace. Requires a signed in operator. Passes the
+  operator's brand color (drives the upload animation and the photo dropzone
+  tint) and default message.
 */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -28,30 +28,30 @@ export default async function SendPage() {
 
   const { data: branding } = await supabase
     .from("branding")
-    .select("default_message")
+    .select("default_message, brand_color")
     .eq("operator_id", membership.operator_id)
     .maybeSingle();
 
   return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        padding: "2rem",
-        maxWidth: "40rem",
-        margin: "0 auto",
-      }}
-    >
-      <header style={{ marginBottom: "1.5rem" }}>
-        <Link href="/dashboard" style={{ color: "#0b5563", fontSize: "0.85rem" }}>
-          Back to dashboard
-        </Link>
-        <h1 style={{ margin: "0.5rem 0 0", fontSize: "1.4rem" }}>New send</h1>
-        <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.9rem" }}>
-          Trip details, photos, and the guests who should get them.
-        </p>
-      </header>
+    <main style={{ maxWidth: "1040px", margin: "0 auto", padding: "34px 22px 80px" }}>
+      <Link href="/dashboard" className="fl-link">
+        {"‹"} Back to dashboard
+      </Link>
+      <div className="fl-eyebrow" style={{ marginTop: "12px" }}>
+        New send
+      </div>
+      <h1 className="fl-h1" style={{ fontSize: "32px" }}>
+        New send
+      </h1>
+      <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "62ch", margin: 0 }}>
+        Fill the trip, drop the photos, paste the guest emails. Each guest gets
+        their own gallery link and their own review ask later this evening.
+      </p>
 
-      <SendForm defaultMessage={branding?.default_message ?? ""} />
+      <SendForm
+        defaultMessage={branding?.default_message ?? ""}
+        brandColor={branding?.brand_color ?? "#0b5563"}
+      />
     </main>
   );
 }

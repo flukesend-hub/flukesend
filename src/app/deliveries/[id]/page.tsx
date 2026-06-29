@@ -1,11 +1,8 @@
 /*
-  Delivery confirmation and detail. Shown right after a send is created, and
-  reachable later from the dashboard. RLS scopes every read to the operator, so
-  a delivery that is not theirs simply is not found.
-
-  Each recipient has its own gallery token. The tokened guest gallery and the
-  review email are Session 2, so for now we show the future gallery path so the
-  operator can see that every guest is a separate row with a separate link.
+  Delivery confirmation and detail, dark workspace. Shown right after a send is
+  created, and reachable later from the dashboard. RLS scopes every read to the
+  operator. Each recipient has its own gallery token; the tokened gallery and
+  the emails are the guest surfaces.
 */
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -13,10 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 
 function fmtDateTime(value: string | null) {
   if (!value) return "Not set";
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return new Date(value).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 }
 
 export default async function DeliveryPage({
@@ -39,7 +33,7 @@ export default async function DeliveryPage({
   const { data: delivery } = await supabase
     .from("deliveries")
     .select(
-      "id, created_at, trip_datetime, whale_count, species, captain_name, crew_names, custom_message, expires_at",
+      "id, trip_datetime, whale_count, species, captain_name, crew_names, expires_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -47,169 +41,136 @@ export default async function DeliveryPage({
     notFound();
   }
 
-  const { data: photos } = await supabase
+  const { count: photoCount } = await supabase
     .from("photos")
-    .select("filename, size")
-    .eq("delivery_id", id)
-    .order("sort_order", { ascending: true });
+    .select("*", { count: "exact", head: true })
+    .eq("delivery_id", id);
 
   const { data: recipients } = await supabase
     .from("recipients")
-    .select("email, token, review_email_status")
+    .select("email, token")
     .eq("delivery_id", id);
 
   const species = (delivery.species ?? []) as string[];
   const crew = (delivery.crew_names ?? []) as string[];
+  const guests = recipients?.length ?? 0;
+  const emailedN = emailed !== undefined ? Number(emailed) : null;
 
   return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        padding: "2rem",
-        maxWidth: "42rem",
-        margin: "0 auto",
-      }}
-    >
-      <header style={{ marginBottom: "1.5rem" }}>
-        <Link href="/dashboard" style={{ color: "#0b5563", fontSize: "0.85rem" }}>
-          Back to dashboard
-        </Link>
-        <h1 style={{ margin: "0.5rem 0 0", fontSize: "1.4rem" }}>Send created</h1>
-        <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.9rem" }}>
-          {recipients?.length ?? 0} guest
-          {(recipients?.length ?? 0) === 1 ? "" : "s"} and {photos?.length ?? 0}{" "}
-          photo{(photos?.length ?? 0) === 1 ? "" : "s"}.
-        </p>
-      </header>
+    <main style={{ maxWidth: "760px", margin: "0 auto", padding: "34px 22px 80px" }}>
+      <Link href="/dashboard" className="fl-link">
+        {"‹"} Back to dashboard
+      </Link>
+      <h1 className="fl-h1" style={{ marginTop: "10px" }}>
+        Send created
+      </h1>
+      <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
+        {guests} guests and {photoCount ?? 0} photos.
+      </p>
 
-      {emailed !== undefined ? (
-        <div
-          style={{
-            marginBottom: "1.5rem",
-            padding: "0.75rem 1rem",
-            borderRadius: "0.5rem",
-            border: "1px solid",
-            borderColor: Number(emailed) > 0 ? "#bbf7d0" : "#fde68a",
-            background: Number(emailed) > 0 ? "#f0fdf4" : "#fffbeb",
-            fontSize: "0.9rem",
-          }}
-        >
-          {Number(emailed) > 0
-            ? `Emailed the gallery link to ${emailed} of ${
-                recipients?.length ?? 0
-              } guest${(recipients?.length ?? 0) === 1 ? "" : "s"}.`
-            : "Guests were not emailed. Check that the email service is configured."}
+      {emailedN !== null ? (
+        <div style={emailedN > 0 ? bannerOk : bannerWarn}>
+          <span style={emailedN > 0 ? check : checkWarn}>{emailedN > 0 ? "✓" : "!"}</span>
+          <span style={{ fontSize: "13.5px", color: emailedN > 0 ? "#cdeede" : "#f3e3b8" }}>
+            {emailedN > 0
+              ? `Emailed the gallery link to ${emailedN} of ${guests} guests. Review asks are scheduled for this evening.`
+              : "Guests were not emailed. Check that the email service is configured."}
+          </span>
         </div>
       ) : null}
 
-      <Section title="Trip">
-        <dl style={{ display: "grid", gap: "0.6rem", margin: 0 }}>
+      <div className="fl-card" style={{ marginTop: "18px" }}>
+        <h3 style={h3}>Trip</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <Row label="Date">{fmtDateTime(delivery.trip_datetime)}</Row>
           <Row label="Whales seen">{delivery.whale_count ?? "Not set"}</Row>
           <Row label="Species">{species.length ? species.join(", ") : "Not set"}</Row>
           <Row label="Captain">{delivery.captain_name ?? "Not set"}</Row>
           <Row label="Crew">{crew.length ? crew.join(", ") : "Not set"}</Row>
           <Row label="Expires">{fmtDateTime(delivery.expires_at)}</Row>
-        </dl>
-      </Section>
+        </div>
+      </div>
 
-      <Section title={`Photos (${photos?.length ?? 0})`}>
-        {photos?.length ? (
-          <ul style={styles.plainList}>
-            {photos.map((p, i) => (
-              <li key={i} style={styles.fileRow}>
-                <span style={styles.fileName}>{p.filename ?? "photo"}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p style={styles.muted}>No photos.</p>
-        )}
-      </Section>
-
-      <Section title={`Guests (${recipients?.length ?? 0})`}>
-        {recipients?.length ? (
-          <ul style={styles.plainList}>
-            {recipients.map((r, i) => (
-              <li key={i} style={styles.recipientRow}>
-                <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{r.email}</span>
-                <code style={styles.token}>/g/{r.token}</code>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p style={styles.muted}>No recipients.</p>
-        )}
-        <p style={{ ...styles.muted, marginTop: "0.75rem" }}>
-          The tokened gallery and the review email land in Session 2. Each link
-          above is one guest&apos;s personal gallery.
+      <div className="fl-card" style={{ marginTop: "16px" }}>
+        <h3 style={h3}>Guests ({guests})</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+          {recipients?.map((r, i) => (
+            <div key={i} style={guestRow}>
+              <span style={guestEmail}>{r.email}</span>
+              <code style={{ fontSize: "12px", color: "var(--muted)", fontFamily: "ui-monospace,monospace" }}>
+                /g/{r.token}
+              </code>
+            </div>
+          ))}
+        </div>
+        <p style={{ color: "var(--muted-2)", fontSize: "12.5px", margin: "14px 0 0" }}>
+          Each link above is one guest&apos;s personal gallery. The download from
+          any of them is the single event that triggers that guest&apos;s review
+          ask.
         </p>
-      </Section>
+      </div>
 
-      <Link href="/send" style={styles.primaryLink}>
-        Create another send
-      </Link>
+      <div style={{ marginTop: "18px" }}>
+        <Link href="/send" className="fl-btn">
+          Create another send
+        </Link>
+      </div>
     </main>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section
-      style={{
-        marginBottom: "1.5rem",
-        padding: "1.25rem",
-        borderRadius: "0.75rem",
-        border: "1px solid #e2e8f0",
-        background: "#f8fafc",
-      }}
-    >
-      <h2 style={{ margin: "0 0 1rem", fontSize: "1.1rem" }}>{title}</h2>
-      {children}
-    </section>
   );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "9rem 1fr", gap: "0.5rem" }}>
-      <dt style={{ color: "#64748b", fontSize: "0.85rem" }}>{label}</dt>
-      <dd style={{ margin: 0, fontSize: "0.9rem" }}>{children}</dd>
+    <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: "10px", fontSize: "13.5px" }}>
+      <span style={{ color: "var(--muted)" }}>{label}</span>
+      <span>{children}</span>
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  plainList: {
-    listStyle: "none",
-    margin: 0,
-    padding: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.4rem",
-  },
-  fileRow: { fontSize: "0.85rem" },
-  fileName: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-  recipientRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "1rem",
-    padding: "0.5rem 0.7rem",
-    borderRadius: "0.5rem",
-    border: "1px solid #e2e8f0",
-    background: "white",
-  },
-  token: { fontSize: "0.75rem", color: "#64748b", overflow: "hidden", textOverflow: "ellipsis" },
-  muted: { color: "#64748b", fontSize: "0.85rem", margin: 0 },
-  primaryLink: {
-    display: "inline-block",
-    padding: "0.7rem 1rem",
-    borderRadius: "0.5rem",
-    background: "#0b5563",
-    color: "white",
-    textDecoration: "none",
-    fontWeight: 600,
-    fontSize: "0.95rem",
-  },
+const h3: React.CSSProperties = { margin: "0 0 14px", fontSize: "15px", fontWeight: 600 };
+const bannerOk: React.CSSProperties = {
+  marginTop: "18px",
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  padding: "13px 16px",
+  borderRadius: "12px",
+  border: "1px solid rgba(79,178,134,.35)",
+  background: "rgba(79,178,134,.1)",
+};
+const bannerWarn: React.CSSProperties = {
+  ...bannerOk,
+  border: "1px solid rgba(231,177,76,.35)",
+  background: "rgba(231,177,76,.1)",
+};
+const check: React.CSSProperties = {
+  width: "26px",
+  height: "26px",
+  borderRadius: "50%",
+  background: "var(--good)",
+  display: "grid",
+  placeItems: "center",
+  color: "#06231a",
+  fontSize: "15px",
+  fontWeight: 700,
+  flex: "0 0 auto",
+};
+const checkWarn: React.CSSProperties = { ...check, background: "var(--signal)", color: "var(--signal-ink)" };
+const guestRow: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "12px",
+  padding: "11px 14px",
+  borderRadius: "11px",
+  border: "1px solid var(--line)",
+  background: "var(--ink)",
+};
+const guestEmail: React.CSSProperties = {
+  fontWeight: 600,
+  fontSize: "13.5px",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 };

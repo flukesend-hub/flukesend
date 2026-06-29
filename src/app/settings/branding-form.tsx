@@ -1,14 +1,15 @@
 "use client";
 
 /*
-  Editable branding: logo, brand color, default guest message, retention. Same
-  fields as onboarding, but here they update the existing branding row and add a
-  logo. Current values come in as props so the form is prefilled.
+  Editable branding card, dark workspace styling. Logo (with replace), brand
+  color swatches, default message, retention slider. Posts to updateBranding.
 */
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { updateBranding, type SettingsState } from "./actions";
+import { Swatches } from "@/app/_ui/controls";
 
 type Props = {
+  operatorName: string;
   logoUrl: string | null;
   brandColor: string;
   defaultMessage: string;
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function BrandingForm({
+  operatorName,
   logoUrl,
   brandColor,
   defaultMessage,
@@ -25,121 +27,100 @@ export function BrandingForm({
     updateBranding,
     undefined,
   );
+  const [brand, setBrand] = useState(brandColor);
+  const [retention, setRetention] = useState(retentionDays);
 
   return (
-    <form action={formAction} style={styles.form}>
-      <label style={styles.label}>
-        Logo
-        <span style={styles.hint}>
-          PNG, JPG, WEBP, or SVG, under 5 MB. Shows in the gallery and review
-          email.
-        </span>
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={logoUrl}
-            alt="Current logo"
-            style={{ height: "44px", width: "auto", marginBottom: "0.25rem" }}
+    <form action={formAction} className="fl-card">
+      <h3 style={h3}>Branding</h3>
+
+      <label style={{ display: "block", marginBottom: "16px" }}>
+        <span className="fl-label-text">Logo</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={`${operatorName} logo`} style={logoImg} />
+          ) : (
+            <div style={{ ...logoChip, background: brand }}>
+              {operatorName.slice(0, 7)}
+            </div>
+          )}
+          <label style={replaceBox}>
+            Replace logo. PNG, JPG, WEBP or SVG, under 5 MB.
+            <input
+              name="logo"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              style={{ display: "none" }}
+            />
+          </label>
+        </div>
+      </label>
+
+      <label style={{ display: "block", marginBottom: "16px" }}>
+        <span className="fl-label-text">Brand color</span>
+        <Swatches value={brand} onChange={setBrand} />
+      </label>
+
+      <label style={{ display: "block", marginBottom: "16px" }}>
+        <span className="fl-label-text">Default guest message</span>
+        <textarea name="default_message" className="fl-textarea" defaultValue={defaultMessage} />
+      </label>
+
+      <label style={{ display: "block", marginBottom: "16px" }}>
+        <span className="fl-label-text">Retention days</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <input
+            type="range"
+            min={3}
+            max={10}
+            name="retention_days"
+            value={retention}
+            onChange={(e) => setRetention(Number(e.target.value))}
+            style={{ flex: 1 }}
           />
-        ) : (
-          <span style={styles.hint}>No logo yet.</span>
-        )}
-        <input
-          name="logo"
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/svg+xml"
-          style={{ fontSize: "0.85rem" }}
-        />
+          <span className="fl-display" style={{ fontSize: "20px", minWidth: "80px" }}>
+            <span style={{ color: "var(--signal)" }}>{retention}</span> days
+          </span>
+        </div>
       </label>
 
-      <label style={styles.label}>
-        Brand color
-        <input
-          name="brand_color"
-          type="color"
-          defaultValue={brandColor}
-          style={styles.color}
-        />
-      </label>
+      {state?.error ? (
+        <p style={{ color: "var(--bad)", fontSize: "13px", margin: "0 0 12px" }}>{state.error}</p>
+      ) : null}
+      {state?.ok ? (
+        <p style={{ color: "var(--good)", fontSize: "13px", margin: "0 0 12px" }}>{state.ok}</p>
+      ) : null}
 
-      <label style={styles.label}>
-        Default guest message
-        <textarea
-          name="default_message"
-          rows={3}
-          defaultValue={defaultMessage}
-          style={styles.textarea}
-        />
-      </label>
-
-      <label style={styles.label}>
-        Retention days
-        <span style={styles.hint}>Base plan allows 3 to 10 days.</span>
-        <input
-          name="retention_days"
-          type="number"
-          min={3}
-          max={10}
-          defaultValue={retentionDays}
-          required
-          style={styles.input}
-        />
-      </label>
-
-      {state?.error ? <p style={styles.error}>{state.error}</p> : null}
-      {state?.ok ? <p style={styles.ok}>{state.ok}</p> : null}
-
-      <button type="submit" disabled={pending} style={styles.button}>
+      <button type="submit" disabled={pending} className="fl-btn">
         {pending ? "Saving..." : "Save branding"}
       </button>
     </form>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  form: { display: "flex", flexDirection: "column", gap: "1.25rem" },
-  label: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.35rem",
-    fontSize: "0.85rem",
-    fontWeight: 600,
-    color: "#334155",
-  },
-  hint: { fontWeight: 400, color: "#64748b", fontSize: "0.8rem" },
-  input: {
-    padding: "0.6rem 0.7rem",
-    borderRadius: "0.5rem",
-    border: "1px solid #cbd5e1",
-    fontSize: "1rem",
-  },
-  textarea: {
-    padding: "0.6rem 0.7rem",
-    borderRadius: "0.5rem",
-    border: "1px solid #cbd5e1",
-    fontSize: "1rem",
-    resize: "vertical",
-    fontFamily: "inherit",
-  },
-  color: {
-    width: "3rem",
-    height: "2.4rem",
-    padding: 0,
-    border: "1px solid #cbd5e1",
-    borderRadius: "0.5rem",
-    background: "none",
-    cursor: "pointer",
-  },
-  error: { color: "#b91c1c", fontSize: "0.85rem", margin: 0 },
-  ok: { color: "#15803d", fontSize: "0.85rem", margin: 0 },
-  button: {
-    padding: "0.7rem",
-    borderRadius: "0.5rem",
-    border: "none",
-    background: "#0b5563",
-    color: "white",
-    fontWeight: 600,
-    fontSize: "1rem",
-    cursor: "pointer",
-  },
+const h3: React.CSSProperties = { margin: "0 0 16px", fontSize: "15px", fontWeight: 600 };
+const logoImg: React.CSSProperties = { height: "54px", width: "auto", flex: "0 0 auto" };
+const logoChip: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 11,
+  display: "grid",
+  placeItems: "center",
+  fontFamily: "var(--font-fraunces), serif",
+  fontWeight: 600,
+  fontSize: 11,
+  color: "#fff",
+  flex: "0 0 auto",
+  textTransform: "capitalize",
+  overflow: "hidden",
+};
+const replaceBox: React.CSSProperties = {
+  border: "1.5px dashed var(--line-strong)",
+  borderRadius: "11px",
+  padding: "11px 14px",
+  color: "var(--muted)",
+  fontSize: "12.5px",
+  cursor: "pointer",
+  flex: 1,
 };
