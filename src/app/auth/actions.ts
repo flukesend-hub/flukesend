@@ -36,7 +36,7 @@ export async function login(
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/send");
 }
 
 export async function signup(
@@ -67,7 +67,7 @@ export async function signup(
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/send");
 }
 
 export async function signout() {
