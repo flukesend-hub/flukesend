@@ -1,7 +1,6 @@
 /*
-  Operator settings. Edit branding and manage review links. Reached from the
-  dashboard. Reads go through the RLS client, so an operator only ever sees
-  their own branding and links.
+  Operator settings, dark workspace. Edit branding and manage review links.
+  Reads go through the RLS client, so an operator only sees their own data.
 */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -42,58 +41,28 @@ export default async function SettingsPage() {
     .order("sort_order", { ascending: true });
 
   return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        padding: "2rem",
-        maxWidth: "40rem",
-        margin: "0 auto",
-      }}
-    >
-      <header style={{ marginBottom: "1.5rem" }}>
-        <Link href="/dashboard" style={{ color: "#0b5563", fontSize: "0.85rem" }}>
-          Back to dashboard
-        </Link>
-        <h1 style={{ margin: "0.5rem 0 0", fontSize: "1.4rem" }}>
-          {operator?.name ?? "Operator"} settings
-        </h1>
-      </header>
+    <main style={{ maxWidth: "880px", margin: "0 auto", padding: "34px 22px 80px" }}>
+      <Link href="/dashboard" className="fl-link">
+        {"‹"} Back to dashboard
+      </Link>
+      <h1 className="fl-h1" style={{ marginTop: "10px" }}>
+        Settings
+      </h1>
+      <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
+        Edit your branding and manage the review links that become buttons in the
+        review email.
+      </p>
 
-      <Section title="Branding">
+      <div className="fl-cols" style={{ marginTop: "22px" }}>
         <BrandingForm
+          operatorName={operator?.name ?? "Operator"}
           logoUrl={branding?.logo_url ?? null}
           brandColor={branding?.brand_color ?? "#0b5563"}
           defaultMessage={branding?.default_message ?? ""}
           retentionDays={branding?.retention_days ?? 5}
         />
-      </Section>
-
-      <Section title="Review links">
         <ReviewLinks links={links ?? []} />
-      </Section>
+      </div>
     </main>
-  );
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      style={{
-        marginBottom: "1.5rem",
-        padding: "1.25rem",
-        borderRadius: "0.75rem",
-        border: "1px solid #e2e8f0",
-        background: "#f8fafc",
-      }}
-    >
-      <h2 style={{ margin: "0 0 1rem", fontSize: "1.1rem" }}>{title}</h2>
-      {children}
-    </section>
   );
 }

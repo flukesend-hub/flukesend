@@ -1,9 +1,8 @@
 "use client";
 
 /*
-  Login and account creation in one form. A mode toggle swaps which server
-  action the form posts to, so the markup and useActionState wiring stay shared.
-  Errors (and the "check your inbox" note) come back as action state.
+  Login and account creation in one card. A segmented toggle swaps which server
+  action the form posts to. Dark operator styling from the design handoff.
 */
 import { useActionState, useState } from "react";
 import { login, signup, type AuthState } from "@/app/auth/actions";
@@ -17,85 +16,95 @@ export function LoginForm() {
   );
 
   return (
-    <form action={formAction} style={styles.form}>
-      <label style={styles.label}>
-        Email
-        <input
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          style={styles.input}
-        />
-      </label>
+    <div
+      style={{
+        background:
+          "linear-gradient(180deg,var(--panel),var(--panel) 60%,var(--ink-2))",
+        border: "1px solid var(--line)",
+        borderRadius: "18px",
+        padding: "24px",
+      }}
+    >
+      <div style={tabsWrap}>
+        <button type="button" onClick={() => setMode("login")} style={tab(mode === "login")}>
+          Log in
+        </button>
+        <button type="button" onClick={() => setMode("signup")} style={tab(mode === "signup")}>
+          Create account
+        </button>
+      </div>
 
-      <label style={styles.label}>
-        Password
-        <input
-          name="password"
-          type="password"
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
-          required
-          minLength={mode === "signup" ? 8 : undefined}
-          style={styles.input}
-        />
-      </label>
+      <form action={formAction}>
+        <label style={{ display: "block", marginBottom: "14px" }}>
+          <span className="fl-label-text">Email</span>
+          <input
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            className="fl-input"
+          />
+        </label>
+        <label style={{ display: "block", marginBottom: "18px" }}>
+          <span className="fl-label-text">Password</span>
+          <input
+            name="password"
+            type="password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            required
+            minLength={mode === "signup" ? 8 : undefined}
+            className="fl-input"
+          />
+        </label>
 
-      {state?.error ? <p style={styles.error}>{state.error}</p> : null}
+        {state?.error ? (
+          <p style={{ color: "var(--bad)", fontSize: "13px", margin: "0 0 12px" }}>
+            {state.error}
+          </p>
+        ) : null}
 
-      <button type="submit" disabled={pending} style={styles.button}>
-        {pending
-          ? "Working..."
-          : mode === "login"
-            ? "Log in"
-            : "Create account"}
-      </button>
+        <button type="submit" disabled={pending} className="fl-btn" style={{ width: "100%", padding: "12px" }}>
+          {pending ? "Working..." : mode === "login" ? "Log in" : "Create account"}
+        </button>
+      </form>
 
-      <button
-        type="button"
-        onClick={() => setMode(mode === "login" ? "signup" : "login")}
-        style={styles.toggle}
+      <p
+        style={{
+          textAlign: "center",
+          color: "var(--muted-2)",
+          fontSize: "12px",
+          margin: "14px 0 0",
+        }}
       >
         {mode === "login"
-          ? "Need an account? Create one"
-          : "Already have an account? Log in"}
-      </button>
-    </form>
+          ? "New here? Switch to create account above."
+          : "Already have an account? Switch to log in above."}
+      </p>
+    </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  form: { display: "flex", flexDirection: "column", gap: "1rem" },
-  label: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.35rem",
-    fontSize: "0.85rem",
-    fontWeight: 600,
-    color: "#334155",
-  },
-  input: {
-    padding: "0.6rem 0.7rem",
-    borderRadius: "0.5rem",
-    border: "1px solid #cbd5e1",
-    fontSize: "1rem",
-  },
-  error: { color: "#b91c1c", fontSize: "0.85rem", margin: 0 },
-  button: {
-    padding: "0.7rem",
-    borderRadius: "0.5rem",
-    border: "none",
-    background: "#0b5563",
-    color: "white",
-    fontWeight: 600,
-    fontSize: "1rem",
-    cursor: "pointer",
-  },
-  toggle: {
-    background: "none",
-    border: "none",
-    color: "#0b5563",
-    fontSize: "0.85rem",
-    cursor: "pointer",
-  },
+const tabsWrap: React.CSSProperties = {
+  display: "flex",
+  padding: "4px",
+  gap: "4px",
+  background: "var(--ink)",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "11px",
+  marginBottom: "20px",
 };
+
+function tab(active: boolean): React.CSSProperties {
+  return {
+    flex: 1,
+    font: "inherit",
+    fontSize: "13.5px",
+    fontWeight: active ? 600 : 500,
+    color: active ? "var(--signal-ink)" : "var(--muted)",
+    background: active ? "var(--signal)" : "transparent",
+    border: 0,
+    borderRadius: "8px",
+    padding: "8px",
+    cursor: "pointer",
+  };
+}

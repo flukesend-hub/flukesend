@@ -7,24 +7,26 @@ export default function LoginPage() {
         minHeight: "100dvh",
         display: "grid",
         placeItems: "center",
-        padding: "1.5rem",
-        background: "#f1f5f9",
+        padding: "40px 22px",
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "22rem",
-          background: "white",
-          borderRadius: "0.9rem",
-          padding: "2rem",
-          boxShadow: "0 10px 30px rgba(15, 23, 42, 0.08)",
-        }}
-      >
-        <h1 style={{ margin: "0 0 0.25rem", fontSize: "1.4rem" }}>Flukesend</h1>
-        <p style={{ margin: "0 0 1.5rem", color: "#64748b", fontSize: "0.9rem" }}>
-          Sign in to send a gallery.
-        </p>
+      <div style={{ width: "100%", maxWidth: "380px" }}>
+        <div style={{ textAlign: "center", marginBottom: "22px" }}>
+          <div className="fl-display" style={{ fontSize: "34px" }}>
+            Flukesend
+          </div>
+          <p
+            style={{
+              color: "var(--muted)",
+              fontSize: "14.5px",
+              margin: "8px auto 0",
+              maxWidth: "30ch",
+            }}
+          >
+            The calm back room where your trip photos turn into galleries and
+            quiet review asks.
+          </p>
+        </div>
         <LoginForm />
       </div>
     </main>
