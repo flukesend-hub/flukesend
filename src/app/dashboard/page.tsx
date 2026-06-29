@@ -8,6 +8,7 @@
   to the onboarding screen. Once they have one, this shows the operator and its
   branding. The send flow gets added here next.
 */
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signout } from "@/app/auth/actions";
@@ -37,7 +38,7 @@ export default async function DashboardPage() {
 
   const { data: branding } = await supabase
     .from("branding")
-    .select("brand_color, default_message, retention_days, plan")
+    .select("logo_url, brand_color, default_message, retention_days, plan")
     .eq("operator_id", membership.operator_id)
     .maybeSingle();
 
@@ -59,20 +60,36 @@ export default async function DashboardPage() {
         }}
       >
         <h1 style={{ margin: 0, fontSize: "1.4rem" }}>Flukesend</h1>
-        <form action={signout}>
-          <button
-            type="submit"
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <Link
+            href="/settings"
             style={{
               padding: "0.4rem 0.8rem",
               borderRadius: "0.5rem",
               border: "1px solid #cbd5e1",
               background: "white",
-              cursor: "pointer",
+              color: "#0f172a",
+              textDecoration: "none",
+              fontSize: "0.9rem",
             }}
           >
-            Sign out
-          </button>
-        </form>
+            Settings
+          </Link>
+          <form action={signout}>
+            <button
+              type="submit"
+              style={{
+                padding: "0.4rem 0.8rem",
+                borderRadius: "0.5rem",
+                border: "1px solid #cbd5e1",
+                background: "white",
+                cursor: "pointer",
+              }}
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <p style={{ color: "#64748b" }}>
@@ -88,9 +105,26 @@ export default async function DashboardPage() {
           background: "#f8fafc",
         }}
       >
-        <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.1rem" }}>
-          {operator?.name ?? "Your operator"}
-        </h2>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            marginBottom: "0.75rem",
+          }}
+        >
+          {branding?.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={branding.logo_url}
+              alt={`${operator?.name ?? "Operator"} logo`}
+              style={{ height: "40px", width: "auto" }}
+            />
+          ) : null}
+          <h2 style={{ margin: 0, fontSize: "1.1rem" }}>
+            {operator?.name ?? "Your operator"}
+          </h2>
+        </div>
 
         {branding ? (
           <dl style={{ display: "grid", gap: "0.6rem", margin: 0 }}>
