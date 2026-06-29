@@ -61,7 +61,7 @@ export async function createOperator(
     .eq("user_id", user.id)
     .maybeSingle();
   if (existing) {
-    redirect("/dashboard");
+    redirect("/send");
   }
 
   // operator, then membership, then branding. These are three statements, not
