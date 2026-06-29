@@ -54,10 +54,11 @@ dark workspace above.
 
 ## Audiences and devices
 
-- Operators work from a phone as often as a laptop (they type up emails at home
-  after a trip). Design operator screens mobile first.
-- Guests almost always open on a phone. The gallery and emails must look right
-  on a small screen first.
+- Operators mainly work from a laptop (they type up the send at home after a
+  trip). Design the operator screens desktop first, but keep them usable on a
+  phone.
+- Guests almost always open on a phone. The gallery and the emails must look
+  right on a small screen first, so design those mobile first.
 
 ## Screens
 
@@ -135,6 +136,6 @@ dark workspace above.
 
 - The two world split (dark operator, light brand driven guest).
 - The email paste box with live valid and invalid chips.
-- Mobile first for both audiences.
+- Desktop first for the operator workspace, mobile first for the guest surfaces.
 - The brand color as a per operator variable on every guest surface.
 - No em dashes.
