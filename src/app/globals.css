@@ -46,10 +46,16 @@ html {
   min-height: 100%;
 }
 
+/*
+  Stopgap light theme for the operator screens. They are built as light cards,
+  so the page is light and text is dark until the design pass brings back the
+  mockup's dark "deep water" workspace. The :root palette above is kept for that
+  pass. No em dashes.
+*/
 body {
   min-height: 100vh;
-  background: var(--ink);
-  color: var(--text);
+  background: #f1f5f9;
+  color: #0f172a;
   font-family: var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
