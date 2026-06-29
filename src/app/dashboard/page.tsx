@@ -42,6 +42,14 @@ export default async function DashboardPage() {
     .eq("operator_id", membership.operator_id)
     .maybeSingle();
 
+  // Recent sends, with a guest count per delivery via the embedded count.
+  const { data: deliveries } = await supabase
+    .from("deliveries")
+    .select("id, created_at, trip_datetime, whale_count, recipients(count)")
+    .eq("operator_id", membership.operator_id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
   return (
     <main
       style={{
@@ -159,9 +167,60 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      <p style={{ marginTop: "1.5rem", color: "#94a3b8", fontSize: "0.85rem" }}>
-        The send flow (trip details, photos, guest emails) is the next step.
-      </p>
+      <section
+        style={{
+          marginTop: "1.5rem",
+          padding: "1.25rem",
+          borderRadius: "0.75rem",
+          border: "1px solid #e2e8f0",
+          background: "#f8fafc",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1rem",
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: "1.1rem" }}>Recent sends</h2>
+          <Link href="/send" style={styles.newSend}>
+            New send
+          </Link>
+        </div>
+
+        {deliveries?.length ? (
+          <ul style={styles.list}>
+            {deliveries.map((d) => {
+              const guests =
+                (d.recipients as unknown as { count: number }[] | null)?.[0]
+                  ?.count ?? 0;
+              const when = d.trip_datetime ?? d.created_at;
+              return (
+                <li key={d.id}>
+                  <Link href={`/deliveries/${d.id}`} style={styles.deliveryRow}>
+                    <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                      {new Date(when).toLocaleDateString("en-US", {
+                        dateStyle: "medium",
+                      })}
+                    </span>
+                    <span style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                      {d.whale_count != null ? `${d.whale_count} whales` : "trip"}
+                      {" · "}
+                      {guests} guest{guests === 1 ? "" : "s"}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p style={{ margin: 0, color: "#64748b", fontSize: "0.9rem" }}>
+            No sends yet. Create your first one.
+          </p>
+        )}
+      </section>
     </main>
   );
 }
@@ -180,3 +239,35 @@ function Row({
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  newSend: {
+    padding: "0.5rem 0.9rem",
+    borderRadius: "0.5rem",
+    background: "#0b5563",
+    color: "white",
+    textDecoration: "none",
+    fontWeight: 600,
+    fontSize: "0.9rem",
+  },
+  list: {
+    listStyle: "none",
+    margin: 0,
+    padding: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.4rem",
+  },
+  deliveryRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "1rem",
+    padding: "0.6rem 0.75rem",
+    borderRadius: "0.5rem",
+    border: "1px solid #e2e8f0",
+    background: "white",
+    textDecoration: "none",
+    color: "#0f172a",
+  },
+};
