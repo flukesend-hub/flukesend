@@ -2,11 +2,11 @@
   Protected operator home. The proxy already bounces signed out visitors, but we
   re-check the user here because auth checks belong close to the data, not only
   in the proxy. We then look up which operator this user belongs to. RLS limits
-  that read to the user's own membership row.
+  every read to the user's own operator.
 
-  If there is no membership yet the operator has signed up but not set up their
-  account. The real operator setup screen is the next step; for now this shows a
-  placeholder so the auth slice is testable on its own.
+  A signed in user with no operator yet has not finished setup, so we send them
+  to the onboarding screen. Once they have one, this shows the operator and its
+  branding. The send flow gets added here next.
 */
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -26,8 +26,20 @@ export default async function DashboardPage() {
     .select("operator_id, role, operators(name)")
     .eq("user_id", user.id)
     .maybeSingle();
+  if (!membership) {
+    redirect("/onboarding");
+  }
 
-  const operator = membership?.operators as { name: string } | null | undefined;
+  // operator_members.operator_id is a to-one FK, so Supabase returns a single
+  // operators object at runtime. Without generated types the inferred type is an
+  // array, so cast through unknown.
+  const operator = membership.operators as unknown as { name: string } | null;
+
+  const { data: branding } = await supabase
+    .from("branding")
+    .select("brand_color, default_message, retention_days, plan")
+    .eq("operator_id", membership.operator_id)
+    .maybeSingle();
 
   return (
     <main
@@ -67,29 +79,70 @@ export default async function DashboardPage() {
         Signed in as <strong>{user.email}</strong>
       </p>
 
-      {operator ? (
-        <p>
-          Operator: <strong>{operator.name}</strong>
-        </p>
-      ) : (
-        <div
-          style={{
-            marginTop: "1.5rem",
-            padding: "1.25rem",
-            borderRadius: "0.75rem",
-            border: "1px dashed #cbd5e1",
-            background: "#f8fafc",
-          }}
-        >
-          <p style={{ margin: "0 0 0.25rem", fontWeight: 600 }}>
-            No operator set up yet.
+      <section
+        style={{
+          marginTop: "1rem",
+          padding: "1.25rem",
+          borderRadius: "0.75rem",
+          border: "1px solid #e2e8f0",
+          background: "#f8fafc",
+        }}
+      >
+        <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.1rem" }}>
+          {operator?.name ?? "Your operator"}
+        </h2>
+
+        {branding ? (
+          <dl style={{ display: "grid", gap: "0.6rem", margin: 0 }}>
+            <Row label="Brand color">
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                <span
+                  style={{
+                    width: "1rem",
+                    height: "1rem",
+                    borderRadius: "0.25rem",
+                    background: branding.brand_color,
+                    border: "1px solid #cbd5e1",
+                  }}
+                />
+                {branding.brand_color}
+              </span>
+            </Row>
+            <Row label="Retention">{branding.retention_days} days</Row>
+            <Row label="Plan">{branding.plan}</Row>
+            <Row label="Default message">
+              {branding.default_message ? (
+                branding.default_message
+              ) : (
+                <em style={{ color: "#94a3b8" }}>none set</em>
+              )}
+            </Row>
+          </dl>
+        ) : (
+          <p style={{ margin: 0, color: "#64748b" }}>
+            Branding not set yet.
           </p>
-          <p style={{ margin: 0, color: "#64748b", fontSize: "0.9rem" }}>
-            The operator setup screen is the next step. Once it exists, this is
-            where you will name your operation and set your branding.
-          </p>
-        </div>
-      )}
+        )}
+      </section>
+
+      <p style={{ marginTop: "1.5rem", color: "#94a3b8", fontSize: "0.85rem" }}>
+        The send flow (trip details, photos, guest emails) is the next step.
+      </p>
     </main>
+  );
+}
+
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "8rem 1fr", gap: "0.5rem" }}>
+      <dt style={{ color: "#64748b", fontSize: "0.85rem" }}>{label}</dt>
+      <dd style={{ margin: 0, fontSize: "0.9rem" }}>{children}</dd>
+    </div>
   );
 }
