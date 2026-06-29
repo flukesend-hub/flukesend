@@ -70,6 +70,7 @@ export function SendForm({
   const [uploaded, setUploaded] = useState(0);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [upgrade, setUpgrade] = useState(false);
 
   const parsed = useMemo(() => parseEmails(emailsRaw), [emailsRaw]);
   const busy = status !== "idle";
@@ -120,6 +121,7 @@ export function SendForm({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setUpgrade(false);
 
     const fd = new FormData(e.currentTarget);
     const tripDatetime = String(fd.get("trip_datetime") ?? "") || null;
@@ -190,6 +192,7 @@ export function SendForm({
       });
       if ("error" in res) {
         setError(res.error);
+        setUpgrade(res.upgrade ?? false);
         setStatus("idle");
         return;
       }
@@ -436,7 +439,17 @@ export function SendForm({
           </div>
 
           {error ? (
-            <p style={{ color: "var(--bad)", fontSize: "13px", margin: "12px 0 0" }}>{error}</p>
+            <p style={{ color: "var(--bad)", fontSize: "13px", margin: "12px 0 0" }}>
+              {error}
+              {upgrade ? (
+                <>
+                  {" "}
+                  <a href="/pricing" style={{ color: "var(--signal)", fontWeight: 600 }}>
+                    See plans
+                  </a>
+                </>
+              ) : null}
+            </p>
           ) : null}
 
           <div style={{ marginTop: "16px", display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
