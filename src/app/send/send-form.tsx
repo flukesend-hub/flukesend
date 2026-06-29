@@ -248,7 +248,7 @@ export function SendForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="fl-side" style={{ gridTemplateColumns: "360px 1fr", marginTop: "22px" }}>
+    <form onSubmit={handleSubmit} className="fl-side" style={{ gridTemplateColumns: "360px minmax(0, 480px)", marginTop: "22px" }}>
       {/* Trip details */}
       <div className="fl-card">
         <h3 style={h3}>Trip details</h3>
