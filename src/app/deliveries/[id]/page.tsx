@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { OperatorNav } from "@/app/_ui/operator-nav";
 
 function fmtDateTime(value: string | null) {
   if (!value) return "Not set";
@@ -33,13 +34,19 @@ export default async function DeliveryPage({
   const { data: delivery } = await supabase
     .from("deliveries")
     .select(
-      "id, trip_datetime, whale_count, species, captain_name, crew_names, expires_at",
+      "id, operator_id, trip_datetime, whale_count, species, captain_name, crew_names, expires_at",
     )
     .eq("id", id)
     .maybeSingle();
   if (!delivery) {
     notFound();
   }
+
+  const { data: branding } = await supabase
+    .from("branding")
+    .select("plan")
+    .eq("operator_id", delivery.operator_id)
+    .maybeSingle();
 
   const { count: photoCount } = await supabase
     .from("photos")
@@ -57,13 +64,10 @@ export default async function DeliveryPage({
   const emailedN = emailed !== undefined ? Number(emailed) : null;
 
   return (
-    <main style={{ maxWidth: "760px", margin: "0 auto", padding: "34px 22px 80px" }}>
-      <Link href="/dashboard" className="fl-link">
-        {"‹"} Back to dashboard
-      </Link>
-      <h1 className="fl-h1" style={{ marginTop: "10px" }}>
-        Send created
-      </h1>
+    <>
+      <OperatorNav email={user.email ?? ""} plan={branding?.plan ?? "base"} />
+      <main style={{ maxWidth: "820px", margin: "0 auto", padding: "16px 22px 80px" }}>
+        <h1 className="fl-h1">Send created</h1>
       <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
         {guests} guests and {photoCount ?? 0} photos.
       </p>
@@ -115,7 +119,8 @@ export default async function DeliveryPage({
           Create another send
         </Link>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
 
