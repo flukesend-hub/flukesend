@@ -58,11 +58,18 @@ export default async function SettingsPage() {
     <>
       <OperatorNav operatorName={operator?.name ?? "Operator"} />
       <main style={{ padding: "16px 28px 80px" }}>
-        <h1 className="fl-h1">Settings</h1>
-        <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
-          Edit your branding and manage the review links that become buttons in
-          the review email.
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
+          <div>
+            <h1 className="fl-h1">Settings</h1>
+            <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
+              Edit your branding and manage the review links that become buttons
+              in the review email.
+            </p>
+          </div>
+          <a href="/billing" className="fl-btn-ghost" style={{ flex: "0 0 auto", marginTop: "8px" }}>
+            Billing
+          </a>
+        </div>
 
         <div className="fl-cols" style={{ marginTop: "22px" }}>
           <BrandingForm

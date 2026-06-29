@@ -444,7 +444,7 @@ export function SendForm({
               {upgrade ? (
                 <>
                   {" "}
-                  <a href="/pricing" style={{ color: "var(--signal)", fontWeight: 600 }}>
+                  <a href="/billing" style={{ color: "var(--signal)", fontWeight: 600 }}>
                     See plans
                   </a>
                 </>
