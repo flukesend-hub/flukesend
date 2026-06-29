@@ -1,60 +1,12 @@
 /*
-  Public pricing page. Free trial, then per operator pricing by number of boats.
-  Display only: billing and trial enforcement are a separate build.
+  Public pricing page. Free trial, then per operator pricing by number of boats,
+  with a monthly / yearly toggle. Display only: billing and trial enforcement
+  live in the app, this page just shows the plans.
 */
-import Link from "next/link";
 import { Faq, type QA } from "@/app/_ui/faq";
+import { PricingTable } from "./pricing-table";
 
 export const metadata = { title: "Pricing - Flukesend" };
-
-type Tier = {
-  name: string;
-  price: string;
-  unit: string;
-  blurb: string;
-  features: string[];
-  popular?: boolean;
-};
-
-const TIERS: Tier[] = [
-  {
-    name: "Single boat",
-    price: "$150",
-    unit: "per operator / month",
-    blurb: "One boat, the full review engine.",
-    features: [
-      "1 boat",
-      "Branded photo galleries",
-      "Automatic review asks",
-      "Unlimited sends",
-      "Crew and boat roster",
-      "Export your guest emails",
-    ],
-  },
-  {
-    name: "Two boats",
-    price: "$250",
-    unit: "per operator / month",
-    blurb: "Run a second boat without a second account.",
-    popular: true,
-    features: [
-      "Up to 2 boats",
-      "Everything in Single boat",
-      "Per boat selection on every send",
-    ],
-  },
-  {
-    name: "Fleet",
-    price: "$300",
-    unit: "per operator / month",
-    blurb: "Unlimited boats for a busy operation.",
-    features: [
-      "Unlimited boats",
-      "Everything in Two boats",
-      "Priority support",
-    ],
-  },
-];
 
 const FAQ: QA[] = [
   {
@@ -78,6 +30,10 @@ const FAQ: QA[] = [
     a: "Automatically, a few hours after a guest downloads their photos. The download is the trigger, so the ask always lands warm.",
   },
   {
+    q: "Can I pay yearly?",
+    a: "Yes. Yearly billing is two months free, so you pay for ten months and get twelve.",
+  },
+  {
     q: "Can I use my own branding?",
     a: "Yes. Your logo, brand color, and message flow into every gallery and every email your guests receive.",
   },
@@ -98,32 +54,8 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "20px 24px 40px" }}>
-        <div style={grid}>
-          {TIERS.map((t) => (
-            <div key={t.name} style={{ ...tierCard, ...(t.popular ? popularCard : {}) }}>
-              {t.popular ? <div style={popularTag}>Most popular</div> : null}
-              <div style={{ padding: "26px 24px" }}>
-                <h3 style={tierName}>{t.name}</h3>
-                <p style={tierBlurb}>{t.blurb}</p>
-                <div style={priceRow}>
-                  <span style={price}>{t.price}</span>
-                </div>
-                <div style={unit}>{t.unit}</div>
-                <Link href="/login" style={t.popular ? tierCtaPrimary : tierCta}>
-                  Start free
-                </Link>
-                <ul style={featureList}>
-                  {t.features.map((f) => (
-                    <li key={f} style={featureItem}>
-                      <span style={tick}>✓</span> {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
-        </div>
+      <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "0 24px 40px", textAlign: "center" }}>
+        <PricingTable />
       </section>
 
       <section style={{ maxWidth: "780px", margin: "0 auto", padding: "30px 24px 70px" }}>
@@ -161,55 +93,3 @@ const trial: React.CSSProperties = {
   fontSize: "14px",
   color: "#7a5a17",
 };
-const grid: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-  gap: "18px",
-  alignItems: "start",
-};
-const tierCard: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #ece7dd",
-  borderRadius: "18px",
-  overflow: "hidden",
-};
-const popularCard: React.CSSProperties = { border: "2px solid #0c1a21" };
-const popularTag: React.CSSProperties = {
-  background: "#0c1a21",
-  color: "#e7b14c",
-  textAlign: "center",
-  fontSize: "12px",
-  fontWeight: 600,
-  letterSpacing: "0.04em",
-  padding: "7px",
-};
-const tierName: React.CSSProperties = { margin: 0, fontSize: "19px", fontWeight: 700, color: "#10221f" };
-const tierBlurb: React.CSSProperties = { margin: "6px 0 16px", fontSize: "14px", color: "#5f6b68", minHeight: "40px" };
-const priceRow: React.CSSProperties = { display: "flex", alignItems: "baseline", gap: "6px" };
-const price: React.CSSProperties = {
-  fontFamily: "var(--font-fraunces), serif",
-  fontWeight: 600,
-  fontSize: "38px",
-  color: "#10221f",
-};
-const unit: React.CSSProperties = { fontSize: "13px", color: "#8a938f", margin: "2px 0 18px" };
-const tierCta: React.CSSProperties = {
-  display: "block",
-  textAlign: "center",
-  fontSize: "14.5px",
-  fontWeight: 600,
-  color: "#10221f",
-  background: "transparent",
-  border: "1px solid #cfcabd",
-  padding: "11px",
-  borderRadius: "11px",
-};
-const tierCtaPrimary: React.CSSProperties = {
-  ...tierCta,
-  color: "#fff",
-  background: "#0c1a21",
-  border: "1px solid #0c1a21",
-};
-const featureList: React.CSSProperties = { listStyle: "none", margin: "20px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "10px" };
-const featureItem: React.CSSProperties = { display: "flex", gap: "9px", fontSize: "14px", color: "#3a4744" };
-const tick: React.CSSProperties = { color: "#2f8f63", fontWeight: 700, flex: "0 0 auto" };

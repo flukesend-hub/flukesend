@@ -14,9 +14,6 @@ export function MarketingNav() {
         <Link href="/pricing" style={link}>
           Pricing
         </Link>
-        <Link href="/operators" style={link}>
-          Operators
-        </Link>
         <Link href="/login" style={link}>
           Log in
         </Link>
