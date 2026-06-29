@@ -1,0 +1,524 @@
+<!--
+  Afterglow (placeholder name, rename freely)
+  Clickable mockup for the standalone photo-delivery + review-engine product.
+  Separate product from Trip Logger. No backend here. All data is fake.
+  Concept: the operator works in the deep (dark workspace chrome), the guest
+  surfaces into the light (warm branded gallery + email driven by the operator's
+  chosen brand color). No em dashes anywhere, per Slater's rule.
+-->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    /* operator workspace: deep water */
+    --ink:#0c1a21;
+    --panel:#11242d;
+    --panel-2:#16313b;
+    --line:rgba(255,255,255,.08);
+    --line-strong:rgba(255,255,255,.16);
+    --text:#e8f0f1;
+    --muted:#8ba4ac;
+    --muted-2:#5f7882;
+    /* surface light: golden hour action color */
+    --signal:#e7b14c;
+    --signal-ink:#3a2c0a;
+    --good:#4fb286;
+    --bad:#e87b6b;
+    /* guest brand color (operator picks this, drives guest surfaces) */
+    --brand:#0b5563;
+    --brand-soft:#0b556312;
+    --paper:#faf8f4;
+    --paper-ink:#1c2b2e;
+    radius:14px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+  }
+
+  /* ---------- prototype chrome ---------- */
+  .proto-bar{
+    position:sticky;top:0;z-index:50;
+    display:flex;align-items:center;gap:14px;
+    padding:10px 18px;
+    background:rgba(8,18,23,.86);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .proto-tag{
+    font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted-2);border:1px solid var(--line-strong);
+    padding:4px 8px;border-radius:999px;white-space:nowrap;
+  }
+  .proto-nav{display:flex;gap:4px;flex-wrap:wrap}
+  .proto-nav button{
+    font:inherit;font-size:13px;font-weight:500;
+    color:var(--muted);background:transparent;border:0;cursor:pointer;
+    padding:7px 12px;border-radius:9px;
+  }
+  .proto-nav button:hover{color:var(--text);background:var(--panel)}
+  .proto-nav button.on{color:var(--ink);background:var(--signal);font-weight:600}
+  .proto-hint{margin-left:auto;font-size:12px;color:var(--muted-2)}
+
+  .stage{max-width:1080px;margin:0 auto;padding:30px 22px 90px}
+  .screen{display:none}
+  .screen.on{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ---------- shared operator UI ---------- */
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--signal);font-weight:600}
+  h1.title{font-family:'Fraunces',serif;font-weight:600;font-size:30px;letter-spacing:-.01em;margin:8px 0 4px}
+  .sub{color:var(--muted);font-size:14px;max-width:62ch}
+
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel) 60%,#0f2027);
+    border:1px solid var(--line);border-radius:16px;padding:22px;
+  }
+  .card + .card{margin-top:16px}
+  .card h3{margin:0 0 2px;font-size:15px;font-weight:600}
+  .card .note{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid-side{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+  @media(max-width:840px){.grid-2,.grid-side{grid-template-columns:1fr}}
+
+  label.fld{display:block;margin-bottom:14px}
+  label.fld .lab{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500}
+  input[type=text],input[type=number],input[type=datetime-local],textarea,select{
+    width:100%;font:inherit;font-size:14px;color:var(--text);
+    background:var(--ink);border:1px solid var(--line-strong);border-radius:10px;
+    padding:10px 12px;outline:none;
+  }
+  input:focus,textarea:focus,select:focus{border-color:var(--signal);box-shadow:0 0 0 3px rgba(231,177,76,.14)}
+  textarea{resize:vertical;min-height:74px}
+
+  .btn{
+    font:inherit;font-size:14px;font-weight:600;cursor:pointer;
+    background:var(--signal);color:var(--signal-ink);border:0;border-radius:11px;
+    padding:11px 18px;
+  }
+  .btn:hover{filter:brightness(1.05)}
+  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line-strong)}
+  .btn.ghost:hover{border-color:var(--signal);color:var(--signal)}
+  .btn.sm{padding:7px 12px;font-size:13px}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* color picker row */
+  .swatches{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .swatch{width:30px;height:30px;border-radius:8px;border:2px solid transparent;cursor:pointer}
+  .swatch.on{border-color:var(--text)}
+  input[type=color]{width:38px;height:34px;padding:0;border:1px solid var(--line-strong);border-radius:8px;background:var(--ink);cursor:pointer}
+
+  /* review destinations */
+  .dest-row{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;margin-bottom:8px}
+  .dest-row input{font-size:13px;padding:8px 10px}
+  .x{background:transparent;border:1px solid var(--line-strong);color:var(--muted);border-radius:9px;cursor:pointer;width:38px;font-size:16px}
+  .x:hover{color:var(--bad);border-color:var(--bad)}
+
+  /* retention */
+  .ret-wrap{display:flex;align-items:center;gap:14px}
+  input[type=range]{flex:1;accent-color:var(--signal)}
+  .ret-val{font-family:'Fraunces',serif;font-size:22px;min-width:96px}
+  .upsell{
+    margin-top:14px;display:flex;align-items:center;gap:12px;
+    border:1px dashed var(--line-strong);border-radius:12px;padding:12px 14px;
+    background:repeating-linear-gradient(135deg,transparent,transparent 10px,rgba(255,255,255,.015) 10px,rgba(255,255,255,.015) 20px);
+  }
+  .lock{font-size:13px;color:var(--muted)}
+  .pill{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--signal);border:1px solid var(--signal);border-radius:999px;padding:3px 8px;margin-left:auto}
+
+  /* species chips */
+  .chipset{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{
+    font-size:12.5px;border:1px solid var(--line-strong);color:var(--muted);
+    background:var(--ink);border-radius:999px;padding:6px 11px;cursor:pointer;user-select:none;
+  }
+  .chip.on{background:var(--signal);color:var(--signal-ink);border-color:var(--signal);font-weight:600}
+
+  /* dropzone */
+  .drop{
+    border:1.5px dashed var(--line-strong);border-radius:14px;padding:20px;text-align:center;
+    color:var(--muted);background:var(--brand-soft);
+  }
+  .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+  .thumb{aspect-ratio:4/3;border-radius:9px;background-size:cover;background-position:center;position:relative}
+  .thumb .cnt{position:absolute;inset:0;display:grid;place-items:center;font-weight:700;font-size:18px;background:rgba(8,18,23,.55);border-radius:9px}
+
+  /* email paste box */
+  .emailbox{min-height:96px;border:1px solid var(--line-strong);border-radius:12px;background:var(--ink);padding:10px}
+  .emailbox textarea{border:0;background:transparent;min-height:46px;padding:4px}
+  .emailbox textarea:focus{box-shadow:none}
+  .recip-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+  .rchip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 10px}
+  .rchip.bad{border-color:var(--bad);color:var(--bad)}
+  .rchip button{background:transparent;border:0;color:inherit;cursor:pointer;font-size:14px;line-height:1;opacity:.6}
+  .rchip button:hover{opacity:1}
+  .countline{display:flex;gap:14px;align-items:center;margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .countline b{color:var(--text)}
+  .countline .baddot{color:var(--bad)}
+
+  .send-success{display:none;text-align:center;padding:30px 10px}
+  .send-success.on{display:block;animation:fade .3s}
+  .send-success .big{font-family:'Fraunces',serif;font-size:26px;margin:10px 0 4px}
+  .checkmark{width:54px;height:54px;border-radius:50%;background:var(--good);display:inline-grid;place-items:center;color:#06231a;font-size:28px;font-weight:700}
+
+  /* ---------- guest surfaces (light) ---------- */
+  .guest-frame{max-width:760px;margin:0 auto;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:var(--paper);color:var(--paper-ink);font-family:'Inter',sans-serif}
+  .guest-hero{background:var(--brand);color:#fff;padding:30px 30px 26px}
+  .guest-logo{font-family:'Fraunces',serif;font-weight:600;font-size:18px;letter-spacing:.02em;opacity:.95}
+  .guest-context{font-family:'Fraunces',serif;font-weight:500;font-size:25px;line-height:1.2;margin:18px 0 6px;max-width:22ch}
+  .guest-meta{font-size:13px;opacity:.85}
+  .guest-body{padding:24px 30px 30px}
+  .gphotos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .gphoto{aspect-ratio:1;border-radius:8px;background-size:cover;background-position:center}
+  .gdownload{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;flex-wrap:wrap}
+  .gbtn{font:inherit;font-weight:600;font-size:15px;cursor:pointer;background:var(--brand);color:#fff;border:0;border-radius:12px;padding:13px 22px}
+  .gbtn:hover{filter:brightness(1.06)}
+  .gnote{font-size:12.5px;color:#6b7a7d}
+  .after{display:none;margin-top:18px;border-top:1px solid #e7e0d4;padding-top:18px}
+  .after.on{display:block;animation:fade .3s}
+  .after .row{display:flex;align-items:center;gap:10px;font-size:13.5px;color:#46555a}
+  .clock{width:30px;height:30px;border-radius:50%;border:2px solid var(--brand);display:grid;place-items:center;color:var(--brand);font-size:14px}
+
+  /* review email preview */
+  .mail{max-width:600px;margin:0 auto;background:var(--paper);color:var(--paper-ink);border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+  .mail-band{height:7px;background:var(--brand)}
+  .mail-in{padding:30px 32px 34px}
+  .mail-logo{font-family:'Fraunces',serif;font-weight:600;font-size:17px;color:var(--brand)}
+  .mail-h{font-family:'Fraunces',serif;font-size:22px;margin:18px 0 10px;line-height:1.25}
+  .mail-p{font-size:14px;color:#46555a;margin:0 0 14px}
+  .mail-cta{display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:var(--brand);color:#fff;padding:13px;border-radius:11px;margin-bottom:9px}
+  .mail-cta.alt{background:transparent;color:var(--brand);border:1px solid var(--brand)}
+  .mail-tip{margin-top:16px;border:1px dashed #cdbf9f;border-radius:12px;padding:14px;text-align:center;background:#fcf6e9}
+  .mail-tip .tt{font-family:'Fraunces',serif;font-size:15px;color:#7a5a17}
+  .mail-tip .ts{font-size:12px;color:#9a8147;margin-top:2px}
+  .mail-foot{font-size:11px;color:#9aa6a8;margin-top:20px;text-align:center}
+
+  .meta-strip{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}
+  .meta-strip span b{color:var(--text)}
+  .legend{font-size:12px;color:var(--muted-2);margin-top:26px;border-top:1px solid var(--line);padding-top:14px;max-width:70ch}
+</style>
+
+<div class="proto-bar">
+  <span class="proto-tag">Mockup</span>
+  <nav class="proto-nav" id="nav">
+    <button data-s="setup" class="on">1 &middot; Operator setup</button>
+    <button data-s="send">2 &middot; New send</button>
+    <button data-s="gallery">3 &middot; Guest gallery</button>
+    <button data-s="mail">4 &middot; Review email</button>
+  </nav>
+  <span class="proto-hint">Brand color set in screen 1 flows into 3 and 4</span>
+</div>
+
+<div class="stage">
+
+  <!-- ============ SCREEN 1: OPERATOR SETUP ============ -->
+  <section class="screen on" id="screen-setup">
+    <div class="eyebrow">One time setup</div>
+    <h1 class="title">Enocean Tours workspace</h1>
+    <p class="sub">Set this once. Every send you create reuses it, so the nightly review asks always look like you and point to the right places.</p>
+
+    <div class="grid-2" style="margin-top:22px">
+      <div class="card">
+        <h3>Brand</h3>
+        <p class="note">This drives what every guest sees, the gallery header and the review email.</p>
+        <label class="fld">
+          <span class="lab">Logo</span>
+          <div class="drop" style="padding:16px;cursor:pointer">Drop a logo, or browse. Showing your wordmark for now.</div>
+        </label>
+        <label class="fld">
+          <span class="lab">Brand color</span>
+          <div class="swatches">
+            <span class="swatch on" style="background:#0b5563" data-c="#0b5563"></span>
+            <span class="swatch" style="background:#13405c" data-c="#13405c"></span>
+            <span class="swatch" style="background:#1f5d4c" data-c="#1f5d4c"></span>
+            <span class="swatch" style="background:#7a3b2e" data-c="#7a3b2e"></span>
+            <span class="swatch" style="background:#3a3357" data-c="#3a3357"></span>
+            <input type="color" id="brandPick" value="#0b5563" aria-label="custom brand color">
+          </div>
+        </label>
+        <label class="fld" style="margin-bottom:0">
+          <span class="lab">Default message to guests</span>
+          <textarea id="defMsg">Thanks for spending the morning on the water with us. Your photos from the trip are ready below.</textarea>
+        </label>
+      </div>
+
+      <div class="card">
+        <h3>Where guests can leave a review</h3>
+        <p class="note">Add one or several. These become the buttons in the review email. Drag order is the order shown.</p>
+        <div id="dests">
+          <div class="dest-row">
+            <input type="text" value="Google" placeholder="Label">
+            <input type="text" value="g.page/enocean-review" placeholder="Link">
+            <button class="x" title="Remove">&times;</button>
+          </div>
+          <div class="dest-row">
+            <input type="text" value="TripAdvisor" placeholder="Label">
+            <input type="text" value="tripadvisor.com/enocean" placeholder="Link">
+            <button class="x" title="Remove">&times;</button>
+          </div>
+        </div>
+        <button class="btn ghost sm" id="addDest">Add another</button>
+
+        <div style="margin-top:22px">
+          <h3>Photo retention</h3>
+          <p class="note">How long galleries stay live before photos are deleted. Longer means more storage on us.</p>
+          <div class="ret-wrap">
+            <input type="range" id="retRange" min="3" max="10" value="5">
+            <span class="ret-val"><span id="retNum">5</span> days</span>
+          </div>
+          <div class="upsell">
+            <span class="lock">&#128274; Extended retention, up to 90 days</span>
+            <span class="pill">Paid add on</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="legend">Base plan covers 3 to 10 days. Anything past 10 raises the storage we hold for you, so it lives on the paid tier. Each send stamps its own expiry from this setting, and the cleanup job removes photos when that date hits.</p>
+  </section>
+
+  <!-- ============ SCREEN 2: NEW SEND ============ -->
+  <section class="screen" id="screen-send">
+    <div class="eyebrow">New send</div>
+    <h1 class="title">Tonight's trip</h1>
+    <p class="sub">Fill the trip, drop the photos, paste the guest emails. Each guest gets their own gallery link and their own review ask later tonight.</p>
+
+    <div id="sendForm" class="grid-side" style="margin-top:22px">
+      <div class="card">
+        <h3>Trip details</h3>
+        <p class="note">These show up on the gallery and warm up the review email.</p>
+        <label class="fld"><span class="lab">Trip date and time</span><input type="datetime-local" value="2026-06-28T09:00"></label>
+        <div class="grid-2" style="gap:10px">
+          <label class="fld"><span class="lab">Whales sighted</span><input type="number" value="7" min="0"></label>
+          <label class="fld"><span class="lab">Captain</span><input type="text" value="Margo"></label>
+        </div>
+        <label class="fld"><span class="lab">Crew</span><input type="text" value="Slater, Dana"></label>
+        <label class="fld" style="margin-bottom:8px"><span class="lab">Species seen</span></label>
+        <div class="chipset" id="species">
+          <span class="chip on">Humpback</span>
+          <span class="chip on">Orca</span>
+          <span class="chip">Gray whale</span>
+          <span class="chip">Blue whale</span>
+          <span class="chip">Risso's dolphin</span>
+          <span class="chip">Sea otter</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>Photos</h3>
+          <p class="note">Drag the edited set in. Sample shown.</p>
+          <div class="drop">Drop photos here, or browse</div>
+          <div class="thumbs">
+            <div class="thumb" style="background-image:url('https://images.unsplash.com/photo-1568430462989-44163eb1752f?w=400')"></div>
+            <div class="thumb" style="background-image:url('https://images.unsplash.com/photo-1602491453631-e2a5ad90a131?w=400')"></div>
+            <div class="thumb" style="background-image:url('https://images.unsplash.com/photo-1530747337015-8bb51b1f9a0a?w=400')"></div>
+            <div class="thumb" style="background-image:url('https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400')"><div class="cnt">+38</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Guest emails</h3>
+          <p class="note">Paste straight from the naturalist's notes. Line breaks, spaces, semicolons, it all works. No commas needed.</p>
+          <div class="emailbox">
+            <div class="recip-chips" id="rchips"></div>
+            <textarea id="emailInput" placeholder="paste emails here, any format"></textarea>
+          </div>
+          <div class="countline">
+            <span><b id="validCount">0</b> guests ready</span>
+            <span class="baddot" id="badWrap" style="display:none"><b id="badCount">0</b> need a look</span>
+            <span style="margin-left:auto;color:var(--muted-2)">duplicates dropped automatically</span>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+            <button class="btn" id="sendBtn" disabled>Send to <span id="sendN">0</span> guests</button>
+            <span style="font-size:12px;color:var(--muted-2)">review asks schedule for this evening</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="send-success card" id="sendSuccess">
+      <div class="checkmark">&#10003;</div>
+      <div class="big"><span id="successN">5</span> galleries on their way</div>
+      <p class="sub" style="margin:0 auto">Each guest gets their own link now, and their own review ask is scheduled for tonight. The family of five just became five chances at a review, not one.</p>
+      <div style="margin-top:18px"><button class="btn ghost" id="resetSend">Create another send</button></div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 3: GUEST GALLERY ============ -->
+  <section class="screen" id="screen-gallery">
+    <div class="eyebrow" style="text-align:center;display:block">What the guest opens</div>
+    <div class="guest-frame" style="margin-top:16px">
+      <div class="guest-hero">
+        <div class="guest-logo">Enocean Tours</div>
+        <div class="guest-context">Your 9:00 AM trip with Captain Margo</div>
+        <div class="guest-meta">7 whales sighted &middot; Humpback and Orca &middot; Moss Landing</div>
+      </div>
+      <div class="guest-body">
+        <div class="gphotos">
+          <div class="gphoto" style="background-image:url('https://images.unsplash.com/photo-1568430462989-44163eb1752f?w=400')"></div>
+          <div class="gphoto" style="background-image:url('https://images.unsplash.com/photo-1602491453631-e2a5ad90a131?w=400')"></div>
+          <div class="gphoto" style="background-image:url('https://images.unsplash.com/photo-1530747337015-8bb51b1f9a0a?w=400')"></div>
+          <div class="gphoto" style="background-image:url('https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400')"></div>
+          <div class="gphoto" style="background-image:url('https://images.unsplash.com/photo-1518467166778-b88f373ffec7?w=400')"></div>
+          <div class="gphoto" style="background-image:url('https://images.unsplash.com/photo-1505765050516-f72dcac9c60e?w=400')"></div>
+        </div>
+        <div class="gdownload">
+          <span class="gnote">41 photos &middot; gallery live for 5 days</span>
+          <button class="gbtn" id="dlBtn">Download all photos</button>
+        </div>
+        <div class="after" id="afterDl">
+          <div class="row"><span class="clock">&#9203;</span> <span>Saved. We will send you a quick note this evening in case you want to share how the trip went.</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="legend" style="text-align:center;margin-left:auto;margin-right:auto">The download writes one event for this guest. That single event is the entire trigger. No Gmail account, no script, no label.</p>
+  </section>
+
+  <!-- ============ SCREEN 4: REVIEW EMAIL ============ -->
+  <section class="screen" id="screen-mail">
+    <div class="eyebrow" style="text-align:center;display:block">Sent automatically, hours after download</div>
+    <div class="mail" style="margin-top:16px">
+      <div class="mail-band"></div>
+      <div class="mail-in">
+        <div class="mail-logo">Enocean Tours</div>
+        <div class="mail-h">Hope the humpbacks made your day</div>
+        <p class="mail-p">It was a good one out there, 7 whales on your 9:00 AM trip with Captain Margo. If you have a minute, a short review helps a small crew like ours more than you would guess.</p>
+        <a class="mail-cta" href="#">Leave a Google review</a>
+        <a class="mail-cta alt" href="#">Review us on TripAdvisor</a>
+        <div class="mail-tip">
+          <div class="tt">Tip the crew</div>
+          <div class="ts">Optional, goes straight to the deckhands. Never tied to leaving a review.</div>
+        </div>
+        <div class="mail-foot">You got this because you downloaded photos from your trip. One note only, we will not chase you.</div>
+      </div>
+    </div>
+    <p class="legend" style="text-align:center;margin-left:auto;margin-right:auto">Same brand color, same trip details, written warm because the gallery form gave it the context. The tip jar sits below the reviews and stays independent of them on purpose.</p>
+  </section>
+
+</div>
+
+<script>
+  // ----- screen switching -----
+  const nav = document.getElementById('nav');
+  nav.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    [...nav.children].forEach(x=>x.classList.toggle('on', x===b));
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+    document.getElementById('screen-'+b.dataset.s).classList.add('on');
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+
+  // ----- live brand color: setup drives guest surfaces -----
+  function setBrand(c){
+    document.documentElement.style.setProperty('--brand', c);
+    document.documentElement.style.setProperty('--brand-soft', c+'12');
+    document.getElementById('brandPick').value = c;
+    document.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('on', s.dataset.c===c));
+  }
+  document.querySelectorAll('.swatch[data-c]').forEach(s=>{
+    s.addEventListener('click', ()=>setBrand(s.dataset.c));
+  });
+  document.getElementById('brandPick').addEventListener('input', e=>{
+    document.documentElement.style.setProperty('--brand', e.target.value);
+    document.documentElement.style.setProperty('--brand-soft', e.target.value+'12');
+    document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('on'));
+  });
+
+  // ----- retention slider -----
+  const rr = document.getElementById('retRange');
+  rr.addEventListener('input', ()=>{ document.getElementById('retNum').textContent = rr.value; });
+
+  // ----- review destinations add / remove -----
+  document.getElementById('addDest').addEventListener('click', ()=>{
+    const row = document.createElement('div');
+    row.className='dest-row';
+    row.innerHTML = '<input type="text" placeholder="Label"><input type="text" placeholder="Link"><button class="x" title="Remove">&times;</button>';
+    document.getElementById('dests').appendChild(row);
+  });
+  document.getElementById('dests').addEventListener('click', e=>{
+    if(e.target.classList.contains('x')) e.target.closest('.dest-row').remove();
+  });
+
+  // ----- species toggles -----
+  document.getElementById('species').addEventListener('click', e=>{
+    if(e.target.classList.contains('chip')) e.target.classList.toggle('on');
+  });
+
+  // ----- the email paste parser (the win) -----
+  const input = document.getElementById('emailInput');
+  const chipWrap = document.getElementById('rchips');
+  let recips = []; // {email, ok}
+  const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+
+  function ingest(raw){
+    // split on any whitespace, comma, or semicolon. no format required.
+    const parts = raw.split(/[\s,;]+/).map(x=>x.trim().toLowerCase()).filter(Boolean);
+    parts.forEach(p=>{
+      if(recips.some(r=>r.email===p)) return; // dedupe
+      recips.push({email:p, ok:isEmail(p)});
+    });
+    render();
+  }
+  function render(){
+    chipWrap.innerHTML = '';
+    recips.forEach((r,i)=>{
+      const c = document.createElement('span');
+      c.className = 'rchip' + (r.ok?'':' bad');
+      c.innerHTML = (r.ok?'':'&#9888; ') + r.email + ' <button data-i="'+i+'">&times;</button>';
+      chipWrap.appendChild(c);
+    });
+    const good = recips.filter(r=>r.ok).length;
+    const bad = recips.length - good;
+    document.getElementById('validCount').textContent = good;
+    document.getElementById('sendN').textContent = good;
+    const badWrap = document.getElementById('badWrap');
+    badWrap.style.display = bad? 'inline':'none';
+    document.getElementById('badCount').textContent = bad;
+    document.getElementById('sendBtn').disabled = good===0;
+  }
+  // parse when they paste, or type a separator, or leave the field
+  input.addEventListener('paste', e=>{
+    e.preventDefault();
+    ingest((e.clipboardData||window.clipboardData).getData('text'));
+    input.value='';
+  });
+  input.addEventListener('keyup', e=>{
+    if(e.key==='Enter' || e.key===' ' || e.key===',' || e.key===';'){
+      ingest(input.value); input.value='';
+    }
+  });
+  input.addEventListener('blur', ()=>{ if(input.value.trim()){ ingest(input.value); input.value=''; }});
+  chipWrap.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    recips.splice(+b.dataset.i,1); render();
+  });
+  // seed with a realistic messy paste so it looks alive
+  ingest("margo@example.com jordan.lee@example.com\nthe.harpers@example.com; rivera.fam@example.com  notanemail@ kpatel@example.com");
+
+  // ----- send -> success -----
+  document.getElementById('sendBtn').addEventListener('click', ()=>{
+    const good = recips.filter(r=>r.ok).length;
+    document.getElementById('successN').textContent = good;
+    document.getElementById('sendForm').style.display='none';
+    document.getElementById('sendSuccess').classList.add('on');
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+  document.getElementById('resetSend').addEventListener('click', ()=>{
+    document.getElementById('sendSuccess').classList.remove('on');
+    document.getElementById('sendForm').style.display='grid';
+  });
+
+  // ----- guest download -> reveal scheduled note -----
+  document.getElementById('dlBtn').addEventListener('click', ()=>{
+    document.getElementById('afterDl').classList.add('on');
+    document.getElementById('dlBtn').textContent = 'Downloaded';
+    document.getElementById('dlBtn').style.opacity = .7;
+  });
+</script>
