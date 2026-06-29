@@ -242,6 +242,64 @@ input[type="color"]::-webkit-color-swatch {
   }
 }
 
+/* ---- operator nav ---- */
+.fl-nav-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--ink);
+  padding: 14px 28px;
+}
+.fl-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fl-nav-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 9px 14px;
+}
+/* desktop: wordmark far left, links and account pushed far right */
+.fl-nav-brand {
+  margin-right: auto;
+}
+.fl-nav-links {
+  gap: 3px;
+}
+
+@media (max-width: 640px) {
+  .fl-nav-wrap {
+    padding: 10px 14px;
+  }
+  /* two compact rows: wordmark + account on top, links spread below */
+  .fl-nav-inner {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      "brand account"
+      "links links";
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .fl-nav-brand {
+    grid-area: brand;
+    margin-right: 0;
+  }
+  .fl-nav-account {
+    grid-area: account;
+  }
+  .fl-nav-links {
+    grid-area: links;
+    justify-content: space-between;
+  }
+}
+
 @keyframes fl-wave {
   0% {
     transform: translateX(0);
