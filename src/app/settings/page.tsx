@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { BrandingForm } from "./branding-form";
 import { ReviewLinks } from "./review-links";
+import { RosterList } from "./roster-list";
+import { addBoat, deleteBoat, addCrew, deleteCrew } from "./actions";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -40,6 +42,18 @@ export default async function SettingsPage() {
     .eq("operator_id", operatorId)
     .order("sort_order", { ascending: true });
 
+  const { data: boats } = await supabase
+    .from("boats")
+    .select("id, name")
+    .eq("operator_id", operatorId)
+    .order("sort_order", { ascending: true });
+
+  const { data: crew } = await supabase
+    .from("crew_members")
+    .select("id, name")
+    .eq("operator_id", operatorId)
+    .order("sort_order", { ascending: true });
+
   return (
     <>
       <OperatorNav email={user.email ?? ""} plan={branding?.plan ?? "base"} />
@@ -59,6 +73,38 @@ export default async function SettingsPage() {
             retentionDays={branding?.retention_days ?? 5}
           />
           <ReviewLinks links={links ?? []} />
+        </div>
+
+        <div className="fl-card" style={{ marginTop: "16px" }}>
+          <h3 style={{ margin: "0 0 2px", fontSize: "15px", fontWeight: 600 }}>
+            Boats and crew
+          </h3>
+          <p className="fl-hint" style={{ margin: "0 0 16px" }}>
+            Pre-add your boats and people once. On a send you just pick the boat,
+            the captain, and check who is aboard.
+          </p>
+          <div className="fl-cols">
+            <RosterList
+              title="Boats"
+              hint="The vessels you run trips on."
+              placeholder="Sea Otter II"
+              addLabel="Add boat"
+              emptyLabel="No boats yet."
+              items={boats ?? []}
+              addAction={addBoat}
+              deleteAction={deleteBoat}
+            />
+            <RosterList
+              title="Crew"
+              hint="Everyone who captains or crews. Pick their role per send."
+              placeholder="Margo"
+              addLabel="Add person"
+              emptyLabel="No crew yet."
+              items={crew ?? []}
+              addAction={addCrew}
+              deleteAction={deleteCrew}
+            />
+          </div>
         </div>
       </main>
     </>

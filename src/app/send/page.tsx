@@ -32,13 +32,25 @@ export default async function SendPage() {
     .eq("operator_id", membership.operator_id)
     .maybeSingle();
 
+  const { data: boats } = await supabase
+    .from("boats")
+    .select("id, name")
+    .eq("operator_id", membership.operator_id)
+    .order("sort_order", { ascending: true });
+
+  const { data: crew } = await supabase
+    .from("crew_members")
+    .select("id, name")
+    .eq("operator_id", membership.operator_id)
+    .order("sort_order", { ascending: true });
+
   return (
     <>
       <OperatorNav email={user.email ?? ""} plan={branding?.plan ?? "base"} />
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "16px 22px 80px" }}>
         <div className="fl-eyebrow">New send</div>
         <h1 className="fl-h1" style={{ fontSize: "32px" }}>
-          Tonight&apos;s trip
+          Today&apos;s send
         </h1>
         <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "62ch", margin: 0 }}>
           Fill the trip, drop the photos, paste the guest emails. Each guest gets
@@ -48,6 +60,8 @@ export default async function SendPage() {
         <SendForm
           defaultMessage={branding?.default_message ?? ""}
           brandColor={branding?.brand_color ?? "#0b5563"}
+          boats={(boats ?? []).map((b) => b.name)}
+          crew={(crew ?? []).map((c) => c.name)}
         />
       </main>
     </>

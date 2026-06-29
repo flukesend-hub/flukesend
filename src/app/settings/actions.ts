@@ -195,3 +195,56 @@ export async function deleteReviewLink(formData: FormData): Promise<void> {
     .eq("operator_id", operatorId);
   revalidatePath("/settings");
 }
+
+// Boats and crew roster. Both are simple named lists scoped to the operator.
+async function addNamed(
+  table: "boats" | "crew_members",
+  formData: FormData,
+): Promise<SettingsState> {
+  const { supabase, operatorId } = await resolveOperator();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) {
+    return { error: "Enter a name." };
+  }
+  const { data: last } = await supabase
+    .from(table)
+    .select("sort_order")
+    .eq("operator_id", operatorId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sortOrder = (last?.sort_order ?? -1) + 1;
+  const { error } = await supabase
+    .from(table)
+    .insert({ operator_id: operatorId, name, sort_order: sortOrder });
+  if (error) {
+    return { error: "Could not add it. Try again." };
+  }
+  revalidatePath("/settings");
+  revalidatePath("/send");
+  return { ok: "Added." };
+}
+
+async function deleteNamed(table: "boats" | "crew_members", formData: FormData) {
+  const { supabase, operatorId } = await resolveOperator();
+  const id = String(formData.get("id") ?? "");
+  if (!id) {
+    return;
+  }
+  await supabase.from(table).delete().eq("id", id).eq("operator_id", operatorId);
+  revalidatePath("/settings");
+  revalidatePath("/send");
+}
+
+export async function addBoat(_prev: SettingsState, formData: FormData) {
+  return addNamed("boats", formData);
+}
+export async function deleteBoat(formData: FormData) {
+  return deleteNamed("boats", formData);
+}
+export async function addCrew(_prev: SettingsState, formData: FormData) {
+  return addNamed("crew_members", formData);
+}
+export async function deleteCrew(formData: FormData) {
+  return deleteNamed("crew_members", formData);
+}

@@ -68,6 +68,7 @@ export default async function GalleryPage({
     facts.push(`${delivery.whale_count} whale${delivery.whale_count === 1 ? "" : "s"} sighted`);
   }
   if (delivery.species?.length) facts.push(delivery.species.join(" and "));
+  if (delivery.boat_name) facts.push(`aboard ${delivery.boat_name}`);
 
   return (
     <main style={{ minHeight: "100dvh", background: "var(--paper)", color: "var(--paper-ink)", padding: "0 0 60px" }}>
