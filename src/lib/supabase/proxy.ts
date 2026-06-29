@@ -11,9 +11,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Paths a signed out visitor may see. Everything else bounces to /login. The
-// tokened guest gallery (server rendered, no operator session) gets added here
-// in Session 2 once it exists.
-const PUBLIC_PATHS = ["/login"];
+// tokened guest gallery (/g/<token>, plus its download and open routes) is
+// public: guests have no operator session and reach it only by their token.
+const PUBLIC_PATHS = ["/login", "/g"];
 
 function isPublic(path: string) {
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
