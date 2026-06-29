@@ -5,9 +5,11 @@
   the emails are the guest surfaces.
 */
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OperatorNav } from "@/app/_ui/operator-nav";
+import { GuestRow } from "./guest-row";
 
 function fmtDateTime(value: string | null) {
   if (!value) return "Not set";
@@ -55,8 +57,11 @@ export default async function DeliveryPage({
 
   const { data: recipients } = await supabase
     .from("recipients")
-    .select("email, token")
+    .select("id, email, token")
     .eq("delivery_id", id);
+
+  const hdrs = await headers();
+  const baseUrl = `${hdrs.get("x-forwarded-proto") ?? "https"}://${hdrs.get("host") ?? ""}`;
 
   const species = (delivery.species ?? []) as string[];
   const crew = (delivery.crew_names ?? []) as string[];
@@ -68,9 +73,10 @@ export default async function DeliveryPage({
       <OperatorNav operatorName={operator?.name ?? "Operator"} />
       <main style={{ maxWidth: "820px", margin: "0 auto", padding: "16px 22px 80px" }}>
         <h1 className="fl-h1">Send created</h1>
-      <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
-        {guests} guests and {photoCount ?? 0} photos.
-      </p>
+        <p style={{ color: "var(--muted)", fontSize: "14px", margin: "4px 0 0" }}>
+          {guests} guest{guests === 1 ? "" : "s"} and {photoCount ?? 0} photo
+          {(photoCount ?? 0) === 1 ? "" : "s"}.
+        </p>
 
       {emailedN !== null ? (
         <div style={emailedN > 0 ? bannerOk : bannerWarn}>
@@ -98,14 +104,9 @@ export default async function DeliveryPage({
 
       <div className="fl-card" style={{ marginTop: "16px" }}>
         <h3 style={h3}>Guests ({guests})</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
-          {recipients?.map((r, i) => (
-            <div key={i} style={guestRow}>
-              <span style={guestEmail}>{r.email}</span>
-              <code style={{ fontSize: "12px", color: "var(--muted)", fontFamily: "ui-monospace,monospace" }}>
-                /g/{r.token}
-              </code>
-            </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {recipients?.map((r) => (
+            <GuestRow key={r.id} id={r.id} email={r.email} galleryUrl={`${baseUrl}/g/${r.token}`} />
           ))}
         </div>
         <p style={{ color: "var(--muted-2)", fontSize: "12.5px", margin: "14px 0 0" }}>
@@ -163,20 +164,3 @@ const check: React.CSSProperties = {
   flex: "0 0 auto",
 };
 const checkWarn: React.CSSProperties = { ...check, background: "var(--signal)", color: "var(--signal-ink)" };
-const guestRow: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "12px",
-  padding: "11px 14px",
-  borderRadius: "11px",
-  border: "1px solid var(--line)",
-  background: "var(--ink)",
-};
-const guestEmail: React.CSSProperties = {
-  fontWeight: 600,
-  fontSize: "13.5px",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-};
