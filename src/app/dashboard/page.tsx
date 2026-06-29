@@ -53,11 +53,20 @@ export default async function DashboardPage() {
 
           {deliveries?.length ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {deliveries.map((d) => {
+              {deliveries.map((d, i) => {
                 const guests = (d.recipients as unknown as { count: number }[] | null)?.[0]?.count ?? 0;
                 const when = d.trip_datetime ?? d.created_at;
                 return (
-                  <Link key={d.id} href={`/deliveries/${d.id}`} style={sendRow}>
+                  <Link
+                    key={d.id}
+                    href={`/deliveries/${d.id}`}
+                    className="fl-slide-row"
+                    style={{
+                      ...sendRow,
+                      animation: "fl-slide-in .5s cubic-bezier(.22,.61,.36,1) both",
+                      animationDelay: `${Math.min(i, 12) * 45}ms`,
+                    }}
+                  >
                     <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                       <span style={{ fontWeight: 600, fontSize: "14px" }}>
                         {new Date(when).toLocaleDateString("en-US", { dateStyle: "medium" })}
