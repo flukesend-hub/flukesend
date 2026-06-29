@@ -44,7 +44,7 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <OperatorNav email={user.email ?? ""} plan={branding?.plan ?? "base"} />
+      <OperatorNav operatorName={operator?.name ?? "Operator"} />
       <main style={shell}>
         <div className="fl-eyebrow">Workspace</div>
         <h1 className="fl-h1">{operator?.name ?? "Your operator"}</h1>

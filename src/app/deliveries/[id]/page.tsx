@@ -42,10 +42,10 @@ export default async function DeliveryPage({
     notFound();
   }
 
-  const { data: branding } = await supabase
-    .from("branding")
-    .select("plan")
-    .eq("operator_id", delivery.operator_id)
+  const { data: operator } = await supabase
+    .from("operators")
+    .select("name")
+    .eq("id", delivery.operator_id)
     .maybeSingle();
 
   const { count: photoCount } = await supabase
@@ -65,7 +65,7 @@ export default async function DeliveryPage({
 
   return (
     <>
-      <OperatorNav email={user.email ?? ""} plan={branding?.plan ?? "base"} />
+      <OperatorNav operatorName={operator?.name ?? "Operator"} />
       <main style={{ maxWidth: "820px", margin: "0 auto", padding: "16px 22px 80px" }}>
         <h1 className="fl-h1">Send created</h1>
       <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>

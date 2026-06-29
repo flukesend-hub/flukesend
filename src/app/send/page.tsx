@@ -19,12 +19,13 @@ export default async function SendPage() {
 
   const { data: membership } = await supabase
     .from("operator_members")
-    .select("operator_id")
+    .select("operator_id, operators(name)")
     .eq("user_id", user.id)
     .maybeSingle();
   if (!membership) {
     redirect("/onboarding");
   }
+  const operator = membership.operators as unknown as { name: string } | null;
 
   const { data: branding } = await supabase
     .from("branding")
@@ -46,7 +47,7 @@ export default async function SendPage() {
 
   return (
     <>
-      <OperatorNav email={user.email ?? ""} plan={branding?.plan ?? "base"} />
+      <OperatorNav operatorName={operator?.name ?? "Operator"} />
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "16px 22px 80px" }}>
         <div className="fl-eyebrow">New send</div>
         <h1 className="fl-h1" style={{ fontSize: "32px" }}>
