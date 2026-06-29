@@ -82,7 +82,7 @@ export default async function SendPage() {
               transfers and <strong>{usage.emails}</strong> of {TRIAL_EMAILS}{" "}
               guest emails used.
             </span>
-            <a href="/pricing" style={{ color: "var(--signal)", fontWeight: 600, marginLeft: "auto" }}>
+            <a href="/billing" style={{ color: "var(--signal)", fontWeight: 600, marginLeft: "auto" }}>
               See plans
             </a>
           </div>

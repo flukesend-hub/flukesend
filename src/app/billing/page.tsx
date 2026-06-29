@@ -1,0 +1,84 @@
+/*
+  In-app billing, dark workspace. Shows the operator's current plan and lets
+  them subscribe (Stripe Checkout) or manage/cancel (Stripe portal). RLS lets a
+  member read their own subscription row.
+*/
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { OperatorNav } from "@/app/_ui/operator-nav";
+import { BillingClient } from "./billing-client";
+
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status: checkout } = await searchParams;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const { data: membership } = await supabase
+    .from("operator_members")
+    .select("operator_id, operators(name)")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership) {
+    redirect("/onboarding");
+  }
+  const operator = membership.operators as unknown as { name: string } | null;
+
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("status, tier, billing_cycle")
+    .eq("operator_id", membership.operator_id)
+    .maybeSingle();
+  const status = (sub?.status as "trial" | "active" | "canceled") ?? "trial";
+
+  return (
+    <>
+      <OperatorNav operatorName={operator?.name ?? "Operator"} />
+      <main style={{ maxWidth: "920px", margin: "0 auto", padding: "16px 28px 80px" }}>
+        <h1 className="fl-h1">Billing</h1>
+        <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
+          {status === "active"
+            ? "You are on a paid plan. Manage or switch any time."
+            : status === "canceled"
+              ? "Your plan has ended. Pick a plan to keep sending."
+              : "You are on the free trial. Pick a plan to keep sending past the trial."}
+        </p>
+
+        {checkout === "success" ? (
+          <div style={banner("ok")}>
+            Payment received. Your plan is active. It can take a few seconds for the
+            status to update.
+          </div>
+        ) : checkout === "canceled" ? (
+          <div style={banner("warn")}>Checkout canceled. Nothing was charged.</div>
+        ) : null}
+
+        <BillingClient
+          status={status}
+          tier={(sub?.tier as "single" | "two" | "fleet" | null) ?? null}
+          cycle={(sub?.billing_cycle as "monthly" | "yearly" | null) ?? null}
+        />
+      </main>
+    </>
+  );
+}
+
+function banner(kind: "ok" | "warn"): React.CSSProperties {
+  const ok = kind === "ok";
+  return {
+    marginTop: "16px",
+    padding: "12px 16px",
+    borderRadius: "11px",
+    fontSize: "13.5px",
+    border: `1px solid ${ok ? "rgba(79,178,134,.35)" : "rgba(231,177,76,.35)"}`,
+    background: ok ? "rgba(79,178,134,.1)" : "rgba(231,177,76,.1)",
+    color: ok ? "#cdeede" : "#f3e3b8",
+  };
+}
