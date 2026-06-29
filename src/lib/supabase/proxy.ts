@@ -13,7 +13,8 @@ import { NextResponse, type NextRequest } from "next/server";
 // Paths a signed out visitor may see. Everything else bounces to /login. The
 // tokened guest gallery (/g/<token>, plus its download and open routes) is
 // public: guests have no operator session and reach it only by their token.
-const PUBLIC_PATHS = ["/login", "/g"];
+// The cron endpoint is public to the proxy but guards itself with CRON_SECRET.
+const PUBLIC_PATHS = ["/login", "/g", "/api/cron"];
 
 function isPublic(path: string) {
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
