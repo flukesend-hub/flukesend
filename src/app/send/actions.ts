@@ -111,6 +111,7 @@ export type CreateSendInput = {
   species: string[];
   captainName: string | null;
   crewNames: string[];
+  boatName: string | null;
   customMessage: string | null;
   photos: { storageKey: string; filename: string; size: number }[];
   emails: string[];
@@ -178,6 +179,7 @@ export async function createSend(
       species: input.species,
       captain_name: input.captainName,
       crew_names: input.crewNames,
+      boat_name: input.boatName,
       custom_message: input.customMessage,
       expires_at: expiresAt,
     })

@@ -18,6 +18,7 @@ export type GalleryData = {
     species: string[];
     captain_name: string | null;
     crew_names: string[];
+    boat_name: string | null;
     custom_message: string | null;
     expires_at: string;
   };
@@ -46,7 +47,7 @@ export async function getGalleryByToken(
   const { data: delivery } = await admin
     .from("deliveries")
     .select(
-      "id, operator_id, trip_datetime, whale_count, species, captain_name, crew_names, custom_message, expires_at",
+      "id, operator_id, trip_datetime, whale_count, species, captain_name, crew_names, boat_name, custom_message, expires_at",
     )
     .eq("id", recipient.delivery_id)
     .maybeSingle();
