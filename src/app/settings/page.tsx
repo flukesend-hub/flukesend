@@ -56,8 +56,8 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <OperatorNav email={user.email ?? ""} plan={branding?.plan ?? "base"} />
-      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "16px 22px 80px" }}>
+      <OperatorNav operatorName={operator?.name ?? "Operator"} />
+      <main style={{ padding: "16px 28px 80px" }}>
         <h1 className="fl-h1">Settings</h1>
         <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
           Edit your branding and manage the review links that become buttons in

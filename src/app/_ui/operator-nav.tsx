@@ -1,61 +1,51 @@
 "use client";
 
 /*
-  Persistent operator nav, WeTransfer style: two rounded pill cards floating on
-  the deep water background. Left card is the brand plus the main nav, right
-  card is the account. Active link comes from the current path. Shown on the
-  signed in operator screens (dashboard, send, settings, a delivery).
+  Persistent operator nav. Flukesend wordmark pinned far left; everything else
+  pinned far right: a nav pill (New send / Transfers / Settings) and an account
+  pill (Sign out, then the company name). Active link comes from the path.
 */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signout } from "@/app/auth/actions";
 
 const LINKS = [
-  { href: "/dashboard", label: "Dashboard", match: (p: string) => p === "/dashboard" || p.startsWith("/deliveries") },
   { href: "/send", label: "New send", match: (p: string) => p.startsWith("/send") },
+  { href: "/dashboard", label: "Transfers", match: (p: string) => p === "/dashboard" || p.startsWith("/deliveries") },
   { href: "/settings", label: "Settings", match: (p: string) => p.startsWith("/settings") },
 ];
 
-export function OperatorNav({ email, plan }: { email: string; plan: string }) {
+export function OperatorNav({ operatorName }: { operatorName: string }) {
   const pathname = usePathname();
 
   return (
     <div style={wrap}>
       <div style={inner}>
         <div style={pill}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "9px", paddingRight: "4px" }}>
-            <span style={dot} />
-            <span className="fl-display" style={{ fontSize: "16px" }}>
-              Flukesend
-            </span>
+          <span style={dot} />
+          <span className="fl-display" style={{ fontSize: "16px" }}>
+            Flukesend
           </span>
-          <span style={divider} />
-          <nav style={{ display: "flex", gap: "3px", flexWrap: "wrap" }}>
-            {LINKS.map((l) => {
-              const active = l.match(pathname);
-              return (
-                <Link key={l.href} href={l.href} style={navLink(active)}>
-                  {l.label}
-                </Link>
-              );
-            })}
-          </nav>
         </div>
 
-        <div style={pill}>
-          <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
-            <span style={{ fontSize: "13px", fontWeight: 600 }}>{email}</span>
-            <span style={{ fontSize: "11px", color: "var(--muted-2)", textTransform: "capitalize" }}>
-              {plan} plan
-            </span>
-          </span>
-          <span style={avatar} />
-          <span style={divider} />
-          <form action={signout}>
-            <button type="submit" style={signoutBtn} title="Sign out">
-              Sign out
-            </button>
-          </form>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <nav style={{ ...pill, gap: "3px" }}>
+            {LINKS.map((l) => (
+              <Link key={l.href} href={l.href} style={navLink(l.match(pathname))}>
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div style={pill}>
+            <span style={{ fontSize: "13px", fontWeight: 600 }}>{operatorName}</span>
+            <span style={divider} />
+            <form action={signout}>
+              <button type="submit" style={signoutBtn} title="Sign out">
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -67,11 +57,9 @@ const wrap: React.CSSProperties = {
   top: 0,
   zIndex: 50,
   background: "var(--ink)",
-  padding: "14px 22px",
+  padding: "14px 28px",
 };
 const inner: React.CSSProperties = {
-  maxWidth: "1200px",
-  margin: "0 auto",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -94,11 +82,7 @@ const dot: React.CSSProperties = {
   background: "var(--signal)",
   boxShadow: "0 0 10px var(--signal)",
 };
-const divider: React.CSSProperties = {
-  width: 1,
-  height: 20,
-  background: "var(--line-strong)",
-};
+const divider: React.CSSProperties = { width: 1, height: 20, background: "var(--line-strong)" };
 function navLink(active: boolean): React.CSSProperties {
   return {
     fontSize: "13px",
@@ -109,13 +93,6 @@ function navLink(active: boolean): React.CSSProperties {
     borderRadius: "9px",
   };
 }
-const avatar: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  borderRadius: 8,
-  background: "linear-gradient(135deg,var(--signal),#d98a3c)",
-  flex: "0 0 auto",
-};
 const signoutBtn: React.CSSProperties = {
   font: "inherit",
   fontSize: "13px",
