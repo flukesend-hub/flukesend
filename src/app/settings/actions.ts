@@ -1,0 +1,197 @@
+/*
+  Operator settings actions: edit branding, upload a logo, and manage review
+  links. Branding and review-link writes go through the RLS client because a
+  member is allowed those by policy. The logo upload uses the service role admin
+  client because writing to Storage is a trusted server operation; files are
+  namespaced under the operator id so one operator can never touch another's.
+*/
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+export type SettingsState = { error?: string; ok?: string } | undefined;
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+
+// Resolve the signed in user and the operator they belong to. Bounces to login
+// or onboarding if either is missing, so callers can assume both exist.
+async function resolveOperator() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const { data: membership } = await supabase
+    .from("operator_members")
+    .select("operator_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership) {
+    redirect("/onboarding");
+  }
+  return { supabase, operatorId: membership.operator_id as string };
+}
+
+export async function updateBranding(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
+  const { supabase, operatorId } = await resolveOperator();
+
+  const brandColor = (
+    String(formData.get("brand_color") ?? "").trim() || "#0b5563"
+  ).toLowerCase();
+  const defaultMessage = String(formData.get("default_message") ?? "").trim();
+  const retentionRaw = Number(formData.get("retention_days"));
+
+  if (!HEX.test(brandColor)) {
+    return { error: "Pick a valid brand color." };
+  }
+  const retentionDays = Number.isFinite(retentionRaw)
+    ? Math.trunc(retentionRaw)
+    : NaN;
+  if (!Number.isInteger(retentionDays) || retentionDays < 3 || retentionDays > 10) {
+    return { error: "Retention must be between 3 and 10 days." };
+  }
+
+  // Logo is optional on save. When present, replace whatever is in the
+  // operator's folder so only one logo is ever kept.
+  let logoUrl: string | undefined;
+  const file = formData.get("logo");
+  if (file instanceof File && file.size > 0) {
+    if (!LOGO_TYPES.includes(file.type)) {
+      return { error: "Logo must be a PNG, JPG, WEBP, or SVG." };
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      return { error: "Logo must be under 5 MB." };
+    }
+
+    const admin = createAdminClient();
+    const { data: existing } = await admin.storage
+      .from("branding")
+      .list(operatorId);
+    if (existing && existing.length) {
+      await admin.storage
+        .from("branding")
+        .remove(existing.map((f) => `${operatorId}/${f.name}`));
+    }
+
+    const ext = file.type === "image/svg+xml" ? "svg" : file.type.split("/")[1];
+    const path = `${operatorId}/logo.${ext}`;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const { error: upErr } = await admin.storage
+      .from("branding")
+      .upload(path, bytes, { contentType: file.type, upsert: true });
+    if (upErr) {
+      return { error: "Could not upload the logo. Try again." };
+    }
+    const { data: pub } = admin.storage.from("branding").getPublicUrl(path);
+    // Cache bust so a replaced logo shows right away instead of the old cached one.
+    logoUrl = `${pub.publicUrl}?v=${Date.now()}`;
+  }
+
+  const update: Record<string, unknown> = {
+    brand_color: brandColor,
+    default_message: defaultMessage,
+    retention_days: retentionDays,
+  };
+  if (logoUrl) {
+    update.logo_url = logoUrl;
+  }
+
+  const { error } = await supabase
+    .from("branding")
+    .update(update)
+    .eq("operator_id", operatorId);
+  if (error) {
+    return { error: "Could not save your branding. Try again." };
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  return { ok: "Branding saved." };
+}
+
+export async function removeLogo(): Promise<void> {
+  const { supabase, operatorId } = await resolveOperator();
+  const admin = createAdminClient();
+  const { data: existing } = await admin.storage
+    .from("branding")
+    .list(operatorId);
+  if (existing && existing.length) {
+    await admin.storage
+      .from("branding")
+      .remove(existing.map((f) => `${operatorId}/${f.name}`));
+  }
+  await supabase
+    .from("branding")
+    .update({ logo_url: null })
+    .eq("operator_id", operatorId);
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+}
+
+export async function addReviewLink(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
+  const { supabase, operatorId } = await resolveOperator();
+
+  const label = String(formData.get("label") ?? "").trim();
+  let url = String(formData.get("url") ?? "").trim();
+
+  if (!label) {
+    return { error: "Enter a label for the link." };
+  }
+  if (!/^https?:\/\//i.test(url)) {
+    url = "https://" + url;
+  }
+  try {
+    new URL(url);
+  } catch {
+    return { error: "Enter a valid URL." };
+  }
+
+  // New links go to the end of the list.
+  const { data: last } = await supabase
+    .from("review_destinations")
+    .select("sort_order")
+    .eq("operator_id", operatorId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sortOrder = (last?.sort_order ?? -1) + 1;
+
+  const { error } = await supabase
+    .from("review_destinations")
+    .insert({ operator_id: operatorId, label, url, sort_order: sortOrder });
+  if (error) {
+    return { error: "Could not add the link. Try again." };
+  }
+
+  revalidatePath("/settings");
+  return { ok: "Link added." };
+}
+
+export async function deleteReviewLink(formData: FormData): Promise<void> {
+  const { supabase, operatorId } = await resolveOperator();
+  const id = String(formData.get("id") ?? "");
+  if (!id) {
+    return;
+  }
+  // RLS already scopes this to the operator; the operator_id match is belt and
+  // suspenders.
+  await supabase
+    .from("review_destinations")
+    .delete()
+    .eq("id", id)
+    .eq("operator_id", operatorId);
+  revalidatePath("/settings");
+}
