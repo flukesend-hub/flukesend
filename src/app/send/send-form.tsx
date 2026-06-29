@@ -138,7 +138,7 @@ export function SendForm({ defaultMessage }: { defaultMessage: string }) {
         return;
       }
 
-      router.push(`/deliveries/${res.deliveryId}`);
+      router.push(`/deliveries/${res.deliveryId}?emailed=${res.emailed}`);
     } catch {
       setError("Something went wrong. Try again.");
       setStatus("idle");

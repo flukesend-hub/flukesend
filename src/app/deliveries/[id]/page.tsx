@@ -21,10 +21,13 @@ function fmtDateTime(value: string | null) {
 
 export default async function DeliveryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ emailed?: string }>;
 }) {
   const { id } = await params;
+  const { emailed } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -78,6 +81,26 @@ export default async function DeliveryPage({
           photo{(photos?.length ?? 0) === 1 ? "" : "s"}.
         </p>
       </header>
+
+      {emailed !== undefined ? (
+        <div
+          style={{
+            marginBottom: "1.5rem",
+            padding: "0.75rem 1rem",
+            borderRadius: "0.5rem",
+            border: "1px solid",
+            borderColor: Number(emailed) > 0 ? "#bbf7d0" : "#fde68a",
+            background: Number(emailed) > 0 ? "#f0fdf4" : "#fffbeb",
+            fontSize: "0.9rem",
+          }}
+        >
+          {Number(emailed) > 0
+            ? `Emailed the gallery link to ${emailed} of ${
+                recipients?.length ?? 0
+              } guest${(recipients?.length ?? 0) === 1 ? "" : "s"}.`
+            : "Guests were not emailed. Check that the email service is configured."}
+        </div>
+      ) : null}
 
       <Section title="Trip">
         <dl style={{ display: "grid", gap: "0.6rem", margin: 0 }}>

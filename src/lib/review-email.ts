@@ -9,6 +9,7 @@
   it exists) stays separate from these buttons, per the FTC rules in the spec.
 */
 import "server-only";
+import { escapeHtml, sendEmail } from "@/lib/email";
 
 // How long after a download we wait before asking for a review. The job only
 // picks up recipients whose earliest download is older than this.
@@ -16,14 +17,6 @@ export const REVIEW_DELAY_HOURS = 3;
 
 export function reviewDelayCutoffISO(now: number = Date.now()) {
   return new Date(now - REVIEW_DELAY_HOURS * 60 * 60 * 1000).toISOString();
-}
-
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 export type ReviewEmailInput = {
@@ -95,39 +88,8 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   return { subject, html };
 }
 
-export type SendResult =
-  | { status: "sent" }
-  | { status: "skipped" }
-  | { status: "error"; error: string };
-
-export async function sendReviewEmail(
-  to: string,
-  subject: string,
-  html: string,
-): Promise<SendResult> {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) {
-    // Resend not wired yet. Caller leaves the recipient pending so it sends for
-    // real once a domain is verified and the key is set.
-    return { status: "skipped" };
-  }
-
-  const from = process.env.REVIEW_FROM_EMAIL || "Flukesend <reviews@flukesend.com>";
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ from, to, subject, html }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      return { status: "error", error: `${res.status} ${body.slice(0, 200)}` };
-    }
-    return { status: "sent" };
-  } catch (e) {
-    return { status: "error", error: e instanceof Error ? e.message : "send failed" };
-  }
+// Caller leaves the recipient pending on "skipped" (no key) or "error", so the
+// review sends for real on a later run.
+export async function sendReviewEmail(to: string, subject: string, html: string) {
+  return sendEmail(to, subject, html);
 }
