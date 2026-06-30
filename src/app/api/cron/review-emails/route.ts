@@ -57,9 +57,6 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const cutoff = reviewDelayCutoffISO();
-  // Cron hits the deployed URL, so its origin is the public site origin. Used
-  // for the absolute social icon URLs in the email footer.
-  const baseUrl = new URL(request.url).origin;
 
   // Pending recipients that have at least one downloaded event.
   const { data: recips, error } = await admin
@@ -155,7 +152,6 @@ export async function GET(request: Request) {
       recipientName: r.name,
       tripLine: ctx.tripLine,
       reviewLinks: ctx.reviewLinks,
-      baseUrl,
       social: ctx.social,
     });
     const result = await sendReviewEmail(

@@ -25,7 +25,6 @@ export type DeliveryEmailInput = {
   species: string[];
   message: string;
   galleryUrl: string;
-  baseUrl: string;
   social: SocialLinks;
 };
 
@@ -72,7 +71,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
       : "",
   ].join("");
 
-  const socialRow = socialFooterHtml(input.baseUrl, input.social);
+  const socialRow = socialFooterHtml(input.social);
 
   const tripCard = tripRows
     ? `<tr><td style="padding:0 28px">
