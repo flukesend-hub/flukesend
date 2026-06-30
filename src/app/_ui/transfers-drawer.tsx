@@ -56,6 +56,17 @@ export function TransfersDrawer({ open, onClose }: { open: boolean; onClose: () 
           </div>
         </div>
 
+        {sends && sends.length ? (
+          <div style={exportRow}>
+            <span style={{ fontSize: "12.5px", color: "var(--muted)" }}>
+              Export every guest email as a CSV for your marketing tool.
+            </span>
+            <a href="/api/export/recipients" download className="fl-btn-ghost" style={exportBtn}>
+              Export emails
+            </a>
+          </div>
+        ) : null}
+
         <div style={list}>
           {sends === null ? (
             <p style={muted}>Loading...</p>
@@ -112,6 +123,21 @@ const head: React.CSSProperties = {
   alignItems: "center",
   padding: "18px 18px 14px",
   borderBottom: "1px solid var(--line)",
+};
+const exportRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "12px",
+  padding: "12px 16px",
+  borderBottom: "1px solid var(--line)",
+};
+const exportBtn: React.CSSProperties = {
+  fontSize: "13px",
+  padding: "8px 13px",
+  whiteSpace: "nowrap",
+  flex: "0 0 auto",
+  textDecoration: "none",
 };
 const list: React.CSSProperties = {
   display: "flex",
