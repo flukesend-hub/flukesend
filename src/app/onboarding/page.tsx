@@ -25,16 +25,18 @@ export default async function OnboardingPage() {
   }
 
   return (
-    <main style={{ maxWidth: "1040px", margin: "0 auto", padding: "34px 22px 80px" }}>
-      <div className="fl-eyebrow">One time setup</div>
-      <h1 className="fl-h1" style={{ fontSize: "32px" }}>
-        Set up your workspace
-      </h1>
-      <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "62ch", margin: 0 }}>
-        Set this once. Every send reuses it, so your galleries and the nightly
-        review asks always look like you and point to the right places.
-      </p>
-      <OnboardingForm />
-    </main>
+    <div className="fl-light" style={{ minHeight: "100dvh", background: "var(--ink)" }}>
+      <main style={{ maxWidth: "1040px", margin: "0 auto", padding: "34px 22px 80px" }}>
+        <div className="fl-eyebrow">One time setup</div>
+        <h1 className="fl-h1" style={{ fontSize: "32px" }}>
+          Set up your workspace
+        </h1>
+        <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "62ch", margin: 0 }}>
+          Set this once. Every send reuses it, so your galleries and the nightly
+          review asks always look like you and point to the right places.
+        </p>
+        <OnboardingForm />
+      </main>
+    </div>
   );
 }

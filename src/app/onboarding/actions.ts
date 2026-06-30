@@ -46,10 +46,10 @@ export async function createOperator(
   const retentionDays = Number.isFinite(retentionRaw)
     ? Math.trunc(retentionRaw)
     : NaN;
-  // Base plan allows 3 to 10 days. The DB enforces this too; we check here for a
-  // friendly message instead of a constraint error.
-  if (!Number.isInteger(retentionDays) || retentionDays < 3 || retentionDays > 10) {
-    return { error: "Retention must be between 3 and 10 days." };
+  // The setup form offers 1, 3, or 7 days. The DB enforces a 1 to 10 floor/ceiling
+  // on the base plan too; we check here for a friendly message.
+  if (![1, 3, 7].includes(retentionDays)) {
+    return { error: "Pick 1, 3, or 7 days of retention." };
   }
 
   const admin = createAdminClient();
