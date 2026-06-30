@@ -16,7 +16,7 @@ export function OnboardingForm() {
     undefined,
   );
   const [brand, setBrand] = useState("#0b5563");
-  const [retention, setRetention] = useState(5);
+  const [retention, setRetention] = useState(3);
   const [extended, setExtended] = useState(false);
 
   return (
@@ -65,24 +65,24 @@ export function OnboardingForm() {
             </div>
           </div>
 
-          <h3 style={{ ...h3, margin: "22px 0 2px" }}>Photo retention</h3>
-          <p className="fl-hint" style={{ margin: "0 0 14px" }}>
-            How long galleries stay live before photos are deleted. Longer means
-            more storage on us.
+          <h3 style={{ ...h3, margin: "22px 0 2px" }}>
+            How long should we keep the photos?
+          </h3>
+          <p className="fl-hint" style={{ margin: "0 0 12px" }}>
+            Each gallery stays live this long, then the photos come down.
           </p>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <input
-              type="range"
-              min={3}
-              max={10}
-              name="retention_days"
-              value={retention}
-              onChange={(e) => setRetention(Number(e.target.value))}
-              style={{ flex: 1 }}
-            />
-            <span className="fl-display" style={{ fontSize: "22px", minWidth: "92px" }}>
-              <span style={{ color: "var(--signal)" }}>{retention}</span> days
-            </span>
+          <input type="hidden" name="retention_days" value={retention} />
+          <div style={{ display: "flex", gap: "8px" }}>
+            {[1, 3, 7].map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setRetention(d)}
+                style={retBtn(retention === d)}
+              >
+                {d} {d === 1 ? "day" : "days"}
+              </button>
+            ))}
           </div>
           <div style={extRow}>
             <Toggle on={extended} onToggle={() => setExtended(!extended)} label="Extended retention" />
@@ -105,7 +105,7 @@ export function OnboardingForm() {
           {pending ? "Creating..." : "Create workspace"}
         </button>
         <span style={{ fontSize: "12.5px", color: "var(--muted-2)", maxWidth: "48ch" }}>
-          Base plan covers 3 to 10 days. Each send stamps its own expiry from
+          Base plan covers 1 to 7 days. Each send stamps its own expiry from
           this setting.
         </span>
       </div>
@@ -135,9 +135,21 @@ const badge: React.CSSProperties = {
   fontSize: "10px",
   letterSpacing: "0.13em",
   textTransform: "uppercase",
-  color: "var(--signal)",
-  border: "1px solid var(--signal)",
+  color: "var(--signal-2)",
+  border: "1px solid var(--signal-2)",
   borderRadius: "999px",
   padding: "3px 8px",
   marginLeft: "auto",
 };
+const retBtn = (active: boolean): React.CSSProperties => ({
+  flex: 1,
+  cursor: "pointer",
+  font: "inherit",
+  fontSize: "14px",
+  fontWeight: 600,
+  padding: "11px 0",
+  borderRadius: "10px",
+  border: `1px solid ${active ? "var(--signal)" : "var(--line-strong)"}`,
+  background: active ? "var(--signal)" : "transparent",
+  color: active ? "var(--signal-ink)" : "var(--text)",
+});
