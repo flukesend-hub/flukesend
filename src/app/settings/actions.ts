@@ -15,8 +15,11 @@ import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { isCrewRole } from "@/lib/roles";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
 import { normalizeSpecies } from "@/lib/species";
+import { getPlan, boatLimitFor } from "@/lib/trial";
 
-export type SettingsState = { error?: string; ok?: string } | undefined;
+export type SettingsState =
+  | { error?: string; ok?: string; upgrade?: boolean }
+  | undefined;
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -277,6 +280,21 @@ async function deleteNamed(table: "boats" | "crew_members", formData: FormData) 
 }
 
 export async function addBoat(_prev: SettingsState, formData: FormData) {
+  // Boats are gated by plan: single is one boat, two is two, fleet unlimited.
+  // Adding past the limit prompts an upgrade rather than silently inserting.
+  const { supabase, operatorId } = await resolveOperator();
+  const limit = boatLimitFor(await getPlan(supabase, operatorId));
+  const { count } = await supabase
+    .from("boats")
+    .select("*", { count: "exact", head: true })
+    .eq("operator_id", operatorId);
+  if ((count ?? 0) >= limit) {
+    const allowed = limit === 1 ? "one boat" : `${limit} boats`;
+    return {
+      error: `Your plan covers ${allowed}. Upgrade to add more.`,
+      upgrade: true,
+    };
+  }
   return addNamed("boats", formData);
 }
 export async function deleteBoat(formData: FormData) {

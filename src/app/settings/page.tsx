@@ -13,6 +13,7 @@ import { SettingsSection } from "./settings-section";
 import { RosterList } from "./roster-list";
 import { CrewRoster } from "./crew-roster";
 import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
+import { getPlan, boatLimitFor } from "@/lib/trial";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -75,6 +76,11 @@ export default async function SettingsPage() {
   const reviewCount = links?.length ?? 0;
   const boatCount = boats?.length ?? 0;
   const crewCount = crew?.length ?? 0;
+  const boatLimit = boatLimitFor(await getPlan(supabase, operatorId));
+  const boatUpgradeNote =
+    boatLimit === 1
+      ? "Your plan covers one boat. Upgrade to run more."
+      : `Your plan covers ${boatLimit} boats. Upgrade to run more.`;
   const retentionDays = branding?.retention_days ?? 5;
   const hasLogo = Boolean(branding?.logo_url);
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
@@ -171,6 +177,8 @@ export default async function SettingsPage() {
                   items={boats ?? []}
                   addAction={addBoat}
                   deleteAction={deleteBoat}
+                  limit={boatLimit}
+                  upgradeNote={boatUpgradeNote}
                 />
                 <CrewRoster
                   items={(crew ?? []) as { id: string; name: string; roles: string[] }[]}
