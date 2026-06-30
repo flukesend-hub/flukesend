@@ -54,8 +54,7 @@ export function SpeciesPicker({ selected }: { selected: string[] }) {
   }
 
   return (
-    <div className="fl-card">
-      <h3 style={{ margin: "0 0 2px", fontSize: "15px", fontWeight: 600 }}>Species</h3>
+    <div>
       <p className="fl-hint" style={{ margin: "0 0 16px" }}>
         Pick the species you see on your trips. These become the pills you tap on
         a send. Add your own for anything not listed.
