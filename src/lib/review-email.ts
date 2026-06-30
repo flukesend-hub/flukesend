@@ -6,7 +6,7 @@
   on and is deliberately not in this email yet.
 */
 import "server-only";
-import { escapeHtml, sendEmail } from "@/lib/email";
+import { escapeHtml, sendEmail, operatorFromAddress } from "@/lib/email";
 
 // How long after a download we wait before asking for a review. The job only
 // picks up recipients whose earliest download is older than this.
@@ -64,6 +64,12 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   return { subject, html };
 }
 
-export async function sendReviewEmail(to: string, subject: string, html: string) {
-  return sendEmail(to, subject, html);
+export async function sendReviewEmail(
+  to: string,
+  subject: string,
+  html: string,
+  operatorName: string,
+  replyTo?: string | null,
+) {
+  return sendEmail(to, subject, html, operatorFromAddress(operatorName), replyTo);
 }

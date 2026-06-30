@@ -90,6 +90,8 @@ export async function createOperator(
     brand_color: brandColor,
     default_message: defaultMessage,
     retention_days: retentionDays,
+    // Guest replies route here: the email the operator signed up with.
+    reply_to_email: user.email ?? null,
   });
   if (brandError) {
     await admin.from("operators").delete().eq("id", operator.id);
