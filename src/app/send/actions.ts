@@ -173,7 +173,7 @@ export async function createSend(
   // cleanup job can expire this send on its own schedule.
   const { data: branding } = await supabase
     .from("branding")
-    .select("retention_days, brand_color, logo_url, default_message")
+    .select("retention_days, brand_color, logo_url, default_message, reply_to_email")
     .eq("operator_id", operatorId)
     .maybeSingle();
   const retentionDays = branding?.retention_days ?? 5;
@@ -256,6 +256,7 @@ export async function createSend(
   let emailed = 0;
   if (baseUrl) {
     const deliveryFrom = operatorFromAddress(operator?.name ?? "your crew");
+    const deliveryReplyTo = branding?.reply_to_email ?? null;
     const sends = await Promise.allSettled(
       recipients.map((r) => {
         const { subject, html } = buildDeliveryEmail({
@@ -267,7 +268,7 @@ export async function createSend(
           message,
           galleryUrl: `${baseUrl}/g/${r.token}`,
         });
-        return sendEmail(r.email, subject, html, deliveryFrom);
+        return sendEmail(r.email, subject, html, deliveryFrom, deliveryReplyTo);
       }),
     );
     emailed = sends.filter(

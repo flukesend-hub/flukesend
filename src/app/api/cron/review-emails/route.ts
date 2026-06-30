@@ -22,6 +22,7 @@ type OperatorContext = {
   logoUrl: string | null;
   tripLine: string;
   reviewLinks: { label: string; url: string }[];
+  replyTo: string | null;
 };
 
 function tripLine(d: {
@@ -106,7 +107,7 @@ export async function GET(request: Request) {
       .maybeSingle();
     const { data: branding } = await admin
       .from("branding")
-      .select("logo_url, brand_color")
+      .select("logo_url, brand_color, reply_to_email")
       .eq("operator_id", delivery.operator_id)
       .maybeSingle();
     const { data: links } = await admin
@@ -121,6 +122,7 @@ export async function GET(request: Request) {
       logoUrl: branding?.logo_url ?? null,
       tripLine: tripLine(delivery),
       reviewLinks: (links ?? []).map((l) => ({ label: l.label, url: l.url })),
+      replyTo: branding?.reply_to_email ?? null,
     };
     contextByDelivery.set(deliveryId, ctx);
     return ctx;
@@ -144,7 +146,13 @@ export async function GET(request: Request) {
       tripLine: ctx.tripLine,
       reviewLinks: ctx.reviewLinks,
     });
-    const result = await sendReviewEmail(r.email, subject, html, ctx.operatorName);
+    const result = await sendReviewEmail(
+      r.email,
+      subject,
+      html,
+      ctx.operatorName,
+      ctx.replyTo,
+    );
     if (result.status === "sent") {
       await admin
         .from("recipients")

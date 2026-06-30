@@ -83,7 +83,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     .maybeSingle();
   const { data: branding } = await supabase
     .from("branding")
-    .select("brand_color, logo_url, default_message")
+    .select("brand_color, logo_url, default_message, reply_to_email")
     .eq("operator_id", d.operator_id)
     .maybeSingle();
 
@@ -107,6 +107,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     subject,
     html,
     operatorFromAddress(operator?.name ?? "your crew"),
+    branding?.reply_to_email ?? null,
   );
   if (result.status === "sent") {
     return { ok: true };

@@ -69,6 +69,7 @@ export async function sendReviewEmail(
   subject: string,
   html: string,
   operatorName: string,
+  replyTo?: string | null,
 ) {
-  return sendEmail(to, subject, html, operatorFromAddress(operatorName));
+  return sendEmail(to, subject, html, operatorFromAddress(operatorName), replyTo);
 }

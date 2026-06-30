@@ -40,6 +40,7 @@ export async function sendEmail(
   subject: string,
   html: string,
   fromAddress?: string,
+  replyTo?: string | null,
 ): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
@@ -50,6 +51,12 @@ export async function sendEmail(
     fromAddress ||
     process.env.REVIEW_FROM_EMAIL ||
     "Flukesend <reviews@flukesend.com>";
+  // Route replies to the operator's own inbox (the email they signed up with),
+  // so a guest who hits reply reaches the operator, not our send only address.
+  const payload: Record<string, unknown> = { from, to, subject, html };
+  if (replyTo) {
+    payload.reply_to = replyTo;
+  }
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -57,7 +64,7 @@ export async function sendEmail(
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from, to, subject, html }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const body = await res.text();
