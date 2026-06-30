@@ -13,14 +13,6 @@ import { createClient } from "@/lib/supabase/browser";
 import { signUploads, createSend } from "./actions";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SPECIES = [
-  "Humpback",
-  "Orca",
-  "Gray whale",
-  "Blue whale",
-  "Risso's dolphin",
-  "Sea otter",
-];
 
 function parseEmails(raw: string) {
   const seen = new Set<string>();
@@ -50,11 +42,13 @@ type Status = "idle" | "uploading" | "saving";
 export function SendForm({
   defaultMessage,
   brandColor,
+  speciesOptions,
   boats,
   crew,
 }: {
   defaultMessage: string;
   brandColor: string;
+  speciesOptions: string[];
   boats: string[];
   crew: { name: string; roles: string[] }[];
 }) {
@@ -68,7 +62,7 @@ export function SendForm({
 
   const [files, setFiles] = useState<File[]>([]);
   const [emailsRaw, setEmailsRaw] = useState("");
-  const [species, setSpecies] = useState<string[]>(["Humpback", "Orca"]);
+  const [species, setSpecies] = useState<string[]>([]);
   const [tripDt, setTripDt] = useState("");
   const [boat, setBoat] = useState("");
   const [captain, setCaptain] = useState("");
@@ -374,16 +368,19 @@ export function SendForm({
           </label>
         )}
         <span className="fl-label-text">Species seen</span>
-        <div style={{ display: "flex", gap: "7px", flexWrap: "wrap", marginBottom: "16px" }}>
-          {SPECIES.map((name) => {
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
+          {speciesOptions.map((name) => {
             const on = species.includes(name);
             return (
-              <button key={name} type="button" onClick={() => toggleSpecies(name)} style={pill(on)}>
+              <button key={name} type="button" onClick={() => toggleSpecies(name)} style={speciesPill(on)}>
                 {name}
               </button>
             );
           })}
         </div>
+        <p className="fl-hint" style={{ margin: "0 0 16px" }}>
+          Edit this list in <a href="/settings" style={{ color: "var(--signal-2)", fontWeight: 600 }}>Settings</a>.
+        </p>
         <label style={{ display: "block", margin: 0 }}>
           <span className="fl-label-text">Custom message (optional)</span>
           <textarea name="custom_message" className="fl-textarea" style={{ minHeight: "60px" }} placeholder={defaultMessage || "Overrides your default message for this send."} />
@@ -571,6 +568,18 @@ const pill = (on: boolean): React.CSSProperties => ({
   color: on ? "var(--signal-ink)" : "var(--muted)",
   borderRadius: "999px",
   padding: "6px 12px",
+  cursor: "pointer",
+  fontWeight: on ? 600 : 400,
+});
+// Species pills are smaller than the crew pills: the list can be long.
+const speciesPill = (on: boolean): React.CSSProperties => ({
+  font: "inherit",
+  fontSize: "11.5px",
+  border: `1px solid ${on ? "var(--signal)" : "var(--line-strong)"}`,
+  background: on ? "var(--signal)" : "var(--ink)",
+  color: on ? "var(--signal-ink)" : "var(--muted)",
+  borderRadius: "999px",
+  padding: "4px 9px",
   cursor: "pointer",
   fontWeight: on ? 600 : 400,
 });

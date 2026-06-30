@@ -15,6 +15,7 @@ import {
   reviewDelayCutoffISO,
   sendReviewEmail,
 } from "@/lib/review-email";
+import { type SocialLinks } from "@/lib/social";
 
 type OperatorContext = {
   operatorName: string;
@@ -23,6 +24,7 @@ type OperatorContext = {
   tripLine: string;
   reviewLinks: { label: string; url: string }[];
   replyTo: string | null;
+  social: SocialLinks;
 };
 
 function tripLine(d: {
@@ -55,6 +57,9 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const cutoff = reviewDelayCutoffISO();
+  // Cron hits the deployed URL, so its origin is the public site origin. Used
+  // for the absolute social icon URLs in the email footer.
+  const baseUrl = new URL(request.url).origin;
 
   // Pending recipients that have at least one downloaded event.
   const { data: recips, error } = await admin
@@ -102,7 +107,9 @@ export async function GET(request: Request) {
       .maybeSingle();
     const { data: branding } = await admin
       .from("branding")
-      .select("logo_url, brand_color, reply_to_email")
+      .select(
+        "logo_url, brand_color, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      )
       .eq("operator_id", delivery.operator_id)
       .maybeSingle();
     const { data: links } = await admin
@@ -118,6 +125,14 @@ export async function GET(request: Request) {
       tripLine: tripLine(delivery),
       reviewLinks: (links ?? []).map((l) => ({ label: l.label, url: l.url })),
       replyTo: branding?.reply_to_email ?? null,
+      social: {
+        website_url: branding?.website_url ?? null,
+        facebook_url: branding?.facebook_url ?? null,
+        instagram_url: branding?.instagram_url ?? null,
+        tiktok_url: branding?.tiktok_url ?? null,
+        youtube_url: branding?.youtube_url ?? null,
+        x_url: branding?.x_url ?? null,
+      },
     };
     contextByDelivery.set(deliveryId, ctx);
     return ctx;
@@ -140,6 +155,8 @@ export async function GET(request: Request) {
       recipientName: r.name,
       tripLine: ctx.tripLine,
       reviewLinks: ctx.reviewLinks,
+      baseUrl,
+      social: ctx.social,
     });
     const result = await sendReviewEmail(
       r.email,

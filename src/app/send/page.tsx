@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { getTrialUsage, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
+import { speciesForSend } from "@/lib/species";
 import { SendForm } from "./send-form";
 
 export default async function SendPage() {
@@ -30,7 +31,7 @@ export default async function SendPage() {
 
   const { data: branding } = await supabase
     .from("branding")
-    .select("default_message, brand_color, plan")
+    .select("default_message, brand_color, plan, species_options")
     .eq("operator_id", membership.operator_id)
     .maybeSingle();
 
@@ -91,6 +92,7 @@ export default async function SendPage() {
         <SendForm
           defaultMessage={branding?.default_message ?? ""}
           brandColor={branding?.brand_color ?? "#0b5563"}
+          speciesOptions={speciesForSend(branding?.species_options as string[] | null)}
           boats={(boats ?? []).map((b) => b.name)}
           crew={(crew ?? []).map((c) => ({
             name: c.name,

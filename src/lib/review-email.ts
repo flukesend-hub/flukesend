@@ -7,6 +7,8 @@
 */
 import "server-only";
 import { escapeHtml, sendEmail, operatorFromAddress } from "@/lib/email";
+import { socialFooterHtml } from "@/lib/email-social";
+import { type SocialLinks } from "@/lib/social";
 
 // How long after a download we wait before asking for a review. The job only
 // picks up recipients whose earliest download is older than this.
@@ -23,6 +25,8 @@ export type ReviewEmailInput = {
   recipientName: string | null;
   tripLine: string;
   reviewLinks: { label: string; url: string }[];
+  baseUrl: string;
+  social: SocialLinks;
 };
 
 export function buildReviewEmail(input: ReviewEmailInput): {
@@ -36,6 +40,8 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   const intro = input.tripLine
     ? `It was a good one out there, ${escapeHtml(input.tripLine)}. `
     : "";
+
+  const socialRow = socialFooterHtml(input.baseUrl, input.social);
 
   const buttons = input.reviewLinks
     .map((l, i) =>
@@ -55,6 +61,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
         <div style="font-family:'Fraunces',Georgia,serif;font-size:22px;margin:16px 0 12px;line-height:1.25">Hope the trip made your day</div>
         <p style="font-size:14px;color:#46555a;margin:0 0 16px">${intro}If you have a minute, a short review helps a small crew like ours more than you would guess.</p>
         <div style="display:flex;flex-direction:column;gap:9px">${buttons}</div>
+        ${socialRow ? `<div style="margin:20px 0 0">${socialRow}</div>` : ""}
         <p style="font-size:11.5px;color:#9aa6a8;margin:18px 0 0;text-align:center">You got this because you downloaded photos from your trip. One note only, we will not chase you.</p>
       </div>
     </div>

@@ -10,6 +10,8 @@
 */
 import "server-only";
 import { escapeHtml } from "@/lib/email";
+import { socialFooterHtml } from "@/lib/email-social";
+import { type SocialLinks } from "@/lib/social";
 
 export type DeliveryEmailInput = {
   operatorName: string;
@@ -23,6 +25,8 @@ export type DeliveryEmailInput = {
   species: string[];
   message: string;
   galleryUrl: string;
+  baseUrl: string;
+  social: SocialLinks;
 };
 
 export function buildDeliveryEmail(input: DeliveryEmailInput): {
@@ -67,6 +71,8 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
       ? `<div style="font-size:12.5px;color:#6b7a7d;margin-top:5px">${credits.join(" &middot; ")}</div>`
       : "",
   ].join("");
+
+  const socialRow = socialFooterHtml(input.baseUrl, input.social);
 
   const tripCard = tripRows
     ? `<tr><td style="padding:0 28px">
@@ -123,7 +129,8 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
             </tr>
           </table>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
-            <tr><td align="center" style="padding:16px 8px 0">
+            ${socialRow ? `<tr><td align="center" style="padding:18px 8px 4px">${socialRow}</td></tr>` : ""}
+            <tr><td align="center" style="padding:${socialRow ? "4px" : "16px"} 8px 0">
               <p style="font-size:11px;color:#9aa6a8;margin:0">Sent by ${name}, delivered with Flukesend</p>
             </td></tr>
           </table>
