@@ -1,20 +1,22 @@
 /*
   The social icon row shared by the delivery and review emails. Renders one
   small monochrome icon per link the operator has set, each wrapped in a link.
-  The icons are static PNGs under public/email/social, referenced by absolute
-  URL so email clients (which do not render inline SVG) can load them.
 
-  Returns an empty string when there is no base URL or no links, so callers can
-  drop it in unconditionally. No em dashes anywhere.
+  The icons are hosted in the public Supabase Storage bucket, the same always
+  public origin the operator logo loads from. This is deliberate: an email can
+  be generated from localhost, a preview deploy, or the production cron, and
+  only a fixed public URL renders reliably in a recipient's mail client. Do not
+  switch these back to a request derived origin. No em dashes anywhere.
+
+  Returns an empty string when there are no links, so callers drop it in
+  unconditionally.
 */
 import { escapeHtml } from "@/lib/email";
 import { SOCIAL_PLATFORMS, type SocialLinks } from "@/lib/social";
 
-export function socialFooterHtml(
-  baseUrl: string,
-  social: SocialLinks,
-): string {
-  if (!baseUrl) return "";
+const ICON_BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/branding/app/social`;
+
+export function socialFooterHtml(social: SocialLinks): string {
   const items = SOCIAL_PLATFORMS.map((p) => ({
     platform: p,
     url: social[p.column],
@@ -26,7 +28,7 @@ export function socialFooterHtml(
   const cells = items
     .map(
       ({ platform, url }) =>
-        `<td style="padding:0 7px"><a href="${escapeHtml(url)}" target="_blank" style="text-decoration:none"><img src="${escapeHtml(baseUrl)}/email/social/${platform.key}.png" width="22" height="22" alt="${escapeHtml(platform.label)}" style="display:block;border:0;opacity:.85" /></a></td>`,
+        `<td style="padding:0 7px"><a href="${escapeHtml(url)}" target="_blank" style="text-decoration:none"><img src="${ICON_BASE}/${platform.key}.png" width="22" height="22" alt="${escapeHtml(platform.label)}" style="display:block;border:0;opacity:.85" /></a></td>`,
     )
     .join("");
 

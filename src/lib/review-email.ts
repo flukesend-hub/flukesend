@@ -28,7 +28,6 @@ export type ReviewEmailInput = {
   recipientName: string | null;
   tripLine: string;
   reviewLinks: { label: string; url: string }[];
-  baseUrl: string;
   social: SocialLinks;
 };
 
@@ -44,7 +43,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
     ? `It was a good one out there, ${escapeHtml(input.tripLine)}. `
     : "";
 
-  const socialRow = socialFooterHtml(input.baseUrl, input.social);
+  const socialRow = socialFooterHtml(input.social);
 
   const buttons = input.reviewLinks
     .map((l, i) =>

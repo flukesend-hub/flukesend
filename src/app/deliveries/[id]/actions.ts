@@ -89,7 +89,6 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     species: (d.species ?? []) as string[],
     message: d.custom_message || branding?.default_message || "",
     galleryUrl: `${baseUrl}/g/${r.token}`,
-    baseUrl,
     social: {
       website_url: branding?.website_url ?? null,
       facebook_url: branding?.facebook_url ?? null,

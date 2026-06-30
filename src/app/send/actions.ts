@@ -271,7 +271,6 @@ export async function createSend(
           species: input.species,
           message,
           galleryUrl: `${baseUrl}/g/${r.token}`,
-          baseUrl,
           social: {
             website_url: branding?.website_url ?? null,
             facebook_url: branding?.facebook_url ?? null,
