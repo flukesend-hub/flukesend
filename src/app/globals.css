@@ -240,7 +240,10 @@ input[type="color"]::-webkit-color-swatch {
 @media (max-width: 760px) {
   .fl-cols,
   .fl-side {
-    grid-template-columns: 1fr !important;
+    /* minmax(0, 1fr) not 1fr: a 1fr track keeps min-width:auto, so a child with
+       a large intrinsic min width (iOS datetime-local inputs) blows the column
+       wider than the screen. minmax(0,...) lets the column shrink to fit. */
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }
 
