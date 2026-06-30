@@ -2,11 +2,12 @@
 
 /*
   First run operator setup, styled from the design handoff. Captures the
-  operation name, brand color, default guest message, and retention. The logo is
-  added later in Settings, so here it is a visual placeholder only. The extended
-  retention toggle is a paid add on and is presentational until billing exists.
+  operation name, optional logo, brand color, default guest message, and
+  retention. The logo can be added here or skipped and added later in Settings.
+  The extended retention toggle is a paid add on and is presentational until
+  billing exists.
 */
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createOperator, type SetupState } from "./actions";
 import { Swatches, Toggle } from "@/app/_ui/controls";
 
@@ -18,6 +19,19 @@ export function OnboardingForm() {
   const [brand, setBrand] = useState("#0b5563");
   const [retention, setRetention] = useState(3);
   const [extended, setExtended] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  // Revoke the object URL when it is replaced or the form unmounts.
+  useEffect(() => {
+    return () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview);
+    };
+  }, [logoPreview]);
+
+  const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setLogoPreview(file ? URL.createObjectURL(file) : null);
+  };
 
   return (
     <form action={formAction}>
@@ -32,8 +46,25 @@ export function OnboardingForm() {
             <input name="name" className="fl-input" placeholder="Enocean Tours" required />
           </label>
           <label style={{ display: "block", marginBottom: "16px" }}>
-            <span className="fl-label-text">Logo</span>
-            <div style={dropzone}>You can add your logo in Settings after setup.</div>
+            <span className="fl-label-text">Logo (optional)</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              {logoPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoPreview} alt="Logo preview" style={logoImg} />
+              ) : null}
+              <label style={dropzone}>
+                <input
+                  name="logo"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={onLogoChange}
+                  style={{ display: "none" }}
+                />
+                {logoPreview
+                  ? "Logo selected. It uploads when you create the workspace."
+                  : "Add your logo now, or skip and add it later in Settings. PNG, JPG, WEBP or SVG, under 5 MB."}
+              </label>
+            </div>
           </label>
           <label style={{ display: "block" }}>
             <span className="fl-label-text">Default message to guests</span>
@@ -117,11 +148,14 @@ const h3: React.CSSProperties = { margin: "0 0 2px", fontSize: "15px", fontWeigh
 const dropzone: React.CSSProperties = {
   border: "1.5px dashed var(--line-strong)",
   borderRadius: "12px",
-  padding: "18px",
+  padding: "14px 16px",
   textAlign: "center",
   color: "var(--muted)",
   fontSize: "13px",
+  cursor: "pointer",
+  flex: 1,
 };
+const logoImg: React.CSSProperties = { height: "54px", width: "auto", flex: "0 0 auto" };
 const extRow: React.CSSProperties = {
   marginTop: "16px",
   display: "flex",

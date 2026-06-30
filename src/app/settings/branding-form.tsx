@@ -4,7 +4,7 @@
   Editable branding card, dark workspace styling. Logo (with replace), brand
   color swatches, default message, retention slider. Posts to updateBranding.
 */
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { updateBranding, type SettingsState } from "./actions";
 import { Swatches } from "@/app/_ui/controls";
 
@@ -29,6 +29,21 @@ export function BrandingForm({
   );
   const [brand, setBrand] = useState(brandColor);
   const [retention, setRetention] = useState(retentionDays);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  // Revoke the object URL when it is replaced or the form unmounts.
+  useEffect(() => {
+    return () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview);
+    };
+  }, [logoPreview]);
+
+  const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setLogoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const shownLogo = logoPreview ?? logoUrl;
 
   return (
     <form action={formAction} className="fl-card">
@@ -37,30 +52,46 @@ export function BrandingForm({
       <label style={{ display: "block", marginBottom: "16px" }}>
         <span className="fl-label-text">Logo</span>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {logoUrl ? (
+          {shownLogo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt={`${operatorName} logo`} style={logoImg} />
+            <img src={shownLogo} alt={`${operatorName} logo`} style={logoImg} />
           ) : (
             <div style={{ ...logoChip, background: brand }}>
               {operatorName.slice(0, 7)}
             </div>
           )}
           <label style={replaceBox}>
-            Replace logo. PNG, JPG, WEBP or SVG, under 5 MB.
+            {logoPreview
+              ? "New logo selected. Save branding to apply it."
+              : "Replace logo. PNG, JPG, WEBP or SVG, under 5 MB."}
             <input
               name="logo"
               type="file"
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              onChange={onLogoChange}
               style={{ display: "none" }}
             />
           </label>
         </div>
       </label>
 
-      <label style={{ display: "block", marginBottom: "16px" }}>
+      <div style={{ marginBottom: "16px" }}>
         <span className="fl-label-text">Brand color</span>
         <Swatches value={brand} onChange={setBrand} />
-      </label>
+        <div style={bannerPreview} aria-hidden="true">
+          <div style={{ ...bannerBar, background: brand }}>
+            {shownLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={shownLogo} alt={`${operatorName} logo`} style={bannerLogo} />
+            ) : (
+              <span style={bannerBarText}>{operatorName}</span>
+            )}
+          </div>
+          <div style={bannerCaption}>
+            Email banner, gallery accent and buttons use this color.
+          </div>
+        </div>
+      </div>
 
       <label style={{ display: "block", marginBottom: "16px" }}>
         <span className="fl-label-text">Default guest message</span>
@@ -112,6 +143,33 @@ const retBtn = (active: boolean): React.CSSProperties => ({
   color: active ? "var(--signal-ink)" : "var(--text)",
 });
 const logoImg: React.CSSProperties = { height: "54px", width: "auto", flex: "0 0 auto" };
+const bannerPreview: React.CSSProperties = {
+  marginTop: "10px",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "11px",
+  overflow: "hidden",
+};
+const bannerBar: React.CSSProperties = {
+  padding: "14px 16px",
+  transition: "background .15s",
+};
+const bannerBarText: React.CSSProperties = {
+  fontFamily: "var(--font-fraunces), serif",
+  fontWeight: 600,
+  fontSize: "15px",
+  color: "#fff",
+};
+const bannerLogo: React.CSSProperties = {
+  height: "34px",
+  width: "auto",
+  display: "block",
+};
+const bannerCaption: React.CSSProperties = {
+  padding: "8px 16px",
+  fontSize: "12px",
+  color: "var(--muted)",
+  background: "var(--surface, transparent)",
+};
 const logoChip: React.CSSProperties = {
   width: 54,
   height: 54,

@@ -2,9 +2,12 @@
 
 /*
   Small shared operator controls from the design: the brand color swatch row
-  (with a custom color input that carries the brand_color form value) and the
-  pill toggle switch. Used by onboarding and settings.
+  (presets plus a custom color editor that opens on demand and confirms with a
+  Done button) and the pill toggle switch. The chosen color rides along in a
+  hidden field so it posts whether it is a preset or a custom pick. Used by
+  onboarding and settings.
 */
+import { useState } from "react";
 
 export const SWATCH_COLORS = ["#0b5563", "#13405c", "#1f5d4c", "#7a3b2e", "#3a3357"];
 
@@ -17,39 +20,134 @@ export function Swatches({
   onChange: (c: string) => void;
   name?: string;
 }) {
+  const [editing, setEditing] = useState(false);
+  const isPreset = SWATCH_COLORS.some((c) => c.toLowerCase() === value.toLowerCase());
+
   return (
-    <div style={{ display: "flex", gap: "9px", flexWrap: "wrap", alignItems: "center" }}>
-      {SWATCH_COLORS.map((c) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ display: "flex", gap: "9px", flexWrap: "wrap", alignItems: "center" }}>
+        {SWATCH_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            title={c}
+            onClick={() => {
+              onChange(c);
+              setEditing(false);
+            }}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 9,
+              cursor: "pointer",
+              background: c,
+              border: `2px solid ${value.toLowerCase() === c ? "var(--text)" : "transparent"}`,
+              outline: "none",
+            }}
+          />
+        ))}
         <button
-          key={c}
           type="button"
-          title={c}
-          onClick={() => onChange(c)}
+          onClick={() => setEditing((o) => !o)}
+          aria-expanded={editing}
+          title="Custom color"
           style={{
-            width: 30,
-            height: 30,
+            display: "flex",
+            alignItems: "center",
+            gap: "7px",
+            height: 32,
+            padding: "0 11px",
             borderRadius: 9,
             cursor: "pointer",
-            background: c,
-            border: `2px solid ${value.toLowerCase() === c ? "var(--text)" : "transparent"}`,
-            outline: "none",
+            background: "transparent",
+            border: `2px solid ${!isPreset ? "var(--text)" : "var(--line-strong)"}`,
+            font: "inherit",
+            fontSize: "12.5px",
+            color: "var(--text)",
           }}
-        />
-      ))}
-      <input
-        type="color"
-        name={name}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="custom brand color"
-        style={{
-          width: 40,
-          height: 36,
-          borderRadius: 9,
-          border: "1px solid var(--line-strong)",
-          cursor: "pointer",
-        }}
-      />
+        >
+          <span
+            style={{
+              width: 16,
+              height: 16,
+              borderRadius: 5,
+              background: value,
+              border: "1px solid rgba(0,0,0,.15)",
+            }}
+          />
+          Custom
+        </button>
+      </div>
+
+      {/* The chosen color always posts, preset or custom. */}
+      <input type="hidden" name={name} value={value} />
+
+      {editing ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            padding: "10px 12px",
+            border: "1px solid var(--line-strong)",
+            borderRadius: "11px",
+            background: "var(--ink-2)",
+            width: "fit-content",
+          }}
+        >
+          <span style={{ position: "relative", width: 40, height: 36, flex: "0 0 auto" }}>
+            <input
+              type="color"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              aria-label="custom brand color"
+              style={{
+                width: "100%",
+                height: "100%",
+                borderRadius: 9,
+                border: "1px solid var(--line-strong)",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            />
+            {/* Hints that the square opens the color picker. Clicks pass through. */}
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#fff"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                pointerEvents: "none",
+                filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,.55))",
+              }}
+            >
+              <path d="m2 22 1-1h3l9-9" />
+              <path d="M3 21v-3l9-9" />
+              <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z" />
+            </svg>
+          </span>
+          <span style={{ fontSize: "13px", fontVariantNumeric: "tabular-nums", color: "var(--muted)" }}>
+            {value.toUpperCase()}
+          </span>
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            className="fl-btn"
+            style={{ fontSize: "13px", padding: "7px 14px" }}
+          >
+            Done
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
