@@ -64,11 +64,10 @@ export default async function GalleryPage({
         ? `Your trip with Captain ${delivery.captain_name}`
         : "Your photos are ready";
   const facts: string[] = [];
-  if (delivery.whale_count != null) {
-    facts.push(`${delivery.whale_count} whale${delivery.whale_count === 1 ? "" : "s"} sighted`);
-  }
   if (delivery.species?.length) facts.push(delivery.species.join(" and "));
   if (delivery.boat_name) facts.push(`aboard ${delivery.boat_name}`);
+  if (delivery.naturalist_name) facts.push(`naturalist ${delivery.naturalist_name}`);
+  if (delivery.photographer_name) facts.push(`photos by ${delivery.photographer_name}`);
 
   return (
     <main style={{ minHeight: "100dvh", background: "var(--paper)", color: "var(--paper-ink)", padding: "0 0 60px" }}>

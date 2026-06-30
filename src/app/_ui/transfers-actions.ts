@@ -10,7 +10,6 @@ export type RecentSend = {
   id: string;
   date: string;
   captain: string | null;
-  whales: number | null;
   guests: number;
 };
 
@@ -33,7 +32,7 @@ export async function getRecentSends(): Promise<RecentSend[]> {
 
   const { data } = await supabase
     .from("deliveries")
-    .select("id, created_at, trip_datetime, whale_count, captain_name, recipients(count)")
+    .select("id, created_at, trip_datetime, captain_name, recipients(count)")
     .eq("operator_id", membership.operator_id)
     .order("created_at", { ascending: false })
     .limit(30);
@@ -44,7 +43,6 @@ export async function getRecentSends(): Promise<RecentSend[]> {
       dateStyle: "medium",
     }),
     captain: d.captain_name,
-    whales: d.whale_count,
     guests: (d.recipients as unknown as { count: number }[] | null)?.[0]?.count ?? 0,
   }));
 }

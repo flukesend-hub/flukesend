@@ -42,7 +42,7 @@ export default async function SendPage() {
 
   const { data: crew } = await supabase
     .from("crew_members")
-    .select("id, name")
+    .select("id, name, roles")
     .eq("operator_id", membership.operator_id)
     .order("sort_order", { ascending: true });
 
@@ -92,7 +92,10 @@ export default async function SendPage() {
           defaultMessage={branding?.default_message ?? ""}
           brandColor={branding?.brand_color ?? "#0b5563"}
           boats={(boats ?? []).map((b) => b.name)}
-          crew={(crew ?? []).map((c) => c.name)}
+          crew={(crew ?? []).map((c) => ({
+            name: c.name,
+            roles: (c.roles ?? []) as string[],
+          }))}
         />
       </main>
     </>

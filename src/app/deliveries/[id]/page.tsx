@@ -36,7 +36,7 @@ export default async function DeliveryPage({
   const { data: delivery } = await supabase
     .from("deliveries")
     .select(
-      "id, operator_id, trip_datetime, whale_count, species, captain_name, crew_names, boat_name, expires_at",
+      "id, operator_id, trip_datetime, species, captain_name, naturalist_name, photographer_name, crew_names, boat_name, expires_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -93,10 +93,11 @@ export default async function DeliveryPage({
         <h3 style={h3}>Trip</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <Row label="Date">{fmtDateTime(delivery.trip_datetime)}</Row>
-          <Row label="Whales seen">{delivery.whale_count ?? "Not set"}</Row>
           <Row label="Species">{species.length ? species.join(", ") : "Not set"}</Row>
           <Row label="Boat">{delivery.boat_name ?? "Not set"}</Row>
           <Row label="Captain">{delivery.captain_name ?? "Not set"}</Row>
+          <Row label="Naturalist">{delivery.naturalist_name ?? "Not set"}</Row>
+          <Row label="Photographer">{delivery.photographer_name ?? "Not set"}</Row>
           <Row label="Crew">{crew.length ? crew.join(", ") : "Not set"}</Row>
           <Row label="Expires">{fmtDateTime(delivery.expires_at)}</Row>
         </div>

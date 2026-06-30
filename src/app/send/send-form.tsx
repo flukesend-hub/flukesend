@@ -56,15 +56,24 @@ export function SendForm({
   defaultMessage: string;
   brandColor: string;
   boats: string[];
-  crew: string[];
+  crew: { name: string; roles: string[] }[];
 }) {
   const router = useRouter();
+  // People split out by the role they are tagged with in Settings. Each list
+  // feeds its own picker; an empty list falls back to a free text field.
+  const captains = crew.filter((c) => c.roles.includes("captain")).map((c) => c.name);
+  const crewList = crew.filter((c) => c.roles.includes("crew")).map((c) => c.name);
+  const naturalists = crew.filter((c) => c.roles.includes("naturalist")).map((c) => c.name);
+  const photographers = crew.filter((c) => c.roles.includes("photographer")).map((c) => c.name);
+
   const [files, setFiles] = useState<File[]>([]);
   const [emailsRaw, setEmailsRaw] = useState("");
   const [species, setSpecies] = useState<string[]>(["Humpback", "Orca"]);
   const [tripDt, setTripDt] = useState("");
   const [boat, setBoat] = useState("");
   const [captain, setCaptain] = useState("");
+  const [naturalist, setNaturalist] = useState("");
+  const [photographer, setPhotographer] = useState("");
   const [crewSel, setCrewSel] = useState<string[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [uploaded, setUploaded] = useState(0);
@@ -125,12 +134,16 @@ export function SendForm({
 
     const fd = new FormData(e.currentTarget);
     const tripDatetime = String(fd.get("trip_datetime") ?? "") || null;
-    const whaleCountRaw = String(fd.get("whale_count") ?? "").trim();
-    const whaleCount = whaleCountRaw ? Number(whaleCountRaw) : null;
-    const captainName = crew.length
+    const captainName = captains.length
       ? captain || null
       : String(fd.get("captain_name") ?? "").trim() || null;
-    const crewNames = crew.length
+    const naturalistName = naturalists.length
+      ? naturalist || null
+      : String(fd.get("naturalist_name") ?? "").trim() || null;
+    const photographerName = photographers.length
+      ? photographer || null
+      : String(fd.get("photographer_name") ?? "").trim() || null;
+    const crewNames = crewList.length
       ? crewSel
       : splitList(String(fd.get("crew_names") ?? ""));
     const boatName = boats.length ? boat || null : null;
@@ -181,9 +194,10 @@ export function SendForm({
       setProgress(100);
       const res = await createSend({
         tripDatetime,
-        whaleCount,
         species,
         captainName,
+        naturalistName,
+        photographerName,
         crewNames,
         boatName,
         customMessage,
@@ -269,36 +283,25 @@ export function SendForm({
           />
         </label>
         {boats.length ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <label style={field}>
-              <span className="fl-label-text">Whales seen</span>
-              <input name="whale_count" type="number" min={0} className="fl-input" placeholder="7" />
-            </label>
-            <label style={field}>
-              <span className="fl-label-text">Boat</span>
-              <select className="fl-input" value={boat} onChange={(e) => setBoat(e.target.value)}>
-                <option value="">No boat</option>
-                {boats.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        ) : (
           <label style={field}>
-            <span className="fl-label-text">Whales seen</span>
-            <input name="whale_count" type="number" min={0} className="fl-input" placeholder="7" />
+            <span className="fl-label-text">Boat</span>
+            <select className="fl-input" value={boat} onChange={(e) => setBoat(e.target.value)}>
+              <option value="">No boat</option>
+              {boats.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
           </label>
-        )}
+        ) : null}
 
-        {crew.length ? (
+        {captains.length ? (
           <label style={field}>
             <span className="fl-label-text">Captain</span>
             <select className="fl-input" value={captain} onChange={(e) => setCaptain(e.target.value)}>
               <option value="">No captain</option>
-              {crew.map((n) => (
+              {captains.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
@@ -312,11 +315,49 @@ export function SendForm({
           </label>
         )}
 
-        {crew.length ? (
+        {naturalists.length ? (
+          <label style={field}>
+            <span className="fl-label-text">Naturalist</span>
+            <select className="fl-input" value={naturalist} onChange={(e) => setNaturalist(e.target.value)}>
+              <option value="">No naturalist</option>
+              {naturalists.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label style={field}>
+            <span className="fl-label-text">Naturalist</span>
+            <input name="naturalist_name" className="fl-input" placeholder="Dana" />
+          </label>
+        )}
+
+        {photographers.length ? (
+          <label style={field}>
+            <span className="fl-label-text">Photographer</span>
+            <select className="fl-input" value={photographer} onChange={(e) => setPhotographer(e.target.value)}>
+              <option value="">No photographer</option>
+              {photographers.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label style={field}>
+            <span className="fl-label-text">Photographer</span>
+            <input name="photographer_name" className="fl-input" placeholder="Slater" />
+          </label>
+        )}
+
+        {crewList.length ? (
           <div style={{ marginBottom: "16px" }}>
             <span className="fl-label-text">Crew aboard</span>
             <div style={{ display: "flex", gap: "7px", flexWrap: "wrap" }}>
-              {crew.map((n) => {
+              {crewList.map((n) => {
                 const on = crewSel.includes(n);
                 return (
                   <button key={n} type="button" onClick={() => toggleCrew(n)} style={pill(on)}>

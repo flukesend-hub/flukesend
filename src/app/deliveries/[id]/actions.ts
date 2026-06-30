@@ -33,26 +33,9 @@ export async function updateRecipientEmail(
   return { ok: true, email };
 }
 
-function tripLine(d: {
-  trip_datetime: string | null;
-  whale_count: number | null;
-  species: string[] | null;
-  captain_name: string | null;
-}) {
-  const parts: string[] = [];
-  if (d.trip_datetime) {
-    parts.push(
-      new Date(d.trip_datetime).toLocaleDateString("en-US", { dateStyle: "long" }),
-    );
-  }
-  if (d.captain_name) parts.push(`with Captain ${d.captain_name}`);
-  const wildlife: string[] = [];
-  if (d.whale_count != null)
-    wildlife.push(`${d.whale_count} whale${d.whale_count === 1 ? "" : "s"}`);
-  if (d.species?.length) wildlife.push(d.species.join(", "));
-  let line = parts.join(" ");
-  if (wildlife.length) line += (line ? ". " : "") + wildlife.join(", ");
-  return line;
+function formatTripDate(tripDatetime: string | null): string | null {
+  if (!tripDatetime) return null;
+  return new Date(tripDatetime).toLocaleDateString("en-US", { dateStyle: "long" });
 }
 
 export async function resendDelivery(recipientId: string): Promise<RowResult> {
@@ -69,7 +52,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
 
   const { data: d } = await supabase
     .from("deliveries")
-    .select("operator_id, trip_datetime, whale_count, species, captain_name, custom_message")
+    .select("operator_id, trip_datetime, species, captain_name, naturalist_name, photographer_name, custom_message")
     .eq("id", r.delivery_id)
     .maybeSingle();
   if (!d) {
@@ -97,7 +80,11 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     brandColor: branding?.brand_color ?? "#0b5563",
     logoUrl: branding?.logo_url ?? null,
     recipientName: null,
-    tripLine: tripLine(d),
+    tripDate: formatTripDate(d.trip_datetime),
+    captainName: d.captain_name,
+    naturalistName: d.naturalist_name,
+    photographerName: d.photographer_name,
+    species: (d.species ?? []) as string[],
     message: d.custom_message || branding?.default_message || "",
     galleryUrl: `${baseUrl}/g/${r.token}`,
   });
