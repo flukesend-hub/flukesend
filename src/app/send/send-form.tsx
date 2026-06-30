@@ -483,7 +483,7 @@ const thumb: React.CSSProperties = {
   borderRadius: "9px",
   backgroundSize: "cover",
   backgroundPosition: "center",
-  background: "#0c1a21",
+  background: "var(--ink-2)",
 };
 const thumbMore: React.CSSProperties = {
   position: "absolute",
@@ -494,7 +494,7 @@ const thumbMore: React.CSSProperties = {
   fontSize: "18px",
   background: "rgba(8,18,23,.58)",
   borderRadius: "9px",
-  color: "var(--text)",
+  color: "#fff",
 };
 const fileRow: React.CSSProperties = {
   display: "flex",
@@ -502,7 +502,7 @@ const fileRow: React.CSSProperties = {
   gap: "10px",
   fontSize: "12.5px",
   padding: "6px 2px",
-  borderBottom: "1px solid rgba(255,255,255,.05)",
+  borderBottom: "1px solid var(--line)",
 };
 const fileName: React.CSSProperties = {
   flex: 1,

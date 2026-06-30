@@ -1,48 +1,13 @@
 /*
-  Flukesend global styles. Ported from the Claude Design handoff
-  (docs/design-brief.md, docs/mockup.html). Two worlds: the operator works in
-  the dark "deep water" workspace (this file's defaults), and guest surfaces
-  (the gallery and emails) are light and driven by the operator's own brand
-  color. No em dashes anywhere.
+  Flukesend global styles. One warm light scheme across the whole product: the
+  operator workspace, the marketing pages, and the guest surfaces all share the
+  paper palette, with the operator's own brand color driving gallery and email
+  accents. (Originally a dark "deep water" operator workspace; unified to light.)
+  No em dashes anywhere.
 */
 
 :root {
-  /* operator workspace: deep water */
-  --ink: #0c1a21;
-  --ink-2: #0f2027;
-  --panel: #11242d;
-  --panel-2: #16313b;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.16);
-  --text: #e8f0f1;
-  --text-2: #cdd9db;
-  --muted: #8ba4ac;
-  --muted-2: #5f7882;
-
-  /* golden hour action color */
-  --signal: #e7b14c;
-  /* gold used as TEXT. Same bright gold on the dark workspace; the light theme
-     darkens it so eyebrows and badges stay readable on paper. */
-  --signal-2: #e7b14c;
-  --signal-ink: #3a2c0a;
-  --good: #4fb286;
-  --bad: #e87b6b;
-
-  /* guest brand color (operator picks this; default only) */
-  --brand: #0b5563;
-  --paper: #faf8f4;
-  --paper-ink: #1c2b2e;
-
-  --radius: 16px;
-}
-
-/*
-  Light theme: the warm "paper" scheme from the marketing and guest surfaces,
-  applied to operator screens that opt in with class="fl-light". Same golden
-  accent, surfaces and text flipped to the light palette. Re-themes the existing
-  .fl-* atoms by overriding the tokens, so components need no per-screen changes.
-*/
-.fl-light {
+  /* operator workspace: warm paper (unified with the marketing + guest light scheme) */
   --ink: #f8f7f3;
   --ink-2: #f1efe8;
   --panel: #fffdf9;
@@ -53,9 +18,21 @@
   --text-2: #3a4744;
   --muted: #5f6b68;
   --muted-2: #8a938f;
+
+  /* golden hour action color */
+  --signal: #e7b14c;
+  /* gold used as TEXT, darkened so eyebrows and badges stay readable on paper. */
   --signal-2: #9a7b2e;
+  --signal-ink: #3a2c0a;
   --good: #2f8f63;
   --bad: #c2533f;
+
+  /* guest brand color (operator picks this; default only) */
+  --brand: #0b5563;
+  --paper: #faf8f4;
+  --paper-ink: #1c2b2e;
+
+  --radius: 16px;
 }
 
 * {
@@ -122,7 +99,7 @@ input[type="range"] {
   appearance: none;
   height: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--line-strong);
   outline: none;
 }
 input[type="range"]::-webkit-slider-thumb {
@@ -164,7 +141,7 @@ input[type="color"]::-webkit-color-swatch {
   height: 11px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.18);
   border-radius: 999px;
   border: 3px solid var(--ink);
 }

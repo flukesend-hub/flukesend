@@ -68,20 +68,19 @@ export function BrandingForm({
       </label>
 
       <label style={{ display: "block", marginBottom: "16px" }}>
-        <span className="fl-label-text">Retention days</span>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <input
-            type="range"
-            min={3}
-            max={10}
-            name="retention_days"
-            value={retention}
-            onChange={(e) => setRetention(Number(e.target.value))}
-            style={{ flex: 1 }}
-          />
-          <span className="fl-display" style={{ fontSize: "20px", minWidth: "80px" }}>
-            <span style={{ color: "var(--signal)" }}>{retention}</span> days
-          </span>
+        <span className="fl-label-text">How long should we keep the photos?</span>
+        <input type="hidden" name="retention_days" value={retention} />
+        <div style={{ display: "flex", gap: "8px" }}>
+          {[1, 3, 7].map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setRetention(d)}
+              style={retBtn(retention === d)}
+            >
+              {d} {d === 1 ? "day" : "days"}
+            </button>
+          ))}
         </div>
       </label>
 
@@ -100,6 +99,18 @@ export function BrandingForm({
 }
 
 const h3: React.CSSProperties = { margin: "0 0 16px", fontSize: "15px", fontWeight: 600 };
+const retBtn = (active: boolean): React.CSSProperties => ({
+  flex: 1,
+  cursor: "pointer",
+  font: "inherit",
+  fontSize: "14px",
+  fontWeight: 600,
+  padding: "11px 0",
+  borderRadius: "10px",
+  border: `1px solid ${active ? "var(--signal)" : "var(--line-strong)"}`,
+  background: active ? "var(--signal)" : "transparent",
+  color: active ? "var(--signal-ink)" : "var(--text)",
+});
 const logoImg: React.CSSProperties = { height: "54px", width: "auto", flex: "0 0 auto" };
 const logoChip: React.CSSProperties = {
   width: 54,

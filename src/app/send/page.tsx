@@ -67,10 +67,10 @@ export default async function SendPage() {
               marginTop: "16px",
               padding: "11px 16px",
               borderRadius: "11px",
-              border: "1px solid rgba(231,177,76,.35)",
-              background: "rgba(231,177,76,.1)",
+              border: "1px solid rgba(231,177,76,.45)",
+              background: "rgba(231,177,76,.14)",
               fontSize: "13px",
-              color: "#f3e3b8",
+              color: "#7a5a17",
               display: "flex",
               gap: "10px",
               flexWrap: "wrap",
@@ -82,7 +82,7 @@ export default async function SendPage() {
               transfers and <strong>{usage.emails}</strong> of {TRIAL_EMAILS}{" "}
               guest emails used.
             </span>
-            <a href="/billing" style={{ color: "var(--signal)", fontWeight: 600, marginLeft: "auto" }}>
+            <a href="/billing" style={{ color: "var(--signal-2)", fontWeight: 600, marginLeft: "auto" }}>
               See plans
             </a>
           </div>

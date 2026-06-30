@@ -81,7 +81,7 @@ export default async function DeliveryPage({
       {emailedN !== null ? (
         <div style={emailedN > 0 ? bannerOk : bannerWarn}>
           <span style={emailedN > 0 ? check : checkWarn}>{emailedN > 0 ? "✓" : "!"}</span>
-          <span style={{ fontSize: "13.5px", color: emailedN > 0 ? "#cdeede" : "#f3e3b8" }}>
+          <span style={{ fontSize: "13.5px", color: emailedN > 0 ? "#0f6e56" : "#7a5a17" }}>
             {emailedN > 0
               ? `Emailed the gallery link to ${emailedN} of ${guests} guests. Review asks are scheduled for this evening.`
               : "Guests were not emailed. Check that the email service is configured."}
@@ -143,13 +143,13 @@ const bannerOk: React.CSSProperties = {
   gap: "12px",
   padding: "13px 16px",
   borderRadius: "12px",
-  border: "1px solid rgba(79,178,134,.35)",
-  background: "rgba(79,178,134,.1)",
+  border: "1px solid rgba(47,143,99,.4)",
+  background: "rgba(47,143,99,.12)",
 };
 const bannerWarn: React.CSSProperties = {
   ...bannerOk,
-  border: "1px solid rgba(231,177,76,.35)",
-  background: "rgba(231,177,76,.1)",
+  border: "1px solid rgba(231,177,76,.45)",
+  background: "rgba(231,177,76,.14)",
 };
 const check: React.CSSProperties = {
   width: "26px",
