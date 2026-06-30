@@ -75,18 +75,23 @@ export function BrandingForm({
         </div>
       </label>
 
-      <label style={{ display: "block", marginBottom: "16px" }}>
+      <div style={{ marginBottom: "16px" }}>
         <span className="fl-label-text">Brand color</span>
         <Swatches value={brand} onChange={setBrand} />
-        <div style={bannerPreview}>
+        <div style={bannerPreview} aria-hidden="true">
           <div style={{ ...bannerBar, background: brand }}>
-            <span style={bannerBarText}>{operatorName}</span>
+            {shownLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={shownLogo} alt={`${operatorName} logo`} style={bannerLogo} />
+            ) : (
+              <span style={bannerBarText}>{operatorName}</span>
+            )}
           </div>
           <div style={bannerCaption}>
             Email banner, gallery accent and buttons use this color.
           </div>
         </div>
-      </label>
+      </div>
 
       <label style={{ display: "block", marginBottom: "16px" }}>
         <span className="fl-label-text">Default guest message</span>
@@ -153,6 +158,11 @@ const bannerBarText: React.CSSProperties = {
   fontWeight: 600,
   fontSize: "15px",
   color: "#fff",
+};
+const bannerLogo: React.CSSProperties = {
+  height: "34px",
+  width: "auto",
+  display: "block",
 };
 const bannerCaption: React.CSSProperties = {
   padding: "8px 16px",
