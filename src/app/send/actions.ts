@@ -15,7 +15,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, operatorFromAddress } from "@/lib/email";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { getTrialUsage, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
 
@@ -255,6 +255,7 @@ export async function createSend(
 
   let emailed = 0;
   if (baseUrl) {
+    const deliveryFrom = operatorFromAddress(operator?.name ?? "your crew");
     const sends = await Promise.allSettled(
       recipients.map((r) => {
         const { subject, html } = buildDeliveryEmail({
@@ -266,7 +267,7 @@ export async function createSend(
           message,
           galleryUrl: `${baseUrl}/g/${r.token}`,
         });
-        return sendEmail(r.email, subject, html);
+        return sendEmail(r.email, subject, html, deliveryFrom);
       }),
     );
     emailed = sends.filter(

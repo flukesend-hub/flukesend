@@ -144,7 +144,7 @@ export async function GET(request: Request) {
       tripLine: ctx.tripLine,
       reviewLinks: ctx.reviewLinks,
     });
-    const result = await sendReviewEmail(r.email, subject, html);
+    const result = await sendReviewEmail(r.email, subject, html, ctx.operatorName);
     if (result.status === "sent") {
       await admin
         .from("recipients")

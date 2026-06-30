@@ -7,7 +7,7 @@
 
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, operatorFromAddress } from "@/lib/email";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -102,7 +102,12 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     galleryUrl: `${baseUrl}/g/${r.token}`,
   });
 
-  const result = await sendEmail(r.email, subject, html);
+  const result = await sendEmail(
+    r.email,
+    subject,
+    html,
+    operatorFromAddress(operator?.name ?? "your crew"),
+  );
   if (result.status === "sent") {
     return { ok: true };
   }
