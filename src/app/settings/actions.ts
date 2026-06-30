@@ -11,12 +11,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { uploadOperatorLogo } from "@/lib/logo-upload";
 
 export type SettingsState = { error?: string; ok?: string } | undefined;
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const MAX_LOGO_BYTES = 5 * 1024 * 1024;
-const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 
 // Resolve the signed in user and the operator they belong to. Bounces to login
 // or onboarding if either is missing, so callers can assume both exist.
@@ -63,38 +62,9 @@ export async function updateBranding(
 
   // Logo is optional on save. When present, replace whatever is in the
   // operator's folder so only one logo is ever kept.
-  let logoUrl: string | undefined;
-  const file = formData.get("logo");
-  if (file instanceof File && file.size > 0) {
-    if (!LOGO_TYPES.includes(file.type)) {
-      return { error: "Logo must be a PNG, JPG, WEBP, or SVG." };
-    }
-    if (file.size > MAX_LOGO_BYTES) {
-      return { error: "Logo must be under 5 MB." };
-    }
-
-    const admin = createAdminClient();
-    const { data: existing } = await admin.storage
-      .from("branding")
-      .list(operatorId);
-    if (existing && existing.length) {
-      await admin.storage
-        .from("branding")
-        .remove(existing.map((f) => `${operatorId}/${f.name}`));
-    }
-
-    const ext = file.type === "image/svg+xml" ? "svg" : file.type.split("/")[1];
-    const path = `${operatorId}/logo.${ext}`;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error: upErr } = await admin.storage
-      .from("branding")
-      .upload(path, bytes, { contentType: file.type, upsert: true });
-    if (upErr) {
-      return { error: "Could not upload the logo. Try again." };
-    }
-    const { data: pub } = admin.storage.from("branding").getPublicUrl(path);
-    // Cache bust so a replaced logo shows right away instead of the old cached one.
-    logoUrl = `${pub.publicUrl}?v=${Date.now()}`;
+  const upload = await uploadOperatorLogo(operatorId, formData.get("logo"));
+  if (!upload.ok) {
+    return { error: upload.error };
   }
 
   const update: Record<string, unknown> = {
@@ -102,8 +72,8 @@ export async function updateBranding(
     default_message: defaultMessage,
     retention_days: retentionDays,
   };
-  if (logoUrl) {
-    update.logo_url = logoUrl;
+  if (upload.logoUrl) {
+    update.logo_url = upload.logoUrl;
   }
 
   const { error } = await supabase

@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { uploadOperatorLogo } from "@/lib/logo-upload";
 
 export type SetupState = { error: string } | undefined;
 
@@ -85,11 +86,19 @@ export async function createOperator(
     return { error: "Could not link your account. Try again." };
   }
 
+  // Logo is optional here: operators can add it now or later in Settings.
+  const upload = await uploadOperatorLogo(operator.id, formData.get("logo"));
+  if (!upload.ok) {
+    await admin.from("operators").delete().eq("id", operator.id);
+    return { error: upload.error };
+  }
+
   const { error: brandError } = await admin.from("branding").insert({
     operator_id: operator.id,
     brand_color: brandColor,
     default_message: defaultMessage,
     retention_days: retentionDays,
+    logo_url: upload.logoUrl,
     // Guest replies route here: the email the operator signed up with.
     reply_to_email: user.email ?? null,
   });
