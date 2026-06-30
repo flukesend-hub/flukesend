@@ -520,9 +520,11 @@ const thumb: React.CSSProperties = {
   position: "relative",
   aspectRatio: "4/3",
   borderRadius: "9px",
+  // backgroundColor (not the `background` shorthand) so it does not reset
+  // backgroundSize/Position and leave the full-res photo zoomed to its corner.
+  backgroundColor: "var(--ink-2)",
   backgroundSize: "cover",
   backgroundPosition: "center",
-  background: "var(--ink-2)",
 };
 const thumbMore: React.CSSProperties = {
   position: "absolute",
