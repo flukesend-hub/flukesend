@@ -95,19 +95,46 @@ export function Swatches({
             width: "fit-content",
           }}
         >
-          <input
-            type="color"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            aria-label="custom brand color"
-            style={{
-              width: 40,
-              height: 36,
-              borderRadius: 9,
-              border: "1px solid var(--line-strong)",
-              cursor: "pointer",
-            }}
-          />
+          <span style={{ position: "relative", width: 40, height: 36, flex: "0 0 auto" }}>
+            <input
+              type="color"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              aria-label="custom brand color"
+              style={{
+                width: "100%",
+                height: "100%",
+                borderRadius: 9,
+                border: "1px solid var(--line-strong)",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            />
+            {/* Hints that the square opens the color picker. Clicks pass through. */}
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#fff"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                pointerEvents: "none",
+                filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,.55))",
+              }}
+            >
+              <path d="m2 22 1-1h3l9-9" />
+              <path d="M3 21v-3l9-9" />
+              <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z" />
+            </svg>
+          </span>
           <span style={{ fontSize: "13px", fontVariantNumeric: "tabular-nums", color: "var(--muted)" }}>
             {value.toUpperCase()}
           </span>
