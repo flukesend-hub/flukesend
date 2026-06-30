@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import { CREW_ROLES } from "@/lib/roles";
 import { signUploads, createSend } from "./actions";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,10 +27,6 @@ function parseEmails(raw: string) {
     else invalid.push(token);
   }
   return { valid, invalid };
-}
-
-function splitList(raw: string) {
-  return raw.split(/[,\n]+/).map((s) => s.trim()).filter(Boolean);
 }
 
 function fmtSize(bytes: number) {
@@ -53,22 +50,15 @@ export function SendForm({
   crew: { name: string; roles: string[] }[];
 }) {
   const router = useRouter();
-  // People split out by the role they are tagged with in Settings. Each list
-  // feeds its own picker; an empty list falls back to a free text field.
-  const captains = crew.filter((c) => c.roles.includes("captain")).map((c) => c.name);
-  const crewList = crew.filter((c) => c.roles.includes("crew")).map((c) => c.name);
-  const naturalists = crew.filter((c) => c.roles.includes("naturalist")).map((c) => c.name);
-  const photographers = crew.filter((c) => c.roles.includes("photographer")).map((c) => c.name);
-
   const [files, setFiles] = useState<File[]>([]);
   const [emailsRaw, setEmailsRaw] = useState("");
   const [species, setSpecies] = useState<string[]>([]);
   const [tripDt, setTripDt] = useState("");
   const [boat, setBoat] = useState("");
-  const [captain, setCaptain] = useState("");
-  const [naturalist, setNaturalist] = useState("");
-  const [photographer, setPhotographer] = useState("");
-  const [crewSel, setCrewSel] = useState<string[]>([]);
+  // Who was aboard, by name. Each person's roles (set in Settings) decide how
+  // they get credited on the delivery, so the send just asks who came along.
+  const [aboard, setAboard] = useState<string[]>([]);
+  const [crewOpen, setCrewOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [uploaded, setUploaded] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -115,8 +105,8 @@ export function SendForm({
     );
   }
 
-  function toggleCrew(name: string) {
-    setCrewSel((prev) =>
+  function toggleAboard(name: string) {
+    setAboard((prev) =>
       prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name],
     );
   }
@@ -128,18 +118,17 @@ export function SendForm({
 
     const fd = new FormData(e.currentTarget);
     const tripDatetime = String(fd.get("trip_datetime") ?? "") || null;
-    const captainName = captains.length
-      ? captain || null
-      : String(fd.get("captain_name") ?? "").trim() || null;
-    const naturalistName = naturalists.length
-      ? naturalist || null
-      : String(fd.get("naturalist_name") ?? "").trim() || null;
-    const photographerName = photographers.length
-      ? photographer || null
-      : String(fd.get("photographer_name") ?? "").trim() || null;
-    const crewNames = crewList.length
-      ? crewSel
-      : splitList(String(fd.get("crew_names") ?? ""));
+    // Credit each aboard person by the roles they carry in Settings. Single
+    // roles take the first match; crew is everyone tagged crew.
+    const selectedCrew = crew.filter((c) => aboard.includes(c.name));
+    const firstWithRole = (role: string) =>
+      selectedCrew.find((c) => c.roles.includes(role))?.name ?? null;
+    const captainName = firstWithRole("captain");
+    const naturalistName = firstWithRole("naturalist");
+    const photographerName = firstWithRole("photographer");
+    const crewNames = selectedCrew
+      .filter((c) => c.roles.includes("crew"))
+      .map((c) => c.name);
     const boatName = boats.length ? boat || null : null;
     const customMessage = String(fd.get("custom_message") ?? "").trim() || null;
 
@@ -291,83 +280,60 @@ export function SendForm({
           </label>
         ) : null}
 
-        {captains.length ? (
-          <label style={field}>
-            <span className="fl-label-text">Captain</span>
-            <select className="fl-input" value={captain} onChange={(e) => setCaptain(e.target.value)}>
-              <option value="">No captain</option>
-              {captains.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label style={field}>
-            <span className="fl-label-text">Captain</span>
-            <input name="captain_name" className="fl-input" placeholder="Margo" />
-          </label>
-        )}
-
-        {naturalists.length ? (
-          <label style={field}>
-            <span className="fl-label-text">Naturalist</span>
-            <select className="fl-input" value={naturalist} onChange={(e) => setNaturalist(e.target.value)}>
-              <option value="">No naturalist</option>
-              {naturalists.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label style={field}>
-            <span className="fl-label-text">Naturalist</span>
-            <input name="naturalist_name" className="fl-input" placeholder="Dana" />
-          </label>
-        )}
-
-        {photographers.length ? (
-          <label style={field}>
-            <span className="fl-label-text">Photographer</span>
-            <select className="fl-input" value={photographer} onChange={(e) => setPhotographer(e.target.value)}>
-              <option value="">No photographer</option>
-              {photographers.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label style={field}>
-            <span className="fl-label-text">Photographer</span>
-            <input name="photographer_name" className="fl-input" placeholder="Slater" />
-          </label>
-        )}
-
-        {crewList.length ? (
-          <div style={{ marginBottom: "16px" }}>
-            <span className="fl-label-text">Crew aboard</span>
-            <div style={{ display: "flex", gap: "7px", flexWrap: "wrap" }}>
-              {crewList.map((n) => {
-                const on = crewSel.includes(n);
-                return (
-                  <button key={n} type="button" onClick={() => toggleCrew(n)} style={pill(on)}>
-                    {n}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <label style={field}>
-            <span className="fl-label-text">Crew</span>
-            <input name="crew_names" className="fl-input" placeholder="Slater, Dana" />
-          </label>
-        )}
+        <div style={{ marginBottom: "16px" }}>
+          <button type="button" onClick={() => setCrewOpen((o) => !o)} aria-expanded={crewOpen} style={crewToggle}>
+            <span className="fl-label-text" style={{ margin: 0 }}>Crew mentions (optional)</span>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--muted)"
+              strokeWidth="2"
+              aria-hidden="true"
+              style={{ transform: crewOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+          {crewOpen ? (
+            crew.length ? (
+              <div style={{ marginTop: "10px" }}>
+                <p className="fl-hint" style={{ margin: "0 0 8px" }}>
+                  Check who was aboard. We credit each person by the role you set in Settings.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {crew.map((c) => {
+                    const on = aboard.includes(c.name);
+                    const roleLabels = CREW_ROLES.filter((r) => c.roles.includes(r.key))
+                      .map((r) => r.label)
+                      .join(", ");
+                    return (
+                      <label key={c.name} style={crewRow(on)}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => toggleAboard(c.name)}
+                          style={{ width: "16px", height: "16px", accentColor: "var(--signal)", flex: "0 0 auto" }}
+                        />
+                        <span style={{ fontSize: "13.5px", fontWeight: 500 }}>{c.name}</span>
+                        <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--muted)" }}>
+                          {roleLabels || "No role set"}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="fl-hint" style={{ margin: "10px 0 0" }}>
+                Add your team in{" "}
+                <a href="/settings" style={{ color: "var(--signal-2)", fontWeight: 600 }}>Settings</a>{" "}
+                and tag each person&apos;s role to credit them here.
+              </p>
+            )
+          ) : null}
+        </div>
         <span className="fl-label-text">Species seen</span>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
           {speciesOptions.map((name) => {
@@ -563,18 +529,29 @@ const fileRemove: React.CSSProperties = {
   fontSize: "13px",
   lineHeight: 1,
 };
-const pill = (on: boolean): React.CSSProperties => ({
-  font: "inherit",
-  fontSize: "12.5px",
-  border: `1px solid ${on ? "var(--signal)" : "var(--line-strong)"}`,
-  background: on ? "var(--signal)" : "var(--ink)",
-  color: on ? "var(--signal-ink)" : "var(--muted)",
-  borderRadius: "999px",
-  padding: "6px 12px",
+const crewToggle: React.CSSProperties = {
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "8px",
+  background: "transparent",
+  border: "none",
+  padding: 0,
   cursor: "pointer",
-  fontWeight: on ? 600 : 400,
+  font: "inherit",
+};
+const crewRow = (on: boolean): React.CSSProperties => ({
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  padding: "9px 11px",
+  borderRadius: "10px",
+  border: `1px solid ${on ? "var(--signal)" : "var(--line)"}`,
+  background: on ? "rgba(231,177,76,.10)" : "var(--ink)",
+  cursor: "pointer",
 });
-// Species pills are smaller than the crew pills: the list can be long.
+// Species pills are small: the list can be long.
 const speciesPill = (on: boolean): React.CSSProperties => ({
   font: "inherit",
   fontSize: "11.5px",
