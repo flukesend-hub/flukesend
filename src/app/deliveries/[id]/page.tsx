@@ -10,6 +10,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { GuestRow } from "./guest-row";
+import { recipientStatus } from "@/lib/recipient-status";
 
 function fmtDateTime(value: string | null) {
   if (!value) return "Not set";
@@ -57,8 +58,25 @@ export default async function DeliveryPage({
 
   const { data: recipients } = await supabase
     .from("recipients")
-    .select("id, email, token")
+    .select("id, email, token, review_email_status")
     .eq("delivery_id", id);
+
+  // Fold each guest's events into download/open flags so a status chip can show
+  // where they are: emailed, opened, downloaded, or review sent.
+  const recipientIds = (recipients ?? []).map((r) => r.id);
+  const { data: events } = recipientIds.length
+    ? await supabase
+        .from("events")
+        .select("recipient_id, type")
+        .in("recipient_id", recipientIds)
+    : { data: [] as { recipient_id: string; type: string }[] };
+  const eventsByRecipient = new Map<string, { download: boolean; open: boolean }>();
+  for (const e of events ?? []) {
+    const cur = eventsByRecipient.get(e.recipient_id) ?? { download: false, open: false };
+    if (e.type === "downloaded") cur.download = true;
+    if (e.type === "opened") cur.open = true;
+    eventsByRecipient.set(e.recipient_id, cur);
+  }
 
   const hdrs = await headers();
   const baseUrl = `${hdrs.get("x-forwarded-proto") ?? "https"}://${hdrs.get("host") ?? ""}`;
@@ -106,9 +124,18 @@ export default async function DeliveryPage({
       <div className="fl-card" style={{ marginTop: "16px" }}>
         <h3 style={h3}>Guests ({guests})</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {recipients?.map((r) => (
-            <GuestRow key={r.id} id={r.id} email={r.email} galleryUrl={`${baseUrl}/g/${r.token}`} />
-          ))}
+          {recipients?.map((r) => {
+            const ev = eventsByRecipient.get(r.id);
+            return (
+              <GuestRow
+                key={r.id}
+                id={r.id}
+                email={r.email}
+                galleryUrl={`${baseUrl}/g/${r.token}`}
+                status={recipientStatus(r.review_email_status, ev?.download ?? false, ev?.open ?? false)}
+              />
+            );
+          })}
         </div>
         <p style={{ color: "var(--muted-2)", fontSize: "12.5px", margin: "14px 0 0" }}>
           Each link above is one guest&apos;s personal gallery. The download from

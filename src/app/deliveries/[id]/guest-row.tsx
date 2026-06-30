@@ -7,15 +7,18 @@
 */
 import { useState } from "react";
 import { resendDelivery, updateRecipientEmail } from "./actions";
+import { STATUS_META, type RecipientStatus } from "@/lib/recipient-status";
 
 export function GuestRow({
   id,
   email: initialEmail,
   galleryUrl,
+  status,
 }: {
   id: string;
   email: string;
   galleryUrl: string;
+  status: RecipientStatus;
 }) {
   const [email, setEmail] = useState(initialEmail);
   const [draft, setDraft] = useState(initialEmail);
@@ -83,7 +86,10 @@ export function GuestRow({
           </div>
         ) : (
           <>
-            <span style={emailText}>{email}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+              <span style={emailText}>{email}</span>
+              <StatusChip status={status} />
+            </span>
             <div style={actions}>
               <button onClick={() => setEditing(true)} style={iconBtn} title="Edit email" aria-label="Edit email">
                 <Pencil />
@@ -115,6 +121,25 @@ function Pencil() {
     </svg>
   );
 }
+
+function StatusChip({ status }: { status: RecipientStatus }) {
+  const meta = STATUS_META[status];
+  return <span style={chipStyle(meta.tone)}>{meta.label}</span>;
+}
+
+const chipStyle = (tone: "good" | "info" | "muted"): React.CSSProperties => ({
+  flex: "0 0 auto",
+  fontSize: "11.5px",
+  fontWeight: 600,
+  padding: "3px 9px",
+  borderRadius: "999px",
+  whiteSpace: "nowrap",
+  ...(tone === "good"
+    ? { color: "var(--good)", background: "rgba(34,160,90,.14)" }
+    : tone === "info"
+      ? { color: "#185fa5", background: "rgba(24,95,165,.12)" }
+      : { color: "var(--muted)", background: "var(--line)" }),
+});
 
 const card: React.CSSProperties = {
   display: "flex",
