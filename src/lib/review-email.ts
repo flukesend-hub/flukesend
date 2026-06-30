@@ -11,9 +11,10 @@ import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
 
 // How long after a download we wait before asking for a review. Set to 0 so the
-// nightly 03:00 UTC job (8 PM Pacific in summer, 7 PM in winter) asks every
-// guest who has downloaded since the last run, the same night, with no hold
-// back. Raise this if a gap after the download is wanted again.
+// job asks every guest who has downloaded since the last run, with no hold back.
+// The cron runs twice a day (14:00 and 03:00 UTC, which is 7 AM and 8 PM Pacific
+// in summer), so a guest gets their ask at the next 7 AM or 8 PM after they
+// download. Raise this if a gap after the download is wanted again.
 export const REVIEW_DELAY_HOURS = 0;
 
 export function reviewDelayCutoffISO(now: number = Date.now()) {
