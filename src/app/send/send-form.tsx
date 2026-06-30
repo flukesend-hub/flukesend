@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
-import { CREW_ROLES } from "@/lib/roles";
+import { CREW_ROLES, topRole } from "@/lib/roles";
 import { signUploads, createSend } from "./actions";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -118,17 +118,17 @@ export function SendForm({
 
     const fd = new FormData(e.currentTarget);
     const tripDatetime = String(fd.get("trip_datetime") ?? "") || null;
-    // Credit each aboard person by the roles they carry in Settings. Single
-    // roles take the first match; crew is everyone tagged crew.
-    const selectedCrew = crew.filter((c) => aboard.includes(c.name));
-    const firstWithRole = (role: string) =>
-      selectedCrew.find((c) => c.roles.includes(role))?.name ?? null;
-    const captainName = firstWithRole("captain");
-    const naturalistName = firstWithRole("naturalist");
-    const photographerName = firstWithRole("photographer");
-    const crewNames = selectedCrew
-      .filter((c) => c.roles.includes("crew"))
-      .map((c) => c.name);
+    // Credit each aboard person exactly once, by their highest ranked role
+    // (captain > naturalist > photographer > crew), so nobody is named twice.
+    const credited = crew
+      .filter((c) => aboard.includes(c.name))
+      .map((c) => ({ name: c.name, role: topRole(c.roles) }));
+    const nameForRole = (role: string) =>
+      credited.find((c) => c.role === role)?.name ?? null;
+    const captainName = nameForRole("captain");
+    const naturalistName = nameForRole("naturalist");
+    const photographerName = nameForRole("photographer");
+    const crewNames = credited.filter((c) => c.role === "crew").map((c) => c.name);
     const boatName = boats.length ? boat || null : null;
     const customMessage = String(fd.get("custom_message") ?? "").trim() || null;
 
@@ -300,14 +300,14 @@ export function SendForm({
             crew.length ? (
               <div style={{ marginTop: "10px" }}>
                 <p className="fl-hint" style={{ margin: "0 0 8px" }}>
-                  Check who was aboard. We credit each person by the role you set in Settings.
+                  Check who was aboard. Each person is credited once, by their main role.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {crew.map((c) => {
                     const on = aboard.includes(c.name);
-                    const roleLabels = CREW_ROLES.filter((r) => c.roles.includes(r.key))
-                      .map((r) => r.label)
-                      .join(", ");
+                    const credited = topRole(c.roles);
+                    const creditedLabel =
+                      CREW_ROLES.find((r) => r.key === credited)?.label ?? "No role set";
                     return (
                       <label key={c.name} style={crewRow(on)}>
                         <input
@@ -318,7 +318,7 @@ export function SendForm({
                         />
                         <span style={{ fontSize: "13.5px", fontWeight: 500 }}>{c.name}</span>
                         <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--muted)" }}>
-                          {roleLabels || "No role set"}
+                          {creditedLabel}
                         </span>
                       </label>
                     );
