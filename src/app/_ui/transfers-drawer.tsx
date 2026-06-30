@@ -59,10 +59,10 @@ export function TransfersDrawer({ open, onClose }: { open: boolean; onClose: () 
         {sends && sends.length ? (
           <div style={exportRow}>
             <span style={{ fontSize: "12.5px", color: "var(--muted)" }}>
-              Export every guest email as a CSV for your marketing tool.
+              Your up-to-date email list: every guest from every trip, deduplicated, as a CSV for your marketing tool.
             </span>
             <a href="/api/export/recipients" download className="fl-btn-ghost" style={exportBtn}>
-              Export emails
+              Export email list
             </a>
           </div>
         ) : null}
