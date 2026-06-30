@@ -13,6 +13,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { isCrewRole } from "@/lib/roles";
+import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
+import { normalizeSpecies } from "@/lib/species";
 
 export type SettingsState = { error?: string; ok?: string } | undefined;
 
@@ -88,6 +90,53 @@ export async function updateBranding(
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   return { ok: "Branding saved." };
+}
+
+// Website and the social links. Each platform maps to one branding column. A
+// blank field clears that link; a bare host gets https:// added for the
+// operator. The whole save fails with one message if any link cannot be parsed.
+export async function updateSocialLinks(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
+  const { supabase, operatorId } = await resolveOperator();
+
+  const update: Record<string, string | null> = {};
+  for (const platform of SOCIAL_PLATFORMS) {
+    const result = normalizeSocialUrl(String(formData.get(platform.key) ?? ""));
+    if ("error" in result) {
+      return { error: `${platform.label}: ${result.error}` };
+    }
+    update[platform.column] = result.url;
+  }
+
+  const { error } = await supabase
+    .from("branding")
+    .update(update)
+    .eq("operator_id", operatorId);
+  if (error) {
+    return { error: "Could not save your links. Try again." };
+  }
+
+  revalidatePath("/settings");
+  return { ok: "Links saved." };
+}
+
+// The operator's species list, picked from the catalog or typed in. Saved to
+// branding.species_options and shown as the pills on the send form.
+export async function updateSpecies(species: string[]): Promise<SettingsState> {
+  const { supabase, operatorId } = await resolveOperator();
+  const clean = normalizeSpecies(species);
+  const { error } = await supabase
+    .from("branding")
+    .update({ species_options: clean })
+    .eq("operator_id", operatorId);
+  if (error) {
+    return { error: "Could not save your species list. Try again." };
+  }
+  revalidatePath("/settings");
+  revalidatePath("/send");
+  return { ok: "Species saved." };
 }
 
 export async function removeLogo(): Promise<void> {

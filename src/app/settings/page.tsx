@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { BrandingForm } from "./branding-form";
 import { ReviewLinks } from "./review-links";
+import { SocialLinksForm } from "./social-links-form";
+import { SpeciesPicker } from "./species-picker";
 import { RosterList } from "./roster-list";
 import { CrewRoster } from "./crew-roster";
 import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
@@ -33,7 +35,9 @@ export default async function SettingsPage() {
 
   const { data: branding } = await supabase
     .from("branding")
-    .select("logo_url, brand_color, default_message, retention_days, plan")
+    .select(
+      "logo_url, brand_color, default_message, retention_days, plan, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url, species_options",
+    )
     .eq("operator_id", operatorId)
     .maybeSingle();
 
@@ -81,6 +85,20 @@ export default async function SettingsPage() {
             retentionDays={branding?.retention_days ?? 5}
           />
           <ReviewLinks links={links ?? []} />
+        </div>
+
+        <div className="fl-cols" style={{ marginTop: "16px" }}>
+          <SocialLinksForm
+            links={{
+              website_url: branding?.website_url ?? null,
+              facebook_url: branding?.facebook_url ?? null,
+              instagram_url: branding?.instagram_url ?? null,
+              tiktok_url: branding?.tiktok_url ?? null,
+              youtube_url: branding?.youtube_url ?? null,
+              x_url: branding?.x_url ?? null,
+            }}
+          />
+          <SpeciesPicker selected={(branding?.species_options ?? []) as string[]} />
         </div>
 
         <div className="fl-card" style={{ marginTop: "16px" }}>

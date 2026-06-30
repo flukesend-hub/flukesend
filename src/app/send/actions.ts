@@ -174,7 +174,9 @@ export async function createSend(
   // cleanup job can expire this send on its own schedule.
   const { data: branding } = await supabase
     .from("branding")
-    .select("retention_days, brand_color, logo_url, default_message, reply_to_email")
+    .select(
+      "retention_days, brand_color, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+    )
     .eq("operator_id", operatorId)
     .maybeSingle();
   const retentionDays = branding?.retention_days ?? 5;
@@ -269,6 +271,15 @@ export async function createSend(
           species: input.species,
           message,
           galleryUrl: `${baseUrl}/g/${r.token}`,
+          baseUrl,
+          social: {
+            website_url: branding?.website_url ?? null,
+            facebook_url: branding?.facebook_url ?? null,
+            instagram_url: branding?.instagram_url ?? null,
+            tiktok_url: branding?.tiktok_url ?? null,
+            youtube_url: branding?.youtube_url ?? null,
+            x_url: branding?.x_url ?? null,
+          },
         });
         return sendEmail(r.email, subject, html, deliveryFrom, deliveryReplyTo);
       }),
