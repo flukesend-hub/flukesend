@@ -94,6 +94,23 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(231, 177, 76, 0.14);
 }
 
+/* Safari/WebKit give datetime-local an oversized intrinsic width that ignores
+   width:100% and centers the value, so it spilled past the other fields on
+   iPhone. Reset the native appearance so it sizes like a normal text field, and
+   neutralize the inner value element that reserves the extra width. */
+input[type="datetime-local"].fl-input {
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+}
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+input[type="datetime-local"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
