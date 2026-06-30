@@ -79,8 +79,21 @@ export function TransfersDrawer({ open, onClose }: { open: boolean; onClose: () 
                     {captainLine(d.captain)}
                   </span>
                 </span>
-                <span style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12.5px", color: "var(--muted)" }}>
+                <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px", fontSize: "12.5px", color: "var(--muted)" }}>
                   <span><b style={{ color: "var(--text)" }}>{d.guests}</b> guests</span>
+                  {d.guests > 0 ? (
+                    <span
+                      style={{
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        color: d.reviewsSent === d.guests ? "var(--good)" : "var(--muted)",
+                      }}
+                    >
+                      {d.reviewsSent === d.guests
+                        ? "All reviews sent"
+                        : `${d.reviewsSent}/${d.guests} reviews sent`}
+                    </span>
+                  ) : null}
                 </span>
               </Link>
             ))

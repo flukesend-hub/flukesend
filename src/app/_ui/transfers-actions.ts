@@ -11,6 +11,7 @@ export type RecentSend = {
   date: string;
   captain: string | null;
   guests: number;
+  reviewsSent: number;
 };
 
 export async function getRecentSends(): Promise<RecentSend[]> {
@@ -32,17 +33,22 @@ export async function getRecentSends(): Promise<RecentSend[]> {
 
   const { data } = await supabase
     .from("deliveries")
-    .select("id, created_at, trip_datetime, captain_name, recipients(count)")
+    .select("id, created_at, trip_datetime, captain_name, recipients(review_email_status)")
     .eq("operator_id", membership.operator_id)
     .order("created_at", { ascending: false })
     .limit(30);
 
-  return (data ?? []).map((d) => ({
-    id: d.id,
-    date: new Date(d.trip_datetime ?? d.created_at).toLocaleDateString("en-US", {
-      dateStyle: "medium",
-    }),
-    captain: d.captain_name,
-    guests: (d.recipients as unknown as { count: number }[] | null)?.[0]?.count ?? 0,
-  }));
+  return (data ?? []).map((d) => {
+    const recs =
+      (d.recipients as unknown as { review_email_status: string | null }[] | null) ?? [];
+    return {
+      id: d.id,
+      date: new Date(d.trip_datetime ?? d.created_at).toLocaleDateString("en-US", {
+        dateStyle: "medium",
+      }),
+      captain: d.captain_name,
+      guests: recs.length,
+      reviewsSent: recs.filter((r) => r.review_email_status === "sent").length,
+    };
+  });
 }
