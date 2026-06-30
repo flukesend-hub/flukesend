@@ -1,8 +1,8 @@
 /*
-  Stripe client and the plan catalog. Price IDs are not secret, so the test mode
-  IDs are baked in as defaults and can be overridden by env vars for live mode
-  (re-run the setup script in live mode and set the STRIPE_PRICE_* vars in
-  Vercel). The secret key comes from the environment and is server only.
+  Stripe client and the plan catalog. Price IDs are not secret, so the live mode
+  IDs are baked in as defaults and can still be overridden by env vars (set the
+  STRIPE_PRICE_* vars to point at a different environment, e.g. a sandbox). The
+  secret key comes from the environment and is server only.
 */
 import "server-only";
 import Stripe from "stripe";
@@ -20,16 +20,16 @@ export const TIERS: { key: Tier; name: string; boats: string }[] = [
 
 export const PRICE_IDS: Record<Tier, Record<Cycle, string>> = {
   single: {
-    monthly: process.env.STRIPE_PRICE_SINGLE_MONTHLY || "price_1TnncaINd7gF1a0tA5f2mORz",
-    yearly: process.env.STRIPE_PRICE_SINGLE_YEARLY || "price_1TnncbINd7gF1a0t3YREBY3W",
+    monthly: process.env.STRIPE_PRICE_SINGLE_MONTHLY || "price_1Tnp6yIteijzuz6UAGQ0tYkx",
+    yearly: process.env.STRIPE_PRICE_SINGLE_YEARLY || "price_1Tnp6yIteijzuz6U7WZnfwqU",
   },
   two: {
-    monthly: process.env.STRIPE_PRICE_TWO_MONTHLY || "price_1TnncbINd7gF1a0tbzdApofK",
-    yearly: process.env.STRIPE_PRICE_TWO_YEARLY || "price_1TnncbINd7gF1a0txZCfzBLo",
+    monthly: process.env.STRIPE_PRICE_TWO_MONTHLY || "price_1Tnp6zIteijzuz6URdGGRDkt",
+    yearly: process.env.STRIPE_PRICE_TWO_YEARLY || "price_1Tnp6zIteijzuz6UFrRDSSSK",
   },
   fleet: {
-    monthly: process.env.STRIPE_PRICE_FLEET_MONTHLY || "price_1TnnccINd7gF1a0tTRpnjbYJ",
-    yearly: process.env.STRIPE_PRICE_FLEET_YEARLY || "price_1TnnccINd7gF1a0tqp54WQs0",
+    monthly: process.env.STRIPE_PRICE_FLEET_MONTHLY || "price_1Tnp6zIteijzuz6UbqyiBuZ3",
+    yearly: process.env.STRIPE_PRICE_FLEET_YEARLY || "price_1Tnp6zIteijzuz6UH3L8Y9za",
   },
 };
 
