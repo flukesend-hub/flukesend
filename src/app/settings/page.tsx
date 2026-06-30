@@ -159,19 +159,19 @@ export default async function SettingsPage() {
             </SettingsSection>
 
             <SettingsSection
-              title="Boats and crew"
-              summary={boatCount || crewCount ? `${boatCount} ${plural(boatCount, "boat", "boats")}, ${crewCount} ${plural(crewCount, "person", "people")}` : "None yet"}
+              title="Boats and employees"
+              summary={boatCount || crewCount ? `${boatCount} ${plural(boatCount, "boat", "boats")}, ${crewCount} ${plural(crewCount, "employee", "employees")}` : "None yet"}
               chip={boatCount || crewCount ? doneChip : { label: "Optional", tone: "muted" }}
             >
               <p className="fl-hint" style={{ margin: "0 0 16px" }}>
-                Pre-add your boats and people once. On a send you just pick the
-                boat, the captain, and check who is aboard.
+                Pre-add your boats and team once. On a send you just pick the
+                boat and check who was aboard.
               </p>
               <div className="fl-cols">
                 <RosterList
                   title="Boats"
                   hint="The vessels you run trips on."
-                  placeholder="Sea Otter II"
+                  placeholder="Boat name"
                   addLabel="Add boat"
                   emptyLabel="No boats yet."
                   items={boats ?? []}

@@ -301,8 +301,8 @@ export async function deleteBoat(formData: FormData) {
   return deleteNamed("boats", formData);
 }
 export async function addCrew(_prev: SettingsState, formData: FormData) {
-  // A new person starts as Crew; the operator toggles other roles after.
-  return addNamed("crew_members", formData, { roles: ["crew"] });
+  // A new person starts with no roles; the operator tags what they do.
+  return addNamed("crew_members", formData, { roles: [] });
 }
 export async function deleteCrew(formData: FormData) {
   return deleteNamed("crew_members", formData);

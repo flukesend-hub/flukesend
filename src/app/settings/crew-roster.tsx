@@ -50,10 +50,10 @@ export function CrewRoster({
 
   return (
     <div>
-      <h4 style={{ margin: "0 0 2px", fontSize: "14px", fontWeight: 600 }}>Crew</h4>
+      <h4 style={{ margin: "0 0 2px", fontSize: "14px", fontWeight: 600 }}>Employees</h4>
       <p className="fl-hint" style={{ margin: "0 0 12px" }}>
-        Add your people once, then tag what each one does. On a send you just
-        pick from a dropdown per role.
+        Add your team once and tag what each one does. On a send you just check
+        who was aboard, and we credit them by their role.
       </p>
 
       {items.length ? (
@@ -93,12 +93,12 @@ export function CrewRoster({
         </div>
       ) : (
         <p className="fl-hint" style={{ margin: "0 0 12px" }}>
-          No crew yet.
+          No employees yet.
         </p>
       )}
 
       <form action={formAction} style={{ display: "flex", gap: "8px" }}>
-        <input name="name" className="fl-input" style={{ fontSize: "13px", padding: "9px 11px" }} placeholder="Margo" />
+        <input name="name" className="fl-input" style={{ fontSize: "13px", padding: "9px 11px" }} placeholder="Add a name" />
         <button type="submit" disabled={pending} className="fl-btn-ghost" style={{ flex: "0 0 auto" }}>
           {pending ? "Adding..." : "Add person"}
         </button>
