@@ -10,9 +10,11 @@ import { escapeHtml, sendEmail, operatorFromAddress } from "@/lib/email";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
 
-// How long after a download we wait before asking for a review. The job only
-// picks up recipients whose earliest download is older than this.
-export const REVIEW_DELAY_HOURS = 3;
+// How long after a download we wait before asking for a review. Set to 0 so the
+// nightly 03:00 UTC job (8 PM Pacific in summer, 7 PM in winter) asks every
+// guest who has downloaded since the last run, the same night, with no hold
+// back. Raise this if a gap after the download is wanted again.
+export const REVIEW_DELAY_HOURS = 0;
 
 export function reviewDelayCutoffISO(now: number = Date.now()) {
   return new Date(now - REVIEW_DELAY_HOURS * 60 * 60 * 1000).toISOString();
