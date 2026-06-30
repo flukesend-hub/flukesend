@@ -108,9 +108,10 @@ export async function signUploads(
 
 export type CreateSendInput = {
   tripDatetime: string | null;
-  whaleCount: number | null;
   species: string[];
   captainName: string | null;
+  naturalistName: string | null;
+  photographerName: string | null;
   crewNames: string[];
   boatName: string | null;
   customMessage: string | null;
@@ -184,10 +185,6 @@ export async function createSend(
   const tripDatetime = input.tripDatetime
     ? new Date(input.tripDatetime).toISOString()
     : null;
-  const whaleCount =
-    input.whaleCount != null && Number.isFinite(input.whaleCount)
-      ? Math.trunc(input.whaleCount)
-      : null;
 
   const { data: delivery, error: dErr } = await supabase
     .from("deliveries")
@@ -195,9 +192,10 @@ export async function createSend(
       operator_id: operatorId,
       created_by: userId,
       trip_datetime: tripDatetime,
-      whale_count: whaleCount,
       species: input.species,
       captain_name: input.captainName,
+      naturalist_name: input.naturalistName,
+      photographer_name: input.photographerName,
       crew_names: input.crewNames,
       boat_name: input.boatName,
       custom_message: input.customMessage,
@@ -264,7 +262,11 @@ export async function createSend(
           brandColor: branding?.brand_color ?? "#0b5563",
           logoUrl: branding?.logo_url ?? null,
           recipientName: null,
-          tripLine: deliveryTripLine(input),
+          tripDate: formatTripDate(input.tripDatetime),
+          captainName: input.captainName,
+          naturalistName: input.naturalistName,
+          photographerName: input.photographerName,
+          species: input.species,
           message,
           galleryUrl: `${baseUrl}/g/${r.token}`,
         });
@@ -284,24 +286,9 @@ export async function createSend(
   };
 }
 
-function deliveryTripLine(input: CreateSendInput) {
-  const parts: string[] = [];
-  if (input.tripDatetime) {
-    parts.push(
-      new Date(input.tripDatetime).toLocaleDateString("en-US", {
-        dateStyle: "long",
-      }),
-    );
-  }
-  if (input.captainName) parts.push(`with Captain ${input.captainName}`);
-  const wildlife: string[] = [];
-  if (input.whaleCount != null) {
-    wildlife.push(`${input.whaleCount} whale${input.whaleCount === 1 ? "" : "s"}`);
-  }
-  if (input.species.length) wildlife.push(input.species.join(", "));
-  let line = parts.join(" ");
-  if (wildlife.length) line += (line ? ". " : "") + wildlife.join(", ");
-  return line;
+function formatTripDate(tripDatetime: string | null): string | null {
+  if (!tripDatetime) return null;
+  return new Date(tripDatetime).toLocaleDateString("en-US", { dateStyle: "long" });
 }
 
 // Best effort rollback. Deleting the delivery cascades the photo and recipient

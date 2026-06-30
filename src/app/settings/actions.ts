@@ -12,6 +12,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { uploadOperatorLogo } from "@/lib/logo-upload";
+import { isCrewRole } from "@/lib/roles";
 
 export type SettingsState = { error?: string; ok?: string } | undefined;
 
@@ -167,9 +168,12 @@ export async function deleteReviewLink(formData: FormData): Promise<void> {
 }
 
 // Boats and crew roster. Both are simple named lists scoped to the operator.
+// extra lets a caller seed columns beyond name/sort_order (crew uses it to give
+// a new person a starting role).
 async function addNamed(
   table: "boats" | "crew_members",
   formData: FormData,
+  extra: Record<string, unknown> = {},
 ): Promise<SettingsState> {
   const { supabase, operatorId } = await resolveOperator();
   const name = String(formData.get("name") ?? "").trim();
@@ -186,13 +190,30 @@ async function addNamed(
   const sortOrder = (last?.sort_order ?? -1) + 1;
   const { error } = await supabase
     .from(table)
-    .insert({ operator_id: operatorId, name, sort_order: sortOrder });
+    .insert({ operator_id: operatorId, name, sort_order: sortOrder, ...extra });
   if (error) {
     return { error: "Could not add it. Try again." };
   }
   revalidatePath("/settings");
   revalidatePath("/send");
   return { ok: "Added." };
+}
+
+// Replace a crew member's role tags. Roles drive which send dropdown the person
+// appears in. Unknown values are dropped so only the four known roles persist.
+export async function setCrewRoles(id: string, roles: string[]): Promise<void> {
+  const { supabase, operatorId } = await resolveOperator();
+  if (!id) {
+    return;
+  }
+  const clean = Array.from(new Set(roles.filter(isCrewRole)));
+  await supabase
+    .from("crew_members")
+    .update({ roles: clean })
+    .eq("id", id)
+    .eq("operator_id", operatorId);
+  revalidatePath("/settings");
+  revalidatePath("/send");
 }
 
 async function deleteNamed(table: "boats" | "crew_members", formData: FormData) {
@@ -213,7 +234,8 @@ export async function deleteBoat(formData: FormData) {
   return deleteNamed("boats", formData);
 }
 export async function addCrew(_prev: SettingsState, formData: FormData) {
-  return addNamed("crew_members", formData);
+  // A new person starts as Crew; the operator toggles other roles after.
+  return addNamed("crew_members", formData, { roles: ["crew"] });
 }
 export async function deleteCrew(formData: FormData) {
   return deleteNamed("crew_members", formData);

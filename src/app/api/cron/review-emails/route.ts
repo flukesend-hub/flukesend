@@ -27,7 +27,6 @@ type OperatorContext = {
 
 function tripLine(d: {
   trip_datetime: string | null;
-  whale_count: number | null;
   species: string[] | null;
   captain_name: string | null;
 }) {
@@ -38,12 +37,8 @@ function tripLine(d: {
     );
   }
   if (d.captain_name) parts.push(`with Captain ${d.captain_name}`);
-  const wildlife: string[] = [];
-  if (d.whale_count != null)
-    wildlife.push(`${d.whale_count} whale${d.whale_count === 1 ? "" : "s"}`);
-  if (d.species?.length) wildlife.push(d.species.join(", "));
   let line = parts.join(" ");
-  if (wildlife.length) line += (line ? ". " : "") + wildlife.join(", ");
+  if (d.species?.length) line += (line ? ". " : "") + d.species.join(", ");
   return line;
 }
 
@@ -92,7 +87,7 @@ export async function GET(request: Request) {
     const { data: delivery } = await admin
       .from("deliveries")
       .select(
-        "operator_id, trip_datetime, whale_count, species, captain_name",
+        "operator_id, trip_datetime, species, captain_name",
       )
       .eq("id", deliveryId)
       .maybeSingle();

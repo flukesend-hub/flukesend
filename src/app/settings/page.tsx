@@ -8,7 +8,8 @@ import { OperatorNav } from "@/app/_ui/operator-nav";
 import { BrandingForm } from "./branding-form";
 import { ReviewLinks } from "./review-links";
 import { RosterList } from "./roster-list";
-import { addBoat, deleteBoat, addCrew, deleteCrew } from "./actions";
+import { CrewRoster } from "./crew-roster";
+import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -50,7 +51,7 @@ export default async function SettingsPage() {
 
   const { data: crew } = await supabase
     .from("crew_members")
-    .select("id, name")
+    .select("id, name, roles")
     .eq("operator_id", operatorId)
     .order("sort_order", { ascending: true });
 
@@ -101,15 +102,11 @@ export default async function SettingsPage() {
               addAction={addBoat}
               deleteAction={deleteBoat}
             />
-            <RosterList
-              title="Crew"
-              hint="Everyone who captains or crews. Pick their role per send."
-              placeholder="Margo"
-              addLabel="Add person"
-              emptyLabel="No crew yet."
-              items={crew ?? []}
+            <CrewRoster
+              items={(crew ?? []) as { id: string; name: string; roles: string[] }[]}
               addAction={addCrew}
               deleteAction={deleteCrew}
+              setRolesAction={setCrewRoles}
             />
           </div>
         </div>

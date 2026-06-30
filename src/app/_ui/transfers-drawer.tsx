@@ -80,9 +80,6 @@ export function TransfersDrawer({ open, onClose }: { open: boolean; onClose: () 
                   </span>
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12.5px", color: "var(--muted)" }}>
-                  {d.whales != null ? (
-                    <span><b style={{ color: "var(--text)" }}>{d.whales}</b> whales</span>
-                  ) : null}
                   <span><b style={{ color: "var(--text)" }}>{d.guests}</b> guests</span>
                 </span>
               </Link>
