@@ -272,6 +272,7 @@ export function SendForm({
             name="trip_datetime"
             type="datetime-local"
             className="fl-input"
+            style={{ minWidth: 0, maxWidth: "100%" }}
             value={tripDt}
             onChange={(e) => setTripDt(e.target.value)}
           />
