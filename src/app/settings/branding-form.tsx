@@ -46,9 +46,7 @@ export function BrandingForm({
   const shownLogo = logoPreview ?? logoUrl;
 
   return (
-    <form action={formAction} className="fl-card">
-      <h3 style={h3}>Branding</h3>
-
+    <form action={formAction}>
       <label style={{ display: "block", marginBottom: "16px" }}>
         <span className="fl-label-text">Logo</span>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -129,7 +127,6 @@ export function BrandingForm({
   );
 }
 
-const h3: React.CSSProperties = { margin: "0 0 16px", fontSize: "15px", fontWeight: 600 };
 const retBtn = (active: boolean): React.CSSProperties => ({
   flex: 1,
   cursor: "pointer",

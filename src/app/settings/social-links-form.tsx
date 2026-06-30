@@ -69,10 +69,7 @@ export function SocialLinksForm({ links }: { links: SocialLinks }) {
   );
 
   return (
-    <div className="fl-card">
-      <h3 style={{ margin: "0 0 2px", fontSize: "15px", fontWeight: 600 }}>
-        Website and social links
-      </h3>
+    <div>
       <p className="fl-hint" style={{ margin: "0 0 16px" }}>
         Add any you have. They show up as icons in the footer of your guest
         emails. Leave one blank to hide it.

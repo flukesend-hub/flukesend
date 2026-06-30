@@ -6,6 +6,7 @@
 */
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Tier } from "./stripe";
 
 export const TRIAL_TRANSFERS = 3;
 export const TRIAL_EMAILS = 30;
@@ -38,4 +39,35 @@ export async function getTrialUsage(
     .select("*", { count: "exact", head: true });
 
   return { status, transfers: transfers ?? 0, emails: emails ?? 0 };
+}
+
+export type Plan = {
+  status: "trial" | "active" | "canceled";
+  tier: Tier;
+};
+
+// The operator's plan. No subscription row reads as trial on the entry tier.
+export async function getPlan(
+  supabase: SupabaseClient,
+  operatorId: string,
+): Promise<Plan> {
+  const { data } = await supabase
+    .from("subscriptions")
+    .select("status, tier")
+    .eq("operator_id", operatorId)
+    .maybeSingle();
+  return {
+    status: (data?.status as Plan["status"]) ?? "trial",
+    tier: (data?.tier as Tier) ?? "single",
+  };
+}
+
+// How many boats a plan allows. The tiers are named for boat count: single is
+// one, two is two, fleet is unlimited. Only an active subscription unlocks more
+// than one; trial and canceled operators get the entry level of one boat.
+export function boatLimitFor(plan: Plan): number {
+  if (plan.status !== "active") return 1;
+  if (plan.tier === "fleet") return Infinity;
+  if (plan.tier === "two") return 2;
+  return 1;
 }

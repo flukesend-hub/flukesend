@@ -20,8 +20,7 @@ export function ReviewLinks({ links }: { links: LinkRow[] }) {
   const [override, setOverride] = useState(true);
 
   return (
-    <div className="fl-card">
-      <h3 style={{ margin: "0 0 2px", fontSize: "15px", fontWeight: 600 }}>Review links</h3>
+    <div>
       <p className="fl-hint" style={{ margin: "0 0 16px" }}>
         Add one or several. These become the buttons in the review email.
       </p>

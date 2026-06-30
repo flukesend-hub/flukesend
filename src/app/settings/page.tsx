@@ -9,9 +9,11 @@ import { BrandingForm } from "./branding-form";
 import { ReviewLinks } from "./review-links";
 import { SocialLinksForm } from "./social-links-form";
 import { SpeciesPicker } from "./species-picker";
+import { SettingsSection } from "./settings-section";
 import { RosterList } from "./roster-list";
 import { CrewRoster } from "./crew-roster";
 import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
+import { getPlan, boatLimitFor } from "@/lib/trial";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -59,6 +61,31 @@ export default async function SettingsPage() {
     .eq("operator_id", operatorId)
     .order("sort_order", { ascending: true });
 
+  // One line summaries so each collapsed section says what is set without
+  // opening it. Most of this is set once; species is the part that changes.
+  const social = {
+    website_url: branding?.website_url ?? null,
+    facebook_url: branding?.facebook_url ?? null,
+    instagram_url: branding?.instagram_url ?? null,
+    tiktok_url: branding?.tiktok_url ?? null,
+    youtube_url: branding?.youtube_url ?? null,
+    x_url: branding?.x_url ?? null,
+  };
+  const socialCount = Object.values(social).filter(Boolean).length;
+  const speciesList = (branding?.species_options ?? []) as string[];
+  const reviewCount = links?.length ?? 0;
+  const boatCount = boats?.length ?? 0;
+  const crewCount = crew?.length ?? 0;
+  const boatLimit = boatLimitFor(await getPlan(supabase, operatorId));
+  const boatUpgradeNote =
+    boatLimit === 1
+      ? "Your plan covers one boat. Upgrade to run more."
+      : `Your plan covers ${boatLimit} boats. Upgrade to run more.`;
+  const retentionDays = branding?.retention_days ?? 5;
+  const hasLogo = Boolean(branding?.logo_url);
+  const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+  const doneChip = { label: "Done", tone: "good" as const };
+
   return (
     <>
       <OperatorNav operatorName={operator?.name ?? "Operator"} />
@@ -67,8 +94,7 @@ export default async function SettingsPage() {
           <div>
             <h1 className="fl-h1">Settings</h1>
             <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
-              Edit your branding and manage the review links that become buttons
-              in the review email.
+              Your brand, links, and roster. Set this up once.
             </p>
           </div>
           <a href="/billing" className="fl-btn-ghost" style={{ flex: "0 0 auto", marginTop: "8px" }}>
@@ -76,57 +102,104 @@ export default async function SettingsPage() {
           </a>
         </div>
 
-        <div className="fl-cols" style={{ marginTop: "22px" }}>
-          <BrandingForm
-            operatorName={operator?.name ?? "Operator"}
-            logoUrl={branding?.logo_url ?? null}
-            brandColor={branding?.brand_color ?? "#0b5563"}
-            defaultMessage={branding?.default_message ?? ""}
-            retentionDays={branding?.retention_days ?? 5}
-          />
-          <ReviewLinks links={links ?? []} />
-        </div>
-
-        <div className="fl-cols" style={{ marginTop: "16px" }}>
-          <SocialLinksForm
-            links={{
-              website_url: branding?.website_url ?? null,
-              facebook_url: branding?.facebook_url ?? null,
-              instagram_url: branding?.instagram_url ?? null,
-              tiktok_url: branding?.tiktok_url ?? null,
-              youtube_url: branding?.youtube_url ?? null,
-              x_url: branding?.x_url ?? null,
+        <div style={{ maxWidth: "880px", marginTop: "20px" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              alignItems: "flex-start",
+              background: "rgba(34,160,90,.10)",
+              border: "1px solid rgba(34,160,90,.28)",
+              borderRadius: "12px",
+              padding: "12px 14px",
+              marginBottom: "18px",
             }}
-          />
-          <SpeciesPicker selected={(branding?.species_options ?? []) as string[]} />
-        </div>
-
-        <div className="fl-card" style={{ marginTop: "16px" }}>
-          <h3 style={{ margin: "0 0 2px", fontSize: "15px", fontWeight: 600 }}>
-            Boats and crew
-          </h3>
-          <p className="fl-hint" style={{ margin: "0 0 16px" }}>
-            Pre-add your boats and people once. On a send you just pick the boat,
-            the captain, and check who is aboard.
-          </p>
-          <div className="fl-cols">
-            <RosterList
-              title="Boats"
-              hint="The vessels you run trips on."
-              placeholder="Sea Otter II"
-              addLabel="Add boat"
-              emptyLabel="No boats yet."
-              items={boats ?? []}
-              addAction={addBoat}
-              deleteAction={deleteBoat}
-            />
-            <CrewRoster
-              items={(crew ?? []) as { id: string; name: string; roles: string[] }[]}
-              addAction={addCrew}
-              deleteAction={deleteCrew}
-              setRolesAction={setCrewRoles}
-            />
+          >
+            <span aria-hidden="true" style={{ color: "#1f8a55", fontSize: "14px", lineHeight: 1.5 }}>
+              {"✓"}
+            </span>
+            <div style={{ fontSize: "13px", color: "#2a5b43", lineHeight: 1.5 }}>
+              You are all set. Flukesend already sends fine with sensible defaults,
+              so everything here is optional polish you do once.
+            </div>
           </div>
+
+          <div style={{ fontSize: "12px", color: "var(--muted)", margin: "0 2px 8px" }}>
+            Set once
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <SettingsSection
+              title="Brand and email look"
+              summary={`${hasLogo ? "Logo set" : "No logo yet"}, photos kept ${retentionDays} ${plural(retentionDays, "day", "days")}`}
+              chip={doneChip}
+            >
+              <BrandingForm
+                operatorName={operator?.name ?? "Operator"}
+                logoUrl={branding?.logo_url ?? null}
+                brandColor={branding?.brand_color ?? "#0b5563"}
+                defaultMessage={branding?.default_message ?? ""}
+                retentionDays={branding?.retention_days ?? 5}
+              />
+            </SettingsSection>
+
+            <SettingsSection
+              title="Website and social links"
+              summary={socialCount ? `${socialCount} ${plural(socialCount, "link", "links")} shown as email footer icons` : "None yet"}
+              chip={socialCount ? doneChip : { label: "Optional", tone: "muted" }}
+            >
+              <SocialLinksForm links={social} />
+            </SettingsSection>
+
+            <SettingsSection
+              title="Review links"
+              summary={reviewCount ? `${reviewCount} ${plural(reviewCount, "link", "links")}` : "None yet, add your Google or Tripadvisor link"}
+              chip={reviewCount ? doneChip : { label: "Optional", tone: "muted" }}
+            >
+              <ReviewLinks links={links ?? []} />
+            </SettingsSection>
+
+            <SettingsSection
+              title="Boats and crew"
+              summary={boatCount || crewCount ? `${boatCount} ${plural(boatCount, "boat", "boats")}, ${crewCount} ${plural(crewCount, "person", "people")}` : "None yet"}
+              chip={boatCount || crewCount ? doneChip : { label: "Optional", tone: "muted" }}
+            >
+              <p className="fl-hint" style={{ margin: "0 0 16px" }}>
+                Pre-add your boats and people once. On a send you just pick the
+                boat, the captain, and check who is aboard.
+              </p>
+              <div className="fl-cols">
+                <RosterList
+                  title="Boats"
+                  hint="The vessels you run trips on."
+                  placeholder="Sea Otter II"
+                  addLabel="Add boat"
+                  emptyLabel="No boats yet."
+                  items={boats ?? []}
+                  addAction={addBoat}
+                  deleteAction={deleteBoat}
+                  limit={boatLimit}
+                  upgradeNote={boatUpgradeNote}
+                />
+                <CrewRoster
+                  items={(crew ?? []) as { id: string; name: string; roles: string[] }[]}
+                  addAction={addCrew}
+                  deleteAction={deleteCrew}
+                  setRolesAction={setCrewRoles}
+                />
+              </div>
+            </SettingsSection>
+          </div>
+
+          <div style={{ fontSize: "12px", color: "var(--muted)", margin: "20px 2px 8px" }}>
+            Changes by season
+          </div>
+          <SettingsSection
+            title="Species"
+            summary={speciesList.length ? `${speciesList.length} selected, shown as pills on a send` : "Using the default list"}
+            chip={speciesList.length ? doneChip : { label: "Default", tone: "muted" }}
+          >
+            <SpeciesPicker selected={speciesList} />
+          </SettingsSection>
         </div>
       </main>
     </>

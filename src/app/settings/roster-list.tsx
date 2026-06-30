@@ -19,6 +19,8 @@ export function RosterList({
   items,
   addAction,
   deleteAction,
+  limit = Infinity,
+  upgradeNote = "",
 }: {
   title: string;
   hint: string;
@@ -28,6 +30,8 @@ export function RosterList({
   items: Item[];
   addAction: (prev: SettingsState, fd: FormData) => Promise<SettingsState>;
   deleteAction: (fd: FormData) => void | Promise<void>;
+  limit?: number;
+  upgradeNote?: string;
 }) {
   const [state, formAction, pending] = useActionState<SettingsState, FormData>(
     addAction,
@@ -61,13 +65,31 @@ export function RosterList({
         </p>
       )}
 
-      <form action={formAction} style={{ display: "flex", gap: "8px" }}>
-        <input name="name" className="fl-input" style={{ fontSize: "13px", padding: "9px 11px" }} placeholder={placeholder} />
-        <button type="submit" disabled={pending} className="fl-btn-ghost" style={{ flex: "0 0 auto" }}>
-          {pending ? "Adding..." : addLabel}
-        </button>
-      </form>
-      {state?.error ? (
+      {items.length >= limit ? (
+        <div style={upgradeBox}>
+          <span style={{ fontSize: "13px", color: "var(--text)", lineHeight: 1.45 }}>
+            {upgradeNote || "Your plan is at its limit. Upgrade to add more."}
+          </span>
+          <a href="/billing" className="fl-btn" style={{ flex: "0 0 auto", textDecoration: "none", whiteSpace: "nowrap" }}>
+            See plans
+          </a>
+        </div>
+      ) : (
+        <form action={formAction} style={{ display: "flex", gap: "8px" }}>
+          <input name="name" className="fl-input" style={{ fontSize: "13px", padding: "9px 11px" }} placeholder={placeholder} />
+          <button type="submit" disabled={pending} className="fl-btn-ghost" style={{ flex: "0 0 auto" }}>
+            {pending ? "Adding..." : addLabel}
+          </button>
+        </form>
+      )}
+      {state?.upgrade ? (
+        <div style={{ ...upgradeBox, marginTop: "8px" }}>
+          <span style={{ fontSize: "13px", color: "var(--text)", lineHeight: 1.45 }}>{state.error}</span>
+          <a href="/billing" className="fl-btn" style={{ flex: "0 0 auto", textDecoration: "none", whiteSpace: "nowrap" }}>
+            See plans
+          </a>
+        </div>
+      ) : state?.error ? (
         <p style={{ color: "var(--bad)", fontSize: "12.5px", margin: "8px 0 0" }}>{state.error}</p>
       ) : null}
     </div>
@@ -83,6 +105,15 @@ const row: React.CSSProperties = {
   borderRadius: "10px",
   border: "1px solid var(--line)",
   background: "var(--ink)",
+};
+const upgradeBox: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  padding: "12px 14px",
+  borderRadius: "11px",
+  border: "1px solid rgba(231,177,76,.45)",
+  background: "rgba(231,177,76,.12)",
 };
 const removeBtn: React.CSSProperties = {
   background: "transparent",
