@@ -5,6 +5,7 @@
 */
 import { requireAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { signout } from "@/app/auth/actions";
 import { AdminOperators, type OperatorRow } from "./admin-operators";
 
 export default async function AdminPage() {
@@ -41,11 +42,19 @@ export default async function AdminPage() {
 
   return (
     <main style={{ padding: "28px", maxWidth: "820px", margin: "0 auto" }}>
-      <a href="/send" className="fl-link">&larr; Back to app</a>
-      <h1 className="fl-h1" style={{ marginTop: "8px" }}>Admin</h1>
-      <p className="fl-muted" style={{ fontSize: "14px", margin: "0 0 20px" }}>
-        Set each operator&apos;s plan, or edit their branding for support.
-      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+        <div>
+          <h1 className="fl-h1">Admin</h1>
+          <p className="fl-muted" style={{ fontSize: "14px", margin: "0 0 20px" }}>
+            Set each operator&apos;s plan, or edit their branding for support.
+          </p>
+        </div>
+        <form action={signout}>
+          <button type="submit" className="fl-btn-ghost" style={{ flex: "0 0 auto" }}>
+            Sign out
+          </button>
+        </form>
+      </div>
       <AdminOperators rows={rows} />
     </main>
   );
