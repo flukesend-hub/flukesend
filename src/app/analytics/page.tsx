@@ -4,8 +4,7 @@
   and per employee breakdowns, and a CSV export. Reads go through the RLS server
   client, so the numbers are always this operator's own.
 */
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireOperator } from "@/lib/operator-session";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { getPlan } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
@@ -15,37 +14,25 @@ import { AnalyticsView } from "./analytics-view";
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login");
-  }
-  const { data: membership } = await supabase
-    .from("operator_members")
-    .select("operator_id, operators(name)")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!membership) {
-    redirect("/onboarding");
-  }
-  const operator = membership.operators as unknown as { name: string } | null;
-  const operatorId = membership.operator_id as string;
+  const { supabase, operatorId, operatorName } = await requireOperator();
 
-  const plan = PLANS[(await getPlan(supabase, operatorId)).tier];
+  // All three fire together. The per trip rows are fetched speculatively and
+  // dropped for basic plans; RLS keeps every read scoped either way, and one
+  // parallel wave beats three serial ones.
+  const [planInfo, data, allRows] = await Promise.all([
+    getPlan(supabase, operatorId),
+    getAnalytics(supabase, operatorId),
+    getDeliveryRows(supabase, operatorId),
+  ]);
+  const plan = PLANS[planInfo.tier];
   const isFull = plan.analytics === "full";
-
-  const data = await getAnalytics(supabase, operatorId);
   // The per trip table reuses the CSV export rows, newest first. Full plan
-  // only, like the other breakdowns, so basic plans skip the extra queries.
-  const recentSends = isFull
-    ? (await getDeliveryRows(supabase, operatorId)).slice(0, 12)
-    : [];
+  // only, like the other breakdowns.
+  const recentSends = isFull ? allRows.slice(0, 12) : [];
 
   return (
     <>
-      <OperatorNav operatorName={operator?.name ?? "Operator"} />
+      <OperatorNav operatorName={operatorName ?? "Operator"} />
       <main style={{ padding: "16px 28px 80px" }}>
         <div className="fl-eyebrow">Analytics</div>
         <h1 className="fl-h1" style={{ fontSize: "32px" }}>

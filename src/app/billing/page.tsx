@@ -3,8 +3,7 @@
   them subscribe (Stripe Checkout) or manage/cancel (Stripe portal). RLS lets a
   member read their own subscription row.
 */
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireOperator } from "@/lib/operator-session";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, monthlyQuota } from "@/lib/usage";
@@ -16,38 +15,25 @@ export default async function BillingPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status: checkout } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login");
-  }
-  const { data: membership } = await supabase
-    .from("operator_members")
-    .select("operator_id, operators(name)")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!membership) {
-    redirect("/onboarding");
-  }
-  const operator = membership.operators as unknown as { name: string } | null;
+  const { supabase, operatorId, operatorName } = await requireOperator();
 
-  const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("status, tier, billing_cycle")
-    .eq("operator_id", membership.operator_id)
-    .maybeSingle();
+  // Both reads fire together; usage is speculative (only shown on a paid
+  // plan) but one spare head count beats a second serial wave.
+  const [{ data: sub }, used] = await Promise.all([
+    supabase
+      .from("subscriptions")
+      .select("status, tier, billing_cycle")
+      .eq("operator_id", operatorId)
+      .maybeSingle(),
+    getRecipientsUsed(supabase, operatorId),
+  ]);
   const status = (sub?.status as "trial" | "active" | "canceled") ?? "trial";
 
   // Emails remaining this month, shown for operators on a paid plan.
   let quotaNote: string | null = null;
   if (status === "active" && sub?.tier) {
     const plan = PLANS[sub.tier as "single" | "two" | "fleet"];
-    const q = monthlyQuota(
-      await getRecipientsUsed(supabase, membership.operator_id),
-      plan.emailsPerMonth,
-    );
+    const q = monthlyQuota(used, plan.emailsPerMonth);
     quotaNote =
       q.remaining === null
         ? `Unlimited emails this month on your ${plan.displayName} plan.`
@@ -56,7 +42,7 @@ export default async function BillingPage({
 
   return (
     <>
-      <OperatorNav operatorName={operator?.name ?? "Operator"} />
+      <OperatorNav operatorName={operatorName ?? "Operator"} />
       <main style={{ maxWidth: "920px", margin: "0 auto", padding: "16px 28px 80px" }}>
         <h1 className="fl-h1">Billing</h1>
         <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>

@@ -341,6 +341,22 @@ input[type="color"]::-webkit-color-swatch {
   }
 }
 
+/* Loading skeleton blocks shown while a page's data loads. */
+@keyframes fl-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.fl-skeleton {
+  background: var(--line);
+  border-radius: 10px;
+  animation: fl-pulse 1.3s ease-in-out infinite;
+}
+
 /* Transfers list entrance: each row slides in from the right. */
 @keyframes fl-slide-in {
   from {

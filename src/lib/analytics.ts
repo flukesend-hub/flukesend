@@ -107,16 +107,20 @@ export async function getAnalytics(
   const currentKey = keys[keys.length - 1];
   const windowStart = new Date(Date.UTC(cy, cm - (WINDOW_MONTHS - 1), 1)).toISOString();
 
-  // Recipients with their delivery joined. RLS scopes to this operator; the
-  // explicit operator filter and the window keep it tight.
-  const { data: recRaw } = await supabase
-    .from("recipients")
-    .select(
-      "id, delivery_id, review_email_status, deliveries!inner(operator_id, created_at, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
-    )
-    .eq("deliveries.operator_id", operatorId)
-    .gte("deliveries.created_at", windowStart)
-    .limit(100000);
+  // Recipients with their delivery joined, and the QR captures, fetched
+  // together. RLS scopes both to this operator; the explicit operator filter
+  // and the window keep the join tight.
+  const [{ data: recRaw }, { data: capRaw }] = await Promise.all([
+    supabase
+      .from("recipients")
+      .select(
+        "id, delivery_id, review_email_status, deliveries!inner(operator_id, created_at, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
+      )
+      .eq("deliveries.operator_id", operatorId)
+      .gte("deliveries.created_at", windowStart)
+      .limit(100000),
+    supabase.from("captured_guests").select("captured_at").gte("captured_at", windowStart).limit(100000),
+  ]);
   const recipients = (recRaw ?? []) as unknown as RecipientRow[];
 
   // Which recipients opened and downloaded. Fetched by id in chunks so a busy
@@ -137,12 +141,6 @@ export async function getAnalytics(
     }
   }
 
-  // Guests captured by QR in the window (member RLS scopes to this operator).
-  const { data: capRaw } = await supabase
-    .from("captured_guests")
-    .select("captured_at")
-    .gte("captured_at", windowStart)
-    .limit(100000);
   const capturedByMonth = new Map<string, number>();
   for (const c of capRaw ?? []) {
     const k = monthKey(c.captured_at as string);

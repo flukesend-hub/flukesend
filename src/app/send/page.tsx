@@ -3,8 +3,7 @@
   brand color (drives the upload animation and the dropzone tint) and default
   message to the form.
 */
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireOperator } from "@/lib/operator-session";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { getTrialUsage, getPlan, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
@@ -17,76 +16,69 @@ import { SendForm } from "./send-form";
 export const maxDuration = 60;
 
 export default async function SendPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login");
-  }
+  const { supabase, operatorId, operatorName } = await requireOperator();
 
-  const { data: membership } = await supabase
-    .from("operator_members")
-    .select("operator_id, operators(name)")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!membership) {
-    redirect("/onboarding");
-  }
-  const operator = membership.operators as unknown as { name: string } | null;
+  // Every read is independent, so they all go out at once: the page waits for
+  // the slowest query instead of the sum of all of them. Plan and usage are
+  // fetched speculatively (only shown for active operators); a spare head
+  // count is cheaper than a second serial wave.
+  const [
+    { data: branding },
+    { data: boats },
+    { data: crew },
+    { data: captured },
+    { count: reviewLinkCount },
+    usage,
+    planInfo,
+    used,
+  ] = await Promise.all([
+    supabase
+      .from("branding")
+      .select("default_message, brand_color, plan, species_options")
+      .eq("operator_id", operatorId)
+      .maybeSingle(),
+    supabase
+      .from("boats")
+      .select("id, name")
+      .eq("operator_id", operatorId)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("crew_members")
+      .select("id, name, roles")
+      .eq("operator_id", operatorId)
+      .order("sort_order", { ascending: true }),
+    // Guests captured per boat and not yet pulled into a send. The member RLS
+    // policy scopes this to the operator, so a simple tally is safe.
+    supabase.from("captured_guests").select("boat_id").is("consumed_at", null),
+    // Each guest gets exactly one review ask. With no review links configured
+    // the nightly job holds those asks, so warn before the send, not after.
+    supabase
+      .from("review_destinations")
+      .select("*", { count: "exact", head: true })
+      .eq("operator_id", operatorId),
+    getTrialUsage(supabase, operatorId),
+    getPlan(supabase, operatorId),
+    getRecipientsUsed(supabase, operatorId),
+  ]);
 
-  const { data: branding } = await supabase
-    .from("branding")
-    .select("default_message, brand_color, plan, species_options")
-    .eq("operator_id", membership.operator_id)
-    .maybeSingle();
-
-  const { data: boats } = await supabase
-    .from("boats")
-    .select("id, name")
-    .eq("operator_id", membership.operator_id)
-    .order("sort_order", { ascending: true });
-
-  const { data: crew } = await supabase
-    .from("crew_members")
-    .select("id, name, roles")
-    .eq("operator_id", membership.operator_id)
-    .order("sort_order", { ascending: true });
-
-  // Guests captured per boat and not yet pulled into a send. The member RLS
-  // policy scopes this to the operator, so a simple tally is safe.
-  const { data: captured } = await supabase
-    .from("captured_guests")
-    .select("boat_id")
-    .is("consumed_at", null);
   const capturedByBoat: Record<string, number> = {};
   for (const row of captured ?? []) {
     if (row.boat_id) capturedByBoat[row.boat_id] = (capturedByBoat[row.boat_id] ?? 0) + 1;
   }
-
-  // Each guest gets exactly one review ask. With no review links configured
-  // the nightly job holds those asks, so warn before the send, not after.
-  const { count: reviewLinkCount } = await supabase
-    .from("review_destinations")
-    .select("*", { count: "exact", head: true })
-    .eq("operator_id", membership.operator_id);
-
-  const usage = await getTrialUsage(supabase, membership.operator_id);
 
   // Active operators see how many emails they have left this month, drawn from
   // their plan's monthly cap. Fleet is unlimited, so nothing to count.
   let quota: { plan: string; used: number; limit: number | null; remaining: number | null } | null =
     null;
   if (usage.status === "active") {
-    const plan = PLANS[(await getPlan(supabase, membership.operator_id)).tier];
-    const used = await getRecipientsUsed(supabase, membership.operator_id);
+    const plan = PLANS[planInfo.tier];
     const q = monthlyQuota(used, plan.emailsPerMonth);
     quota = { plan: plan.displayName, used: q.used, limit: q.limit, remaining: q.remaining };
   }
 
   return (
     <>
-      <OperatorNav operatorName={operator?.name ?? "Operator"} />
+      <OperatorNav operatorName={operatorName ?? "Operator"} />
       <main style={{ padding: "16px 28px 80px" }}>
         <div className="fl-eyebrow">New send</div>
         <h1 className="fl-h1" style={{ fontSize: "32px" }}>
