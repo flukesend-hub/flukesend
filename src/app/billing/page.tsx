@@ -6,6 +6,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OperatorNav } from "@/app/_ui/operator-nav";
+import { PLANS } from "@/lib/plans";
+import { getRecipientsUsed, monthlyQuota } from "@/lib/usage";
 import { BillingClient } from "./billing-client";
 
 export default async function BillingPage({
@@ -38,6 +40,20 @@ export default async function BillingPage({
     .maybeSingle();
   const status = (sub?.status as "trial" | "active" | "canceled") ?? "trial";
 
+  // Emails remaining this month, shown for operators on a paid plan.
+  let quotaNote: string | null = null;
+  if (status === "active" && sub?.tier) {
+    const plan = PLANS[sub.tier as "single" | "two" | "fleet"];
+    const q = monthlyQuota(
+      await getRecipientsUsed(supabase, membership.operator_id),
+      plan.emailsPerMonth,
+    );
+    quotaNote =
+      q.remaining === null
+        ? `Unlimited emails this month on your ${plan.displayName} plan.`
+        : `${q.remaining} of ${q.limit} emails remaining this month (${q.used} used).`;
+  }
+
   return (
     <>
       <OperatorNav operatorName={operator?.name ?? "Operator"} />
@@ -50,6 +66,12 @@ export default async function BillingPage({
               ? "Your plan has ended. Pick a plan to keep sending."
               : "You are on the free trial. Pick a plan to keep sending past the trial."}
         </p>
+
+        {quotaNote ? (
+          <p style={{ color: "var(--text)", fontSize: "13.5px", margin: "10px 0 0", fontWeight: 500 }}>
+            {quotaNote}
+          </p>
+        ) : null}
 
         {checkout === "success" ? (
           <div style={banner("ok")}>

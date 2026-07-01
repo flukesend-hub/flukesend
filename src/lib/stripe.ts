@@ -6,17 +6,19 @@
 */
 import "server-only";
 import Stripe from "stripe";
+import { PLANS, PLAN_ORDER, type PlanKey } from "./plans";
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "");
 
-export type Tier = "single" | "two" | "fleet";
+// A Stripe tier is just a plan key. plans.ts is the source of truth for what
+// each tier is named and allowed to do; this file only maps tiers to prices.
+export type Tier = PlanKey;
 export type Cycle = "monthly" | "yearly";
 
-export const TIERS: { key: Tier; name: string; boats: string }[] = [
-  { key: "single", name: "Single boat", boats: "1 boat" },
-  { key: "two", name: "Two boats", boats: "Up to 2 boats" },
-  { key: "fleet", name: "Fleet", boats: "Unlimited boats" },
-];
+// Display names come from the plan catalog. Boats are unlimited on every plan.
+export const TIERS: { key: Tier; name: string; boats: string }[] = PLAN_ORDER.map(
+  (key) => ({ key, name: PLANS[key].displayName, boats: "Unlimited boats" }),
+);
 
 export const PRICE_IDS: Record<Tier, Record<Cycle, string>> = {
   single: {

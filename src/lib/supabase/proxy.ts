@@ -11,15 +11,17 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Paths a signed out visitor may see. Everything else bounces to /login. The
-// tokened guest gallery (/g/<token>, plus its download and open routes) is
-// public: guests have no operator session and reach it only by their token.
-// The cron endpoint and the Stripe webhook are public to the proxy but verify
-// their own secret/signature. The marketing pages ("/", /pricing) are public.
+// tokened guest gallery (/g/<token>, plus its download, open, and review
+// routes) and the tokened self capture page (/j/<token>) are public: guests
+// have no operator session and reach them only by their token. The cron
+// endpoint and the Stripe webhook are public to the proxy but verify their own
+// secret/signature. The marketing pages ("/", /pricing) are public.
 // /auth/callback (reset link landing) and /reset-password must be reachable
 // before a full session exists.
 const PUBLIC_PATHS = [
   "/login",
   "/g",
+  "/j",
   "/api/cron",
   "/api/webhooks",
   "/",

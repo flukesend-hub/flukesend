@@ -22,7 +22,7 @@ type OperatorContext = {
   brandColor: string;
   logoUrl: string | null;
   tripLine: string;
-  reviewLinks: { label: string; url: string }[];
+  reviewLinks: { id: string; label: string; url: string }[];
   replyTo: string | null;
   social: SocialLinks;
 };
@@ -57,11 +57,14 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const cutoff = reviewDelayCutoffISO();
+  // The deployment origin, used to build the tracked review link back to this
+  // app. The cron is called at the deployment URL, so its own origin is right.
+  const baseUrl = new URL(request.url).origin;
 
   // Pending recipients that have at least one downloaded event.
   const { data: recips, error } = await admin
     .from("recipients")
-    .select("id, email, name, delivery_id, events!inner(type, occurred_at)")
+    .select("id, email, name, token, delivery_id, events!inner(type, occurred_at)")
     .eq("review_email_status", "pending")
     .eq("events.type", "downloaded");
   if (error) {
@@ -111,7 +114,7 @@ export async function GET(request: Request) {
       .maybeSingle();
     const { data: links } = await admin
       .from("review_destinations")
-      .select("label, url, sort_order")
+      .select("id, label, url, sort_order")
       .eq("operator_id", delivery.operator_id)
       .order("sort_order", { ascending: true });
 
@@ -120,7 +123,7 @@ export async function GET(request: Request) {
       brandColor: branding?.brand_color ?? "#0b5563",
       logoUrl: branding?.logo_url ?? null,
       tripLine: tripLine(delivery),
-      reviewLinks: (links ?? []).map((l) => ({ label: l.label, url: l.url })),
+      reviewLinks: (links ?? []).map((l) => ({ id: l.id, label: l.label, url: l.url })),
       replyTo: branding?.reply_to_email ?? null,
       social: {
         website_url: branding?.website_url ?? null,
@@ -145,13 +148,19 @@ export async function GET(request: Request) {
       errors++;
       continue;
     }
+    // Route each button through the tracking redirect so a tap is logged. Fall
+    // back to the raw url only if we somehow have no base url.
+    const trackedLinks = ctx.reviewLinks.map((l) => ({
+      label: l.label,
+      href: baseUrl ? `${baseUrl}/g/${r.token}/review?d=${l.id}` : l.url,
+    }));
     const { subject, html } = buildReviewEmail({
       operatorName: ctx.operatorName,
       brandColor: ctx.brandColor,
       logoUrl: ctx.logoUrl,
       recipientName: r.name,
       tripLine: ctx.tripLine,
-      reviewLinks: ctx.reviewLinks,
+      reviewLinks: trackedLinks,
       social: ctx.social,
     });
     const result = await sendReviewEmail(

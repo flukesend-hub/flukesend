@@ -7,6 +7,7 @@
 */
 import { useState } from "react";
 import Link from "next/link";
+import { PLANS } from "@/lib/plans";
 
 type Tier = {
   name: string;
@@ -20,40 +21,47 @@ type Tier = {
 
 const TIERS: Tier[] = [
   {
-    name: "Single boat",
+    name: PLANS.single.displayName,
     monthly: 150,
     annualMonthly: 125,
     annualTotal: 1500,
-    blurb: "One boat, the full review engine.",
+    blurb: "One crew, the full review engine.",
     features: [
-      "1 boat",
+      "Up to 25 emails per send",
+      "250 emails a month",
+      "Unlimited boats",
       "Branded photo galleries",
       "Automatic review asks",
-      "Unlimited sends",
-      "Crew and boat roster",
       "Export your guest emails",
     ],
   },
   {
-    name: "Two boats",
+    name: PLANS.two.displayName,
     monthly: 250,
     annualMonthly: 208,
     annualTotal: 2500,
-    blurb: "Run a second boat without a second account.",
+    blurb: "More room to send as you grow.",
     popular: true,
     features: [
-      "Up to 2 boats",
-      "Everything in Single boat",
-      "Per boat selection on every send",
+      "Up to 50 emails per send",
+      "500 emails a month",
+      "Unlimited boats",
+      `Everything in ${PLANS.single.displayName}`,
     ],
   },
   {
-    name: "Fleet",
+    name: PLANS.fleet.displayName,
     monthly: 300,
     annualMonthly: 250,
     annualTotal: 3000,
-    blurb: "Unlimited boats for a busy operation.",
-    features: ["Unlimited boats", "Everything in Two boats", "Priority support"],
+    blurb: "Unlimited sending for a busy operation.",
+    features: [
+      "Up to 100 emails per send",
+      "Unlimited emails a month",
+      "Unlimited boats",
+      `Everything in ${PLANS.two.displayName}`,
+      "Priority support",
+    ],
   },
 ];
 
