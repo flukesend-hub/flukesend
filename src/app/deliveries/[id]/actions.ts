@@ -6,7 +6,9 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, operatorFromAddress } from "@/lib/email";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 
@@ -36,6 +38,46 @@ export async function updateRecipientEmail(
 function formatTripDate(tripDatetime: string | null): string | null {
   if (!tripDatetime) return null;
   return new Date(tripDatetime).toLocaleDateString("en-US", { dateStyle: "long" });
+}
+
+// Permanently delete a send. Rows go first through the RLS client (so an
+// operator can only ever delete their own, and gallery links plus analytics
+// update the moment it lands), then the storage objects via the admin client,
+// since the private bucket has no member policies and cascade cannot reach it.
+// Usage metering is deliberately not refunded: the emails went out.
+export async function deleteDelivery(
+  deliveryId: string,
+): Promise<{ error: string }> {
+  const supabase = await createClient();
+
+  const { data: photos, error: pErr } = await supabase
+    .from("photos")
+    .select("storage_key")
+    .eq("delivery_id", deliveryId);
+  if (pErr) {
+    return { error: "Could not load the send. Try again." };
+  }
+  const keys = (photos ?? []).map((p) => p.storage_key as string);
+
+  const { error: dErr, count } = await supabase
+    .from("deliveries")
+    .delete({ count: "exact" })
+    .eq("id", deliveryId);
+  if (dErr || !count) {
+    return { error: "Could not delete the send. Try again." };
+  }
+
+  if (keys.length) {
+    const admin = createAdminClient();
+    const { error: rmErr } = await admin.storage.from("photos").remove(keys);
+    if (rmErr) {
+      console.error(
+        `delete send ${deliveryId}: removing ${keys.length} photos from storage failed: ${rmErr.message}`,
+      );
+    }
+  }
+
+  redirect("/send");
 }
 
 export async function resendDelivery(recipientId: string): Promise<RowResult> {

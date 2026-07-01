@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { GuestRow } from "./guest-row";
+import { DeleteSend } from "./delete-send";
 import { Reveal } from "./reveal";
 import { recipientStatus } from "@/lib/recipient-status";
 
@@ -224,6 +225,8 @@ export default async function DeliveryPage({
               review ask.
             </p>
           </div>
+
+          <DeleteSend deliveryId={delivery.id} />
         </Reveal>
       </main>
     </>
