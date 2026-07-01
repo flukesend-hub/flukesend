@@ -15,7 +15,18 @@ import { NextResponse, type NextRequest } from "next/server";
 // public: guests have no operator session and reach it only by their token.
 // The cron endpoint and the Stripe webhook are public to the proxy but verify
 // their own secret/signature. The marketing pages ("/", /pricing) are public.
-const PUBLIC_PATHS = ["/login", "/g", "/api/cron", "/api/webhooks", "/", "/pricing"];
+// /auth/callback (reset link landing) and /reset-password must be reachable
+// before a full session exists.
+const PUBLIC_PATHS = [
+  "/login",
+  "/g",
+  "/api/cron",
+  "/api/webhooks",
+  "/",
+  "/pricing",
+  "/auth/callback",
+  "/reset-password",
+];
 
 function isPublic(path: string) {
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
