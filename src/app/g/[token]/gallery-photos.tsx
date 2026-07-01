@@ -15,16 +15,18 @@ export function GalleryPhotos({
   brand,
   retentionDays,
   photos,
+  preview = false,
 }: {
   token: string;
   brand: string;
   retentionDays: number;
   photos: Photo[];
+  preview?: boolean;
 }) {
   const [downloaded, setDownloaded] = useState(false);
 
   function downloadUrl(id: string) {
-    return `/g/${token}/download?p=${id}`;
+    return `/g/${token}/download?p=${id}${preview ? "&preview=1" : ""}`;
   }
 
   async function downloadAll() {

@@ -17,10 +17,15 @@ function retentionDaysLeft(expiresAt: string) {
 
 export default async function GalleryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }) {
   const { token } = await params;
+  // Preview mode is for the operator checking their own send. No opened or
+  // downloaded events are written, so previewing never triggers a review ask.
+  const preview = (await searchParams).preview === "1";
   const data = await getGalleryByToken(token);
   if (!data) {
     notFound();
@@ -71,8 +76,14 @@ export default async function GalleryPage({
 
   return (
     <main style={{ minHeight: "100dvh", background: "var(--paper)", color: "var(--paper-ink)", padding: "0 0 60px" }}>
-      <TrackOpen token={token} />
+      {preview ? null : <TrackOpen token={token} />}
       <div style={{ maxWidth: "560px", margin: "0 auto" }}>
+        {preview ? (
+          <div style={{ background: "#33464a", color: "#fff", fontSize: "12.5px", textAlign: "center", padding: "8px 12px" }}>
+            Preview mode: opens and downloads here are not counted and will not
+            trigger the review note.
+          </div>
+        ) : null}
         <div style={{ background: brand, color: "#fff", padding: "32px 26px 28px" }}>
           <div className="fl-display" style={{ fontSize: "20px", letterSpacing: ".02em", opacity: 0.96 }}>
             {operator.name}
@@ -109,6 +120,7 @@ export default async function GalleryPage({
               brand={brand}
               retentionDays={retentionDaysLeft(delivery.expires_at)}
               photos={photos}
+              preview={preview}
             />
           ) : (
             <p style={{ color: "#6b7a7d" }}>No photos in this gallery yet.</p>

@@ -101,7 +101,12 @@ export default async function DeliveryPage({
 
   const hdrs = await headers();
   const baseUrl = `${hdrs.get("x-forwarded-proto") ?? "https"}://${hdrs.get("host") ?? ""}`;
-  const openUrl = recipients?.[0] ? `${baseUrl}/g/${recipients[0].token}` : null;
+  // Preview mode: the crew checking their own send must not write opened or
+  // downloaded events, or guest number one gets a review ask for a gallery
+  // they never saw.
+  const openUrl = recipients?.[0]
+    ? `${baseUrl}/g/${recipients[0].token}?preview=1`
+    : null;
 
   const species = (delivery.species ?? []) as string[];
   const crew = (delivery.crew_names ?? []) as string[];
