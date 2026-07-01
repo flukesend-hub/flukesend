@@ -1,20 +1,27 @@
 /*
-  Delivery confirmation and detail, dark workspace. Shown right after a send is
-  created, and reachable later from the dashboard. RLS scopes every read to the
-  operator. Each recipient has its own gallery token; the tokened gallery and
-  the emails are the guest surfaces.
+  Send created / delivery detail, WeTransfer finished-send style. A photo preview
+  with an Open, a short summary, and Send another / Open buttons, with the trip
+  details and guest list tucked behind "See what's inside". RLS scopes reads to
+  the operator; the first photo is signed with the service role for the preview.
+  No em dashes anywhere.
 */
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { GuestRow } from "./guest-row";
+import { Reveal } from "./reveal";
 import { recipientStatus } from "@/lib/recipient-status";
 
 function fmtDateTime(value: string | null) {
   if (!value) return "Not set";
   return new Date(value).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+function fmtDate(value: string | null) {
+  if (!value) return null;
+  return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export default async function DeliveryPage({
@@ -56,19 +63,23 @@ export default async function DeliveryPage({
     .select("*", { count: "exact", head: true })
     .eq("delivery_id", id);
 
+  const { data: firstPhoto } = await supabase
+    .from("photos")
+    .select("storage_key")
+    .eq("delivery_id", id)
+    .order("sort_order", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
   const { data: recipients } = await supabase
     .from("recipients")
     .select("id, email, token, review_email_status")
     .eq("delivery_id", id);
 
-  // Fold each guest's events into download/open flags so a status chip can show
-  // where they are: emailed, opened, downloaded, or review sent.
+  // Fold each guest's events into download/open flags for the status chip.
   const recipientIds = (recipients ?? []).map((r) => r.id);
   const { data: events } = recipientIds.length
-    ? await supabase
-        .from("events")
-        .select("recipient_id, type")
-        .in("recipient_id", recipientIds)
+    ? await supabase.from("events").select("recipient_id, type").in("recipient_id", recipientIds)
     : { data: [] as { recipient_id: string; type: string }[] };
   const eventsByRecipient = new Map<string, { download: boolean; open: boolean }>();
   for (const e of events ?? []) {
@@ -78,77 +89,111 @@ export default async function DeliveryPage({
     eventsByRecipient.set(e.recipient_id, cur);
   }
 
+  // Sign the first photo (private bucket) for the preview thumbnail.
+  let previewUrl: string | null = null;
+  if (firstPhoto?.storage_key) {
+    const admin = createAdminClient();
+    const { data: signed } = await admin.storage
+      .from("photos")
+      .createSignedUrl(firstPhoto.storage_key, 60 * 60);
+    previewUrl = signed?.signedUrl ?? null;
+  }
+
   const hdrs = await headers();
   const baseUrl = `${hdrs.get("x-forwarded-proto") ?? "https"}://${hdrs.get("host") ?? ""}`;
+  const openUrl = recipients?.[0] ? `${baseUrl}/g/${recipients[0].token}` : null;
 
   const species = (delivery.species ?? []) as string[];
   const crew = (delivery.crew_names ?? []) as string[];
   const guests = recipients?.length ?? 0;
+  const photos = photoCount ?? 0;
   const emailedN = emailed !== undefined ? Number(emailed) : null;
+  const expires = fmtDate(delivery.expires_at);
 
   return (
     <>
       <OperatorNav operatorName={operator?.name ?? "Operator"} />
-      <main style={{ maxWidth: "820px", margin: "0 auto", padding: "16px 22px 80px" }}>
-        <h1 className="fl-h1">Send created</h1>
-        <p style={{ color: "var(--muted)", fontSize: "14px", margin: "4px 0 0" }}>
-          {guests} guest{guests === 1 ? "" : "s"} and {photoCount ?? 0} photo
-          {(photoCount ?? 0) === 1 ? "" : "s"}.
-        </p>
+      <main style={{ maxWidth: "720px", margin: "0 auto", padding: "28px 22px 80px" }}>
+        <div style={{ maxWidth: "460px", margin: "0 auto", textAlign: "center" }}>
+          {previewUrl ? (
+            <a href={openUrl ?? undefined} target="_blank" rel="noreferrer" style={previewWrap}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={previewUrl} alt="Send preview" style={previewImg} />
+              <span style={openPill}>
+                <span style={playTri} aria-hidden="true" />
+                Open
+              </span>
+            </a>
+          ) : (
+            <div style={{ ...previewWrap, display: "grid", placeItems: "center", color: "var(--muted)", fontSize: "14px" }}>
+              {photos} photo{photos === 1 ? "" : "s"}
+            </div>
+          )}
 
-      {emailedN !== null ? (
-        <div style={emailedN > 0 ? bannerOk : bannerWarn}>
-          <span style={emailedN > 0 ? check : checkWarn}>{emailedN > 0 ? "✓" : "!"}</span>
-          <span style={{ fontSize: "13.5px", color: emailedN > 0 ? "#0f6e56" : "#33502a" }}>
-            {emailedN > 0
-              ? `Emailed the gallery link to ${emailedN} of ${guests} guests. Review asks are scheduled for this evening.`
-              : "Guests were not emailed. Check that the email service is configured."}
-          </span>
+          <h1 className="fl-h1" style={{ fontSize: "30px", marginTop: "22px" }}>
+            {emailedN === 0 ? "Send created" : "Email sent!"}
+          </h1>
+          <p style={{ color: "var(--muted)", fontSize: "14.5px", margin: "6px 0 0" }}>
+            {guests} guest{guests === 1 ? "" : "s"} and {photos} photo{photos === 1 ? "" : "s"}
+            {expires ? ` · available until ${expires}` : ""}.
+          </p>
+
+          {emailedN === 0 ? (
+            <p style={{ color: "var(--bad)", fontSize: "13px", margin: "10px 0 0" }}>
+              Guests were not emailed. Check that the email service is configured.
+            </p>
+          ) : null}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "24px" }}>
+            <Link href="/send" className="fl-btn" style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "14px" }}>
+              Send another
+            </Link>
+            {openUrl ? (
+              <a href={openUrl} target="_blank" rel="noreferrer" className="fl-btn-ghost" style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "13px", fontSize: "14px" }}>
+                Open
+              </a>
+            ) : null}
+          </div>
         </div>
-      ) : null}
 
-      <div className="fl-card" style={{ marginTop: "18px" }}>
-        <h3 style={h3}>Trip</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <Row label="Date">{fmtDateTime(delivery.trip_datetime)}</Row>
-          <Row label="Species">{species.length ? species.join(", ") : "Not set"}</Row>
-          <Row label="Boat">{delivery.boat_name ?? "Not set"}</Row>
-          <Row label="Captain">{delivery.captain_name ?? "Not set"}</Row>
-          <Row label="Naturalist">{delivery.naturalist_name ?? "Not set"}</Row>
-          <Row label="Photographer">{delivery.photographer_name ?? "Not set"}</Row>
-          <Row label="Crew">{crew.length ? crew.join(", ") : "Not set"}</Row>
-          <Row label="Expires">{fmtDateTime(delivery.expires_at)}</Row>
-        </div>
-      </div>
+        <Reveal label="See what's inside">
+          <div className="fl-card">
+            <h3 style={h3}>Trip</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <Row label="Date">{fmtDateTime(delivery.trip_datetime)}</Row>
+              <Row label="Species">{species.length ? species.join(", ") : "Not set"}</Row>
+              <Row label="Boat">{delivery.boat_name ?? "Not set"}</Row>
+              <Row label="Captain">{delivery.captain_name ?? "Not set"}</Row>
+              <Row label="Naturalist">{delivery.naturalist_name ?? "Not set"}</Row>
+              <Row label="Photographer">{delivery.photographer_name ?? "Not set"}</Row>
+              <Row label="Crew">{crew.length ? crew.join(", ") : "Not set"}</Row>
+              <Row label="Expires">{fmtDateTime(delivery.expires_at)}</Row>
+            </div>
+          </div>
 
-      <div className="fl-card" style={{ marginTop: "16px" }}>
-        <h3 style={h3}>Guests ({guests})</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {recipients?.map((r) => {
-            const ev = eventsByRecipient.get(r.id);
-            return (
-              <GuestRow
-                key={r.id}
-                id={r.id}
-                email={r.email}
-                galleryUrl={`${baseUrl}/g/${r.token}`}
-                status={recipientStatus(r.review_email_status, ev?.download ?? false, ev?.open ?? false)}
-              />
-            );
-          })}
-        </div>
-        <p style={{ color: "var(--muted-2)", fontSize: "12.5px", margin: "14px 0 0" }}>
-          Each link above is one guest&apos;s personal gallery. The download from
-          any of them is the single event that triggers that guest&apos;s review
-          ask.
-        </p>
-      </div>
-
-      <div style={{ marginTop: "18px" }}>
-        <Link href="/send" className="fl-btn">
-          Create another send
-        </Link>
-      </div>
+          <div className="fl-card" style={{ marginTop: "16px" }}>
+            <h3 style={h3}>Guests ({guests})</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {recipients?.map((r) => {
+                const ev = eventsByRecipient.get(r.id);
+                return (
+                  <GuestRow
+                    key={r.id}
+                    id={r.id}
+                    email={r.email}
+                    galleryUrl={`${baseUrl}/g/${r.token}`}
+                    status={recipientStatus(r.review_email_status, ev?.download ?? false, ev?.open ?? false)}
+                  />
+                );
+              })}
+            </div>
+            <p style={{ color: "var(--muted-2)", fontSize: "12.5px", margin: "14px 0 0" }}>
+              Each link above is one guest&apos;s personal gallery. The download
+              from any of them is the single event that triggers that guest&apos;s
+              review ask.
+            </p>
+          </div>
+        </Reveal>
       </main>
     </>
   );
@@ -164,31 +209,42 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 const h3: React.CSSProperties = { margin: "0 0 14px", fontSize: "15px", fontWeight: 600 };
-const bannerOk: React.CSSProperties = {
-  marginTop: "18px",
-  display: "flex",
+const previewWrap: React.CSSProperties = {
+  position: "relative",
+  display: "block",
+  width: "100%",
+  aspectRatio: "16 / 10",
+  borderRadius: "16px",
+  overflow: "hidden",
+  background: "var(--ink-2)",
+  border: "1px solid var(--line)",
+};
+const previewImg: React.CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+  display: "block",
+};
+const openPill: React.CSSProperties = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  display: "inline-flex",
   alignItems: "center",
-  gap: "12px",
-  padding: "13px 16px",
-  borderRadius: "12px",
-  border: "1px solid rgba(47,143,99,.4)",
-  background: "rgba(47,143,99,.12)",
-};
-const bannerWarn: React.CSSProperties = {
-  ...bannerOk,
-  border: "1px solid rgba(63,122,77,.45)",
-  background: "rgba(63,122,77,.14)",
-};
-const check: React.CSSProperties = {
-  width: "26px",
-  height: "26px",
-  borderRadius: "50%",
-  background: "var(--good)",
-  display: "grid",
-  placeItems: "center",
-  color: "#06231a",
+  gap: "9px",
+  background: "#fff",
+  color: "var(--text)",
+  fontWeight: 600,
   fontSize: "15px",
-  fontWeight: 700,
-  flex: "0 0 auto",
+  padding: "12px 22px",
+  borderRadius: "999px",
+  boxShadow: "0 4px 14px rgba(0,0,0,.18)",
 };
-const checkWarn: React.CSSProperties = { ...check, background: "var(--signal)", color: "var(--signal-ink)" };
+const playTri: React.CSSProperties = {
+  width: 0,
+  height: 0,
+  borderTop: "7px solid transparent",
+  borderBottom: "7px solid transparent",
+  borderLeft: "11px solid var(--text)",
+};
