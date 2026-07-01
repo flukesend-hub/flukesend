@@ -3,9 +3,8 @@
   manage review links. Reads go through the RLS client.
 */
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import QRCode from "qrcode";
-import { createClient } from "@/lib/supabase/server";
+import { requireOperator } from "@/lib/operator-session";
 import { getOperatorCaptureToken } from "@/lib/capture";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { BrandingForm } from "./branding-form";
@@ -19,55 +18,39 @@ import { CaptureQr } from "./qr-cards";
 import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login");
-  }
+  const { supabase, operatorId, operatorName } = await requireOperator();
 
-  const { data: membership } = await supabase
-    .from("operator_members")
-    .select("operator_id, operators(name)")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!membership) {
-    redirect("/onboarding");
-  }
-  const operatorId = membership.operator_id as string;
-  const operator = membership.operators as unknown as { name: string } | null;
-
-  const { data: branding } = await supabase
-    .from("branding")
-    .select(
-      "logo_url, brand_color, default_message, retention_days, plan, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url, species_options",
-    )
-    .eq("operator_id", operatorId)
-    .maybeSingle();
-
-  const { data: links } = await supabase
-    .from("review_destinations")
-    .select("id, label, url, sort_order")
-    .eq("operator_id", operatorId)
-    .order("sort_order", { ascending: true });
-
-  const { data: boats } = await supabase
-    .from("boats")
-    .select("id, name")
-    .eq("operator_id", operatorId)
-    .order("sort_order", { ascending: true });
-
-  const { data: crew } = await supabase
-    .from("crew_members")
-    .select("id, name, roles")
-    .eq("operator_id", operatorId)
-    .order("sort_order", { ascending: true });
-
-  // One standing, operator wide capture link, rendered as a single QR. Generated
-  // on the server so the client just renders the SVG string.
-  const captureToken = await getOperatorCaptureToken(operatorId);
-  const hdrs = await headers();
+  // Independent reads all fire at once; the page waits for the slowest one,
+  // not the sum. The capture link is the one lazy-creating call and is safe
+  // to run alongside the reads.
+  const [{ data: branding }, { data: links }, { data: boats }, { data: crew }, captureToken, hdrs] =
+    await Promise.all([
+      supabase
+        .from("branding")
+        .select(
+          "logo_url, brand_color, default_message, retention_days, plan, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url, species_options",
+        )
+        .eq("operator_id", operatorId)
+        .maybeSingle(),
+      supabase
+        .from("review_destinations")
+        .select("id, label, url, sort_order")
+        .eq("operator_id", operatorId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("boats")
+        .select("id, name")
+        .eq("operator_id", operatorId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("crew_members")
+        .select("id, name, roles")
+        .eq("operator_id", operatorId)
+        .order("sort_order", { ascending: true }),
+      // One standing, operator wide capture link, rendered as a single QR.
+      getOperatorCaptureToken(operatorId),
+      headers(),
+    ]);
   const host = hdrs.get("host");
   const proto = hdrs.get("x-forwarded-proto") ?? "https";
   const baseUrl = host ? `${proto}://${host}` : "";
@@ -101,7 +84,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <OperatorNav operatorName={operator?.name ?? "Operator"} />
+      <OperatorNav operatorName={operatorName ?? "Operator"} />
       <main style={{ padding: "16px 28px 80px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
           <div>
@@ -147,7 +130,7 @@ export default async function SettingsPage() {
               chip={doneChip}
             >
               <BrandingForm
-                operatorName={operator?.name ?? "Operator"}
+                operatorName={operatorName ?? "Operator"}
                 logoUrl={branding?.logo_url ?? null}
                 brandColor={branding?.brand_color ?? "#0b5563"}
                 defaultMessage={branding?.default_message ?? ""}
@@ -205,7 +188,7 @@ export default async function SettingsPage() {
               summary="One code guests scan aboard to get their photos"
               chip={{ label: "Optional", tone: "muted" }}
             >
-              <CaptureQr operatorName={operator?.name ?? "Operator"} dataUrl={captureDataUrl} />
+              <CaptureQr operatorName={operatorName ?? "Operator"} dataUrl={captureDataUrl} />
             </SettingsSection>
           </div>
 

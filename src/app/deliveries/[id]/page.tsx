@@ -7,8 +7,8 @@
 */
 import Link from "next/link";
 import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { requireOperator } from "@/lib/operator-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { GuestRow } from "./guest-row";
@@ -35,54 +35,50 @@ export default async function DeliveryPage({
 }) {
   const { id } = await params;
   const { emailed, failed } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login");
-  }
+  const { supabase, operatorName } = await requireOperator();
 
-  const { data: delivery } = await supabase
-    .from("deliveries")
-    .select(
-      "id, operator_id, trip_datetime, species, captain_name, naturalist_name, photographer_name, crew_names, boat_name, expires_at",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  // Wave one: everything keyed by the route id fires together. RLS scopes the
+  // delivery to this operator, so a foreign id just comes back empty.
+  const [{ data: delivery }, { count: photoCount }, { data: firstPhoto }, { data: recipients }] =
+    await Promise.all([
+      supabase
+        .from("deliveries")
+        .select(
+          "id, operator_id, trip_datetime, species, captain_name, naturalist_name, photographer_name, crew_names, boat_name, expires_at",
+        )
+        .eq("id", id)
+        .maybeSingle(),
+      supabase.from("photos").select("*", { count: "exact", head: true }).eq("delivery_id", id),
+      supabase
+        .from("photos")
+        .select("storage_key")
+        .eq("delivery_id", id)
+        .order("sort_order", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+      supabase.from("recipients").select("id, email, token, review_email_status").eq("delivery_id", id),
+    ]);
   if (!delivery) {
     notFound();
   }
 
-  const { data: operator } = await supabase
-    .from("operators")
-    .select("name")
-    .eq("id", delivery.operator_id)
-    .maybeSingle();
-
-  const { count: photoCount } = await supabase
-    .from("photos")
-    .select("*", { count: "exact", head: true })
-    .eq("delivery_id", id);
-
-  const { data: firstPhoto } = await supabase
-    .from("photos")
-    .select("storage_key")
-    .eq("delivery_id", id)
-    .order("sort_order", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  const { data: recipients } = await supabase
-    .from("recipients")
-    .select("id, email, token, review_email_status")
-    .eq("delivery_id", id);
+  // Wave two: the reads that needed wave one's results, again together.
+  const recipientIds = (recipients ?? []).map((r) => r.id);
+  const [{ data: events }, previewUrl, hdrs] = await Promise.all([
+    recipientIds.length
+      ? supabase.from("events").select("recipient_id, type").in("recipient_id", recipientIds)
+      : Promise.resolve({ data: [] as { recipient_id: string; type: string }[] }),
+    // Sign the first photo (private bucket) for the preview thumbnail.
+    firstPhoto?.storage_key
+      ? createAdminClient()
+          .storage.from("photos")
+          .createSignedUrl(firstPhoto.storage_key, 60 * 60)
+          .then(({ data: signed }) => signed?.signedUrl ?? null)
+      : Promise.resolve(null),
+    headers(),
+  ]);
 
   // Fold each guest's events into download/open flags for the status chip.
-  const recipientIds = (recipients ?? []).map((r) => r.id);
-  const { data: events } = recipientIds.length
-    ? await supabase.from("events").select("recipient_id, type").in("recipient_id", recipientIds)
-    : { data: [] as { recipient_id: string; type: string }[] };
   const eventsByRecipient = new Map<string, { download: boolean; open: boolean }>();
   for (const e of events ?? []) {
     const cur = eventsByRecipient.get(e.recipient_id) ?? { download: false, open: false };
@@ -90,18 +86,6 @@ export default async function DeliveryPage({
     if (e.type === "opened") cur.open = true;
     eventsByRecipient.set(e.recipient_id, cur);
   }
-
-  // Sign the first photo (private bucket) for the preview thumbnail.
-  let previewUrl: string | null = null;
-  if (firstPhoto?.storage_key) {
-    const admin = createAdminClient();
-    const { data: signed } = await admin.storage
-      .from("photos")
-      .createSignedUrl(firstPhoto.storage_key, 60 * 60);
-    previewUrl = signed?.signedUrl ?? null;
-  }
-
-  const hdrs = await headers();
   const baseUrl = `${hdrs.get("x-forwarded-proto") ?? "https"}://${hdrs.get("host") ?? ""}`;
   // Preview mode: the crew checking their own send must not write opened or
   // downloaded events, or guest number one gets a review ask for a gallery
@@ -120,7 +104,7 @@ export default async function DeliveryPage({
 
   return (
     <>
-      <OperatorNav operatorName={operator?.name ?? "Operator"} />
+      <OperatorNav operatorName={operatorName ?? "Operator"} />
       <main style={{ maxWidth: "720px", margin: "0 auto", padding: "28px 22px 80px" }}>
         <div style={{ maxWidth: "460px", margin: "0 auto", textAlign: "center" }}>
           {previewUrl ? (

@@ -21,24 +21,22 @@ export async function getTrialUsage(
   supabase: SupabaseClient,
   operatorId: string,
 ): Promise<TrialUsage> {
-  const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("status")
-    .eq("operator_id", operatorId)
-    .maybeSingle();
-  const status = (sub?.status as TrialUsage["status"]) ?? "trial";
+  // Three independent reads, one round trip of latency. RLS scopes the
+  // recipients count to this operator's deliveries.
+  const [{ data: sub }, { count: transfers }, { count: emails }] = await Promise.all([
+    supabase.from("subscriptions").select("status").eq("operator_id", operatorId).maybeSingle(),
+    supabase
+      .from("deliveries")
+      .select("*", { count: "exact", head: true })
+      .eq("operator_id", operatorId),
+    supabase.from("recipients").select("*", { count: "exact", head: true }),
+  ]);
 
-  const { count: transfers } = await supabase
-    .from("deliveries")
-    .select("*", { count: "exact", head: true })
-    .eq("operator_id", operatorId);
-
-  // RLS scopes recipients to this operator's deliveries.
-  const { count: emails } = await supabase
-    .from("recipients")
-    .select("*", { count: "exact", head: true });
-
-  return { status, transfers: transfers ?? 0, emails: emails ?? 0 };
+  return {
+    status: (sub?.status as TrialUsage["status"]) ?? "trial",
+    transfers: transfers ?? 0,
+    emails: emails ?? 0,
+  };
 }
 
 export type Plan = {
