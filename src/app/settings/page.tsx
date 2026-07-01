@@ -72,8 +72,11 @@ export default async function SettingsPage() {
   const proto = hdrs.get("x-forwarded-proto") ?? "https";
   const baseUrl = host ? `${proto}://${host}` : "";
   const captureUrl = captureToken && baseUrl ? `${baseUrl}/j/${captureToken}` : null;
-  const captureSvg = captureUrl
-    ? await QRCode.toString(captureUrl, { type: "svg", margin: 1, width: 240 })
+  // A PNG data URL (not SVG) so it renders as a real image the operator can save
+  // to their phone's photos, and downloads as a .png. 512px stays crisp when
+  // shown small on screen or printed larger.
+  const captureDataUrl = captureUrl
+    ? await QRCode.toDataURL(captureUrl, { margin: 1, width: 512 })
     : null;
 
   // One line summaries so each collapsed section says what is set without
@@ -202,7 +205,7 @@ export default async function SettingsPage() {
               summary="One code guests scan aboard to get their photos"
               chip={{ label: "Optional", tone: "muted" }}
             >
-              <CaptureQr operatorName={operator?.name ?? "Operator"} url={captureUrl} svg={captureSvg} />
+              <CaptureQr operatorName={operator?.name ?? "Operator"} dataUrl={captureDataUrl} />
             </SettingsSection>
           </div>
 
