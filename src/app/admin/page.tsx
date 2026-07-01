@@ -1,11 +1,11 @@
 /*
   Admin screen for the Flukesend owner. Gated by requireAdmin (email allowlist).
-  Comp operators who pay outside the app, and see every operator's current plan
-  at a glance. Reads use the service role since this spans all operators.
+  Set any operator's plan inline and open the support branding editor. Reads use
+  the service role since this spans all operators.
 */
 import { requireAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { AdminForm } from "./admin-form";
+import { AdminOperators, type OperatorRow } from "./admin-operators";
 
 export default async function AdminPage() {
   await requireAdmin();
@@ -22,51 +22,28 @@ export default async function AdminPage() {
   const ownerByOp = new Map((membersRes.data ?? []).map((m) => [m.operator_id, emailById.get(m.user_id) ?? ""]));
   const subByOp = new Map((subsRes.data ?? []).map((s) => [s.operator_id, s]));
 
-  const rows = (operatorsRes.data ?? []).map((o) => {
+  const rows: OperatorRow[] = (operatorsRes.data ?? []).map((o) => {
     const s = subByOp.get(o.id);
-    let plan = "Trial";
-    if (s?.status === "active") plan = s.stripe_customer_id ? `Paid (${s.tier})` : `Comped (${s.tier})`;
-    else if (s?.status === "canceled") plan = "Canceled";
-    return { name: o.name, email: ownerByOp.get(o.id) ?? "", plan };
+    const paid = s?.status === "active" && !!s?.stripe_customer_id;
+    const comped = s?.status === "active" && !s?.stripe_customer_id;
+    return {
+      operatorId: o.id,
+      name: o.name,
+      email: ownerByOp.get(o.id) ?? "",
+      paid,
+      tier: (s?.tier as string) ?? null,
+      value: comped ? (s!.tier as string) : "trial",
+    };
   });
 
   return (
     <main style={{ padding: "28px", maxWidth: "820px", margin: "0 auto" }}>
       <a href="/send" className="fl-link">&larr; Back to app</a>
       <h1 className="fl-h1" style={{ marginTop: "8px" }}>Admin</h1>
-      <p className="fl-muted" style={{ fontSize: "14px", margin: 0 }}>
-        Comp operators who pay outside the app.
+      <p className="fl-muted" style={{ fontSize: "14px", margin: "0 0 20px" }}>
+        Set each operator&apos;s plan, or edit their branding for support.
       </p>
-
-      <div style={{ marginTop: "20px" }}>
-        <AdminForm />
-      </div>
-
-      <div className="fl-card" style={{ marginTop: "16px", maxWidth: "640px" }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: "15px", fontWeight: 600 }}>
-          Operators ({rows.length})
-        </h3>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13.5px" }}>
-          <thead>
-            <tr style={{ textAlign: "left", color: "var(--muted)" }}>
-              <th style={cell}>Operator</th>
-              <th style={cell}>Owner</th>
-              <th style={cell}>Plan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} style={{ borderTop: "1px solid var(--line)" }}>
-                <td style={cell}>{r.name}</td>
-                <td style={{ ...cell, color: "var(--muted)" }}>{r.email}</td>
-                <td style={cell}>{r.plan}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <AdminOperators rows={rows} />
     </main>
   );
 }
-
-const cell: React.CSSProperties = { padding: "8px 6px", verticalAlign: "top" };
