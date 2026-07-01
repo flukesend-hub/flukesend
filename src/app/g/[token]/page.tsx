@@ -35,12 +35,12 @@ export default async function GalleryPage({
   const message = delivery.custom_message || branding?.default_message || "";
   const expired = isExpired(delivery.expires_at);
 
-  let photos: { id: string; name: string; url: string }[] = [];
+  let photos: { id: string; name: string; url: string; size: number }[] = [];
   if (!expired) {
     const admin = createAdminClient();
     const { data: rows } = await admin
       .from("photos")
-      .select("id, storage_key, filename, sort_order")
+      .select("id, storage_key, filename, size, sort_order")
       .eq("delivery_id", delivery.id)
       .order("sort_order", { ascending: true });
     if (rows?.length) {
@@ -51,6 +51,7 @@ export default async function GalleryPage({
         id: r.id,
         name: r.filename ?? "photo",
         url: signed?.[i]?.signedUrl ?? "",
+        size: Number(r.size) || 0,
       }));
     }
   }
