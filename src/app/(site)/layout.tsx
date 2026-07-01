@@ -8,7 +8,7 @@ import { MarketingFooter } from "@/app/_ui/marketing-footer";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ background: "#f8f7f3", color: "#10221f", minHeight: "100dvh" }}>
+    <div style={{ background: "#ffffff", color: "#10221f", minHeight: "100dvh" }}>
       <MarketingNav />
       {children}
       <MarketingFooter />
