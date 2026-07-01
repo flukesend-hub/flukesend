@@ -86,7 +86,7 @@ const lede: React.CSSProperties = {
 const trial: React.CSSProperties = {
   display: "inline-block",
   marginTop: "22px",
-  background: "#fbf3e0",
+  background: "#ffffff",
   border: "1px solid #ecdcb4",
   borderRadius: "999px",
   padding: "10px 18px",

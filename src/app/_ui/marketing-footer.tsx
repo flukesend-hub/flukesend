@@ -25,5 +25,5 @@ export function MarketingFooter() {
 
 const wrap: React.CSSProperties = {
   borderTop: "1px solid #e7e2d8",
-  background: "#f1efe8",
+  background: "#ffffff",
 };

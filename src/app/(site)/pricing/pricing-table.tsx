@@ -110,7 +110,7 @@ export function PricingTable() {
 
 const toggleWrap: React.CSSProperties = {
   display: "inline-flex",
-  background: "#ece8df",
+  background: "#f4f5f4",
   borderRadius: "999px",
   padding: "4px",
 };
@@ -131,7 +131,7 @@ const saveTag: React.CSSProperties = {
   fontSize: "12.5px",
   fontWeight: 600,
   color: "#33502a",
-  background: "#fbf3e0",
+  background: "#ffffff",
   border: "1px solid #ecdcb4",
   borderRadius: "999px",
   padding: "5px 11px",
