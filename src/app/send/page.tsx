@@ -89,6 +89,29 @@ export default async function SendPage() {
           </div>
         ) : null}
 
+        {usage.status === "canceled" ? (
+          <div
+            style={{
+              marginTop: "16px",
+              padding: "11px 16px",
+              borderRadius: "11px",
+              border: "1px solid rgba(194,83,63,.45)",
+              background: "rgba(194,83,63,.12)",
+              fontSize: "13px",
+              color: "#8a2f22",
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <span>No active plan. Choose a plan to start sending.</span>
+            <a href="/billing" style={{ color: "#8a2f22", fontWeight: 600, marginLeft: "auto" }}>
+              See plans
+            </a>
+          </div>
+        ) : null}
+
         <SendForm
           defaultMessage={branding?.default_message ?? ""}
           brandColor={branding?.brand_color ?? "#0b5563"}

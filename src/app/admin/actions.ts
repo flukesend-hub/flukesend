@@ -18,7 +18,7 @@ import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
 
 export type AdminState = { error?: string; ok?: string } | undefined;
 
-const PLANS = ["trial", "single", "two", "fleet"] as const;
+const PLANS = ["trial", "canceled", "single", "two", "fleet"] as const;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 export async function setPlan(operatorId: string, plan: string): Promise<AdminState> {
@@ -37,7 +37,14 @@ export async function setPlan(operatorId: string, plan: string): Promise<AdminSt
   }
 
   if (plan === "trial") {
+    // Back to the free trial (with its free allowance).
     await admin.from("subscriptions").delete().eq("operator_id", operatorId);
+  } else if (plan === "canceled") {
+    // No plan: no free allowance, they must buy before sending.
+    const { error } = await admin
+      .from("subscriptions")
+      .upsert({ operator_id: operatorId, status: "canceled", tier: null }, { onConflict: "operator_id" });
+    if (error) return { error: "Could not update the plan. Try again." };
   } else {
     const { error } = await admin
       .from("subscriptions")
