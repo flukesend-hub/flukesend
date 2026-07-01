@@ -90,6 +90,42 @@ function* chunks<T>(arr: T[], size: number): Generator<T[]> {
   for (let i = 0; i < arr.length; i += size) yield arr.slice(i, i + size);
 }
 
+// Photographer attribution for a delivery. The email credits each person once
+// by their top role (captain outranks photographer), so a captain who also
+// shoots lands on the delivery as captain with photographer_name empty. The
+// roster still knows everyone's roles, so attribution reads them: anyone
+// credited on the send who carries the photographer role counts, alongside an
+// explicitly credited photographer.
+function photographersFor(
+  d: RecipientRow["deliveries"],
+  photographerNames: Set<string>,
+): string[] {
+  const out = new Set<string>();
+  const explicit = d.photographer_name?.trim();
+  if (explicit) out.add(explicit);
+  for (const n of [d.captain_name, d.naturalist_name, ...(d.crew_names ?? [])]) {
+    const clean = n?.trim();
+    if (clean && photographerNames.has(clean)) out.add(clean);
+  }
+  return [...out];
+}
+
+async function rosterPhotographers(
+  supabase: SupabaseClient,
+  operatorId: string,
+): Promise<Set<string>> {
+  const { data: crew } = await supabase
+    .from("crew_members")
+    .select("name, roles")
+    .eq("operator_id", operatorId);
+  return new Set(
+    (crew ?? [])
+      .filter((c) => ((c.roles ?? []) as string[]).includes("photographer"))
+      .map((c) => (c.name as string).trim())
+      .filter(Boolean),
+  );
+}
+
 
 export async function getAnalytics(
   supabase: SupabaseClient,
@@ -110,7 +146,7 @@ export async function getAnalytics(
   // Recipients with their delivery joined, and the QR captures, fetched
   // together. RLS scopes both to this operator; the explicit operator filter
   // and the window keep the join tight.
-  const [{ data: recRaw }, { data: capRaw }] = await Promise.all([
+  const [{ data: recRaw }, { data: capRaw }, photographerNames] = await Promise.all([
     supabase
       .from("recipients")
       .select(
@@ -120,6 +156,7 @@ export async function getAnalytics(
       .gte("deliveries.created_at", windowStart)
       .limit(100000),
     supabase.from("captured_guests").select("captured_at").gte("captured_at", windowStart).limit(100000),
+    rosterPhotographers(supabase, operatorId),
   ]);
   const recipients = (recRaw ?? []) as unknown as RecipientRow[];
 
@@ -149,14 +186,14 @@ export async function getAnalytics(
 
   // Per delivery info, derived from the recipient rows (every delivery has at
   // least one recipient, so nothing is missed).
-  type Del = { key: string; boat: string; photographer: string };
+  type Del = { key: string; boat: string; photographers: string[] };
   const delById = new Map<string, Del>();
   for (const r of recipients) {
     if (!delById.has(r.delivery_id)) {
       delById.set(r.delivery_id, {
         key: monthKey(r.deliveries.created_at),
         boat: r.deliveries.boat_name?.trim() || NO_BOAT,
-        photographer: r.deliveries.photographer_name?.trim() ?? "",
+        photographers: photographersFor(r.deliveries, photographerNames),
       });
     }
   }
@@ -189,12 +226,10 @@ export async function getAnalytics(
     };
   });
 
-  // Per boat and per photographer across the whole window. Sends with no
-  // photographer credited stay out of the photographer table.
+  // Per boat and per photographer across the whole window. Sends where
+  // nobody aboard shoots stay out of the photographer table.
   const byBoat = groupBy(recipients, delById, downloaded, (d) => [d.boat]);
-  const byPhotographer = groupBy(recipients, delById, downloaded, (d) =>
-    d.photographer ? [d.photographer] : [],
-  );
+  const byPhotographer = groupBy(recipients, delById, downloaded, (d) => d.photographers);
 
   return {
     monthKey: currentKey,
@@ -212,9 +247,9 @@ export async function getAnalytics(
 // sends counts distinct deliveries.
 function groupBy(
   recipients: RecipientRow[],
-  delById: Map<string, { key: string; boat: string; photographer: string }>,
+  delById: Map<string, { key: string; boat: string; photographers: string[] }>,
   downloaded: Set<string>,
-  keysOf: (d: { boat: string; photographer: string }) => string[],
+  keysOf: (d: { boat: string; photographers: string[] }) => string[],
 ): GroupRow[] {
   const map = new Map<string, { reached: number; downloaded: number; delIds: Set<string> }>();
   const ensure = (name: string) => {
@@ -261,14 +296,17 @@ export async function getDeliveryRows(
   supabase: SupabaseClient,
   operatorId: string,
 ): Promise<DeliveryRow[]> {
-  const { data: recRaw } = await supabase
-    .from("recipients")
-    .select(
-      "id, delivery_id, review_email_status, deliveries!inner(operator_id, created_at, trip_datetime, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
-    )
-    .eq("deliveries.operator_id", operatorId)
-    .order("delivery_id", { ascending: false })
-    .limit(100000);
+  const [{ data: recRaw }, photographerNames] = await Promise.all([
+    supabase
+      .from("recipients")
+      .select(
+        "id, delivery_id, review_email_status, deliveries!inner(operator_id, created_at, trip_datetime, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
+      )
+      .eq("deliveries.operator_id", operatorId)
+      .order("delivery_id", { ascending: false })
+      .limit(100000),
+    rosterPhotographers(supabase, operatorId),
+  ]);
   const recipients = (recRaw ?? []) as unknown as (RecipientRow & {
     deliveries: RecipientRow["deliveries"] & { trip_datetime: string | null };
   })[];
@@ -312,7 +350,9 @@ export async function getDeliveryRows(
         boat: d.boat_name?.trim() || NO_BOAT,
         captain: d.captain_name?.trim() || "",
         naturalist: d.naturalist_name?.trim() || "",
-        photographer: d.photographer_name?.trim() || "",
+        // Same roster-role attribution as the on-page table, so the CSV
+        // credits a captain who also shoots.
+        photographer: photographersFor(d, photographerNames).join(" | "),
         crew: (d.crew_names ?? []).join(" | "),
         guests: 0,
         opened: 0,

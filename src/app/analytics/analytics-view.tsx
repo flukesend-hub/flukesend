@@ -35,7 +35,7 @@ export function AnalyticsView({
             title="By photographer"
             rows={data.byPhotographer}
             last={data.windowMonths}
-            empty="No sends with a photographer credited in this window yet. Tag a photographer under Crew mentions on a send."
+            empty="No sends with a photographer aboard yet. Give someone the photographer role in Settings, then check them aboard on a send."
           />
           <div>
             <a href="/api/export/analytics" className="fl-btn" style={{ textDecoration: "none" }}>
