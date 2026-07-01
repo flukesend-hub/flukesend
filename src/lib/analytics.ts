@@ -50,7 +50,7 @@ export type Analytics = {
   month: Funnel;
   trend: TrendPoint[];
   byBoat: GroupRow[];
-  byEmployee: GroupRow[];
+  byPhotographer: GroupRow[];
   windowMonths: number;
 };
 
@@ -90,15 +90,6 @@ function* chunks<T>(arr: T[], size: number): Generator<T[]> {
   for (let i = 0; i < arr.length; i += size) yield arr.slice(i, i + size);
 }
 
-// Names credited on a delivery, deduped: captain, naturalist, photographer, crew.
-function deliveryNames(d: RecipientRow["deliveries"]): string[] {
-  const names = new Set<string>();
-  for (const n of [d.captain_name, d.naturalist_name, d.photographer_name, ...(d.crew_names ?? [])]) {
-    const clean = n?.trim();
-    if (clean) names.add(clean);
-  }
-  return [...names];
-}
 
 export async function getAnalytics(
   supabase: SupabaseClient,
@@ -160,14 +151,14 @@ export async function getAnalytics(
 
   // Per delivery info, derived from the recipient rows (every delivery has at
   // least one recipient, so nothing is missed).
-  type Del = { key: string; boat: string; names: string[] };
+  type Del = { key: string; boat: string; photographer: string };
   const delById = new Map<string, Del>();
   for (const r of recipients) {
     if (!delById.has(r.delivery_id)) {
       delById.set(r.delivery_id, {
         key: monthKey(r.deliveries.created_at),
         boat: r.deliveries.boat_name?.trim() || NO_BOAT,
-        names: deliveryNames(r.deliveries),
+        photographer: r.deliveries.photographer_name?.trim() ?? "",
       });
     }
   }
@@ -200,9 +191,12 @@ export async function getAnalytics(
     };
   });
 
-  // Per boat and per employee across the whole window.
+  // Per boat and per photographer across the whole window. Sends with no
+  // photographer credited stay out of the photographer table.
   const byBoat = groupBy(recipients, delById, downloaded, (d) => [d.boat]);
-  const byEmployee = groupBy(recipients, delById, downloaded, (d) => d.names);
+  const byPhotographer = groupBy(recipients, delById, downloaded, (d) =>
+    d.photographer ? [d.photographer] : [],
+  );
 
   return {
     monthKey: currentKey,
@@ -210,18 +204,19 @@ export async function getAnalytics(
     month,
     trend,
     byBoat,
-    byEmployee,
+    byPhotographer,
     windowMonths: WINDOW_MONTHS,
   };
 }
 
-// Group recipients and their deliveries by a key derived from each delivery
-// (one key for boats, many for employees). sends counts distinct deliveries.
+// Group recipients and their deliveries by a key derived from each delivery.
+// keysOf may return no keys to leave a delivery out of the table entirely.
+// sends counts distinct deliveries.
 function groupBy(
   recipients: RecipientRow[],
-  delById: Map<string, { key: string; boat: string; names: string[] }>,
+  delById: Map<string, { key: string; boat: string; photographer: string }>,
   downloaded: Set<string>,
-  keysOf: (d: { boat: string; names: string[] }) => string[],
+  keysOf: (d: { boat: string; photographer: string }) => string[],
 ): GroupRow[] {
   const map = new Map<string, { reached: number; downloaded: number; delIds: Set<string> }>();
   const ensure = (name: string) => {

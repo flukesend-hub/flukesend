@@ -74,6 +74,8 @@ export function SendForm({
   // they get credited on the delivery, so the send just asks who came along.
   const [aboard, setAboard] = useState<string[]>([]);
   const [crewOpen, setCrewOpen] = useState(false);
+  // Index of the file row being dragged, for reordering. Null when not dragging.
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [uploaded, setUploaded] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -150,6 +152,17 @@ export function SendForm({
 
   function removeFile(idx: number) {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  // Reorder by dragging rows. Order is what the guest sees: the photos land in
+  // this order and the top one is the cover on the gallery and confirmation.
+  function moveFile(from: number, to: number) {
+    setFiles((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   }
 
   function toggleSpecies(name: string) {
@@ -464,6 +477,7 @@ export function SendForm({
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "8px", marginTop: "14px" }}>
               {thumbUrls.map((url, i) => (
                 <div key={i} style={{ ...thumb, backgroundImage: `url(${url})` }}>
+                  {i === 0 ? <div style={thumbCover}>Cover</div> : null}
                   {i === 3 && files.length > 4 ? (
                     <div style={thumbMore}>+{files.length - 4}</div>
                   ) : null}
@@ -471,11 +485,36 @@ export function SendForm({
               ))}
             </div>
           ) : null}
+          {files.length > 1 ? (
+            <p className="fl-hint" style={{ margin: "12px 0 0" }}>
+              Drag to reorder. The top photo is the cover guests see first.
+            </p>
+          ) : null}
           {files.length ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "12px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
               {files.map((f, i) => (
-                <div key={`${f.name}:${f.size}:${i}`} style={fileRow}>
+                <div
+                  key={`${f.name}:${f.size}`}
+                  style={{ ...fileRow, opacity: dragIdx === i ? 0.45 : 1, cursor: "grab" }}
+                  draggable
+                  onDragStart={(e) => {
+                    setDragIdx(i);
+                    e.dataTransfer.effectAllowed = "move";
+                    // Firefox will not start a drag without data attached.
+                    e.dataTransfer.setData("text/plain", "");
+                  }}
+                  onDragEnter={() => {
+                    if (dragIdx !== null && dragIdx !== i) {
+                      moveFile(dragIdx, i);
+                      setDragIdx(i);
+                    }
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDragEnd={() => setDragIdx(null)}
+                >
+                  <Grip />
                   <span style={fileName}>{f.name}</span>
+                  {i === 0 ? <span style={coverChip}>Cover</span> : null}
                   <span style={{ color: "var(--muted-2)" }}>{fmtSize(f.size)}</span>
                   <button type="button" onClick={() => removeFile(i)} style={fileRemove} aria-label="Remove">
                     {"×"}
@@ -595,6 +634,19 @@ export function SendForm({
   );
 }
 
+function Grip() {
+  return (
+    <svg width="12" height="14" viewBox="0 0 12 14" fill="var(--muted-2)" aria-hidden="true" style={{ flex: "0 0 auto" }}>
+      <circle cx="4" cy="3" r="1.3" />
+      <circle cx="8" cy="3" r="1.3" />
+      <circle cx="4" cy="7" r="1.3" />
+      <circle cx="8" cy="7" r="1.3" />
+      <circle cx="4" cy="11" r="1.3" />
+      <circle cx="8" cy="11" r="1.3" />
+    </svg>
+  );
+}
+
 const h3: React.CSSProperties = { margin: "0 0 2px", fontSize: "15px", fontWeight: 600 };
 const field: React.CSSProperties = { display: "block", marginBottom: "14px" };
 const captureBox: React.CSSProperties = {
@@ -625,6 +677,30 @@ const thumb: React.CSSProperties = {
   backgroundColor: "var(--ink-2)",
   backgroundSize: "cover",
   backgroundPosition: "center",
+};
+const thumbCover: React.CSSProperties = {
+  position: "absolute",
+  top: "5px",
+  left: "5px",
+  fontSize: "10px",
+  fontWeight: 700,
+  letterSpacing: ".04em",
+  textTransform: "uppercase",
+  color: "#fff",
+  background: "rgba(8,18,23,.66)",
+  borderRadius: "6px",
+  padding: "2px 6px",
+};
+const coverChip: React.CSSProperties = {
+  flex: "0 0 auto",
+  fontSize: "10.5px",
+  fontWeight: 700,
+  letterSpacing: ".04em",
+  textTransform: "uppercase",
+  color: "var(--signal-2)",
+  border: "1px solid var(--signal)",
+  borderRadius: "999px",
+  padding: "1px 7px",
 };
 const thumbMore: React.CSSProperties = {
   position: "absolute",

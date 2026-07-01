@@ -26,7 +26,12 @@ export function AnalyticsView({
         <>
           <Trend trend={data.trend} months={data.windowMonths} />
           <Breakdown title="By boat" rows={data.byBoat} last={data.windowMonths} />
-          <Breakdown title="By employee" rows={data.byEmployee} last={data.windowMonths} />
+          <Breakdown
+            title="By photographer"
+            rows={data.byPhotographer}
+            last={data.windowMonths}
+            empty="No sends with a photographer credited in this window yet. Tag a photographer under Crew mentions on a send."
+          />
           <div>
             <a href="/api/export/analytics" className="fl-btn" style={{ textDecoration: "none" }}>
               Export CSV
@@ -43,8 +48,8 @@ export function AnalyticsView({
           </h3>
           <p style={{ margin: "0 0 12px", fontSize: "13.5px", color: "var(--muted)", lineHeight: 1.5 }}>
             Your {planName} plan shows this month&apos;s totals. Upgrade to Offshore
-            for month by month trends, per boat and per employee breakdowns, and
-            CSV export.
+            for month by month trends, per boat and per photographer breakdowns,
+            and CSV export.
           </p>
           <a href="/billing" className="fl-btn" style={{ textDecoration: "none" }}>
             See plans
@@ -106,7 +111,17 @@ function Trend({ trend, months }: { trend: TrendPoint[]; months: number }) {
   );
 }
 
-function Breakdown({ title, rows, last }: { title: string; rows: GroupRow[]; last: number }) {
+function Breakdown({
+  title,
+  rows,
+  last,
+  empty = "No sends in this window yet.",
+}: {
+  title: string;
+  rows: GroupRow[];
+  last: number;
+  empty?: string;
+}) {
   return (
     <div className="fl-card">
       <h3 style={sectionH}>{title}</h3>
@@ -137,7 +152,7 @@ function Breakdown({ title, rows, last }: { title: string; rows: GroupRow[]; las
           </tbody>
         </table>
       ) : (
-        <p className="fl-hint" style={{ margin: 0 }}>No sends in this window yet.</p>
+        <p className="fl-hint" style={{ margin: 0 }}>{empty}</p>
       )}
     </div>
   );
