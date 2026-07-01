@@ -71,7 +71,7 @@ export default async function LandingPage() {
           />
           <Feature
             title="The download is the trigger"
-            body="The evening after a guest saves their photos, they get a warm, branded ask to leave a review. Automatically. No Gmail scripts, no spreadsheets."
+            body="The evening after a guest saves their photos, they get a warm, branded ask to leave a review. Automatically, with one tap buttons straight to your review pages."
           />
           <Feature
             title="Built for sharing"
