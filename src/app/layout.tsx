@@ -15,9 +15,32 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.flukesend.com"),
   title: "Flukesend",
   description:
     "Branded photo delivery and review engine for whale watch operators.",
+  openGraph: {
+    type: "website",
+    siteName: "Flukesend",
+    title: "Flukesend - branded photo galleries that turn into reviews",
+    description:
+      "Branded photo delivery and review engine for whale watch operators. Guests scan a QR aboard, photos land in their camera roll, reviews roll in.",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "A surfacing humpback whale above the Flukesend wordmark",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Flukesend - branded photo galleries that turn into reviews",
+    description:
+      "Branded photo delivery and review engine for whale watch operators.",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({
