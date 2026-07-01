@@ -17,12 +17,38 @@ export function CaptureQr({
 }) {
   const fileBase = operatorName.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "operator";
 
-  function download() {
-    if (!dataUrl) return;
+  function toFile(): File {
+    // Turn the PNG data URL into a File without fetch, so it works everywhere.
+    const [head, b64] = dataUrl!.split(",");
+    const mime = head.match(/:(.*?);/)?.[1] ?? "image/png";
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new File([bytes], `${fileBase}-signup-qr.png`, { type: mime });
+  }
+
+  function downloadFallback() {
     const a = document.createElement("a");
-    a.href = dataUrl;
+    a.href = dataUrl!;
     a.download = `${fileBase}-signup-qr.png`;
     a.click();
+  }
+
+  // On a phone, open the native share sheet where "Save Image" puts the code in
+  // the photo library. On a desktop (no file share), just download it.
+  async function save() {
+    if (!dataUrl) return;
+    const file = toFile();
+    const nav = navigator as Navigator & { canShare?: (d?: ShareData) => boolean };
+    if (nav.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: `${operatorName} sign-up QR` });
+      } catch {
+        // User dismissed the share sheet, or it failed. Nothing to do.
+      }
+      return;
+    }
+    downloadFallback();
   }
 
   function print() {
@@ -60,12 +86,12 @@ export function CaptureQr({
             style={{ display: "block", width: "200px", height: "200px", background: "#fff", borderRadius: "10px", border: "1px solid var(--line)" }}
           />
           <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "10px 0 14px", maxWidth: "34ch", lineHeight: 1.45 }}>
-            On your phone, press and hold the code to save it to your photos, or
-            tap Download.
+            Tap Save to phone and choose Save Image to put it in your photos. Or
+            press and hold the code and pick Save to Photos.
           </p>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <button type="button" onClick={download} className="fl-btn-ghost" style={{ fontSize: "12.5px", padding: "8px 14px" }}>
-              Download
+            <button type="button" onClick={save} className="fl-btn-ghost" style={{ fontSize: "12.5px", padding: "8px 14px" }}>
+              Save to phone
             </button>
             <button type="button" onClick={print} className="fl-btn-ghost" style={{ fontSize: "12.5px", padding: "8px 14px" }}>
               Print
