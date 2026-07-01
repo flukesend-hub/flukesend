@@ -8,9 +8,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
-export type AuthState = { error: string } | undefined;
+export type AuthState = { error?: string; ok?: string } | undefined;
 
 function readCredentials(formData: FormData) {
   const email = String(formData.get("email") ?? "")
@@ -75,4 +76,55 @@ export async function signout() {
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
   redirect("/login");
+}
+
+// Send a password reset link. The link returns to /auth/callback which exchanges
+// the code and forwards to /reset-password. The response is always the same
+// wording so it never reveals whether an email has an account.
+export async function requestPasswordReset(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email) return { error: "Enter your email." };
+
+  const hdrs = await headers();
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
+  const origin = `${proto}://${host}`;
+
+  const supabase = await createClient();
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
+  });
+
+  return {
+    ok: "If that email has an account, a reset link is on the way. Check your inbox.",
+  };
+}
+
+// Set a new password. Called from /reset-password after the recovery link has
+// established a session via the callback.
+export async function updatePassword(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (password !== confirm) return { error: "The passwords do not match." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Your reset link expired or was opened in another browser. Request a new one." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { error: error.message };
+
+  revalidatePath("/", "layout");
+  redirect("/send");
 }
