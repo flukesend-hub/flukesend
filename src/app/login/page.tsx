@@ -12,9 +12,8 @@ export default function LoginPage() {
     >
       <div style={{ width: "100%", maxWidth: "380px" }}>
         <div style={{ textAlign: "center", marginBottom: "22px" }}>
-          <div className="fl-display" style={{ fontSize: "34px" }}>
-            Flukesend
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/flukesend-wordmark.png" alt="Flukesend" style={{ height: "42px", width: "auto" }} />
           <p
             style={{
               color: "var(--muted)",
