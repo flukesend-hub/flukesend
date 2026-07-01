@@ -71,3 +71,34 @@ export async function GET(
     },
   });
 }
+
+// Event-only variant for the Save to Photos flow: the client fetches the
+// photos straight from their signed storage URLs (no server hop for the
+// bytes), then posts here once after a successful share so the downloaded
+// event still fires exactly like any other download.
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ token: string }> },
+) {
+  const { token } = await params;
+  const data = await getGalleryByToken(token);
+  if (!data) {
+    return new Response(null, { status: 404 });
+  }
+  if (isExpired(data.delivery.expires_at)) {
+    return new Response(null, { status: 410 });
+  }
+  const preview = new URL(request.url).searchParams.get("preview") === "1";
+  if (!preview) {
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from("events")
+      .insert({ recipient_id: data.recipient.id, type: "downloaded" });
+    if (error) {
+      console.error(
+        `share download event insert failed for recipient ${data.recipient.id}: ${error.message}`,
+      );
+    }
+  }
+  return new Response(null, { status: 204 });
+}

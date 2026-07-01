@@ -2,13 +2,33 @@
 
 /*
   The interactive part of the guest gallery: the photo grid with a per photo
-  download button, a download all action, and the post download note. Each
-  download hits our route, which streams the file and writes the downloaded
-  event that triggers the review ask. Download all triggers each in turn.
-*/
-import { useState } from "react";
+  download button, the save-everything action, and the post download note.
 
-type Photo = { id: string; name: string; url: string };
+  Saving everything comes in two shapes:
+  - Phones that can share files (iOS and most Android) get "Save all to
+    Photos": the photos are fetched from their signed URLs with a progress
+    count, then a second tap opens the share sheet, where Save Images lands
+    them straight in the camera roll. The second tap exists because browsers
+    only allow the share sheet from a fresh tap, not after a long fetch.
+  - Everything else gets one zip through /g/[token]/zip. One click, one file.
+
+  The downloaded event (the review ask trigger) fires exactly once either way:
+  the zip route writes it server side, the share flow posts it after a
+  successful share. Preview mode suppresses both.
+*/
+import { useEffect, useState } from "react";
+
+type Photo = { id: string; name: string; url: string; size: number };
+
+type SaveState =
+  | null
+  | { phase: "fetching"; done: number; total: number }
+  | { phase: "ready"; files: File[] }
+  | { phase: "sharing" };
+
+// Above this, holding every photo in page memory risks crashing a phone
+// browser, so large galleries go straight to the zip.
+const MAX_SHARE_BYTES = 250 * 1024 * 1024;
 
 export function GalleryPhotos({
   token,
@@ -24,21 +44,68 @@ export function GalleryPhotos({
   preview?: boolean;
 }) {
   const [downloaded, setDownloaded] = useState(false);
+  const [canShareFiles, setCanShareFiles] = useState(false);
+  const [save, setSave] = useState<SaveState>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const probe = new File([new Uint8Array(1)], "probe.jpg", { type: "image/jpeg" });
+      setCanShareFiles(
+        typeof navigator.canShare === "function" && navigator.canShare({ files: [probe] }),
+      );
+    } catch {
+      setCanShareFiles(false);
+    }
+  }, []);
+
+  const totalBytes = photos.reduce((s, p) => s + (p.size || 0), 0);
+  const shareable = canShareFiles && totalBytes <= MAX_SHARE_BYTES;
+  const zipUrl = `/g/${token}/zip${preview ? "?preview=1" : ""}`;
 
   function downloadUrl(id: string) {
     return `/g/${token}/download?p=${id}${preview ? "&preview=1" : ""}`;
   }
 
-  async function downloadAll() {
-    setDownloaded(true);
-    for (const p of photos) {
-      const a = document.createElement("a");
-      a.href = downloadUrl(p.id);
-      a.download = p.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      await new Promise((r) => setTimeout(r, 400));
+  async function prepareShare() {
+    setNote(null);
+    setSave({ phase: "fetching", done: 0, total: photos.length });
+    try {
+      const files: File[] = [];
+      for (let i = 0; i < photos.length; i++) {
+        const p = photos[i];
+        const res = await fetch(p.url);
+        if (!res.ok) throw new Error(`fetch ${res.status}`);
+        const blob = await res.blob();
+        files.push(new File([blob], p.name, { type: blob.type || "image/jpeg" }));
+        setSave({ phase: "fetching", done: i + 1, total: photos.length });
+      }
+      setSave({ phase: "ready", files });
+    } catch {
+      setSave(null);
+      setNote("Could not fetch the photos here. Try the zip download below, or reload the page.");
+    }
+  }
+
+  async function shareNow(files: File[]) {
+    setSave({ phase: "sharing" });
+    try {
+      await navigator.share({ files });
+      setDownloaded(true);
+      setSave(null);
+      if (!preview) {
+        fetch(`/g/${token}/download`, { method: "POST" }).catch(() => {
+          // A missed event is not worth bothering the guest about.
+        });
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") {
+        // Guest closed the share sheet. Keep the photos ready for another tap.
+        setSave({ phase: "ready", files });
+        return;
+      }
+      setSave(null);
+      setNote("Sharing did not work here. Use the zip download below instead.");
     }
   }
 
@@ -63,10 +130,51 @@ export function GalleryPhotos({
         <span style={{ fontSize: "12.5px", color: "#6b7a7d" }}>
           {photos.length} photos · live for {retentionDays} days
         </span>
-        <button onClick={downloadAll} style={{ ...allBtn, background: brand, opacity: downloaded ? 0.7 : 1 }}>
-          {downloaded ? "Downloaded" : "Download all photos"}
-        </button>
+        {shareable ? (
+          save?.phase === "fetching" ? (
+            <button disabled style={{ ...allBtn, background: brand, opacity: 0.75 }}>
+              Getting photo {save.done} of {save.total}...
+            </button>
+          ) : save?.phase === "ready" ? (
+            <button onClick={() => shareNow(save.files)} style={{ ...allBtn, background: brand }}>
+              Ready. Tap to save {save.files.length} photos
+            </button>
+          ) : save?.phase === "sharing" ? (
+            <button disabled style={{ ...allBtn, background: brand, opacity: 0.75 }}>
+              Opening...
+            </button>
+          ) : (
+            <button
+              onClick={prepareShare}
+              style={{ ...allBtn, background: brand, opacity: downloaded ? 0.7 : 1 }}
+            >
+              {downloaded ? "Saved" : "Save all to Photos"}
+            </button>
+          )
+        ) : (
+          <a
+            href={zipUrl}
+            onClick={() => setDownloaded(true)}
+            style={{ ...allBtn, background: brand, opacity: downloaded ? 0.7 : 1, textDecoration: "none", display: "inline-block" }}
+          >
+            {downloaded ? "Downloaded" : "Download all photos"}
+          </a>
+        )}
       </div>
+
+      {shareable ? (
+        <div style={{ marginTop: "8px", textAlign: "right" }}>
+          <a href={zipUrl} onClick={() => setDownloaded(true)} style={zipLink}>
+            or download everything as a zip
+          </a>
+        </div>
+      ) : null}
+
+      {note ? (
+        <p style={{ fontSize: "12.5px", color: "#a04435", margin: "10px 0 0", textAlign: "right" }}>
+          {note}
+        </p>
+      ) : null}
 
       {downloaded ? (
         <div style={{ marginTop: "18px", borderTop: "1px solid #e7e0d4", paddingTop: "16px", display: "flex", alignItems: "center", gap: "11px" }}>
@@ -114,6 +222,12 @@ const allBtn: React.CSSProperties = {
   border: 0,
   borderRadius: "12px",
   padding: "12px 20px",
+};
+const zipLink: React.CSSProperties = {
+  fontSize: "12.5px",
+  color: "#6b7a7d",
+  textDecoration: "underline",
+  textUnderlineOffset: "3px",
 };
 const clock: React.CSSProperties = {
   width: "30px",
