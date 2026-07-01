@@ -48,8 +48,8 @@ const dot: React.CSSProperties = {
   width: 9,
   height: 9,
   borderRadius: "50%",
-  background: "#e7b14c",
-  boxShadow: "0 0 10px rgba(231,177,76,.6)",
+  background: "#3f7a4d",
+  boxShadow: "0 0 10px rgba(63,122,77,.6)",
 };
 const links: React.CSSProperties = { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" };
 const link: React.CSSProperties = {

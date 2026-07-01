@@ -77,8 +77,8 @@ function banner(kind: "ok" | "warn"): React.CSSProperties {
     padding: "12px 16px",
     borderRadius: "11px",
     fontSize: "13.5px",
-    border: `1px solid ${ok ? "rgba(47,143,99,.4)" : "rgba(231,177,76,.45)"}`,
-    background: ok ? "rgba(47,143,99,.12)" : "rgba(231,177,76,.14)",
-    color: ok ? "#0f6e56" : "#7a5a17",
+    border: `1px solid ${ok ? "rgba(47,143,99,.4)" : "rgba(63,122,77,.45)"}`,
+    background: ok ? "rgba(47,143,99,.12)" : "rgba(63,122,77,.14)",
+    color: ok ? "#0f6e56" : "#33502a",
   };
 }

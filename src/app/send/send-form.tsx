@@ -548,7 +548,7 @@ const crewRow = (on: boolean): React.CSSProperties => ({
   padding: "9px 11px",
   borderRadius: "10px",
   border: `1px solid ${on ? "var(--signal)" : "var(--line)"}`,
-  background: on ? "rgba(231,177,76,.10)" : "var(--ink)",
+  background: on ? "rgba(63,122,77,.10)" : "var(--ink)",
   cursor: "pointer",
 });
 // Species pills are small: the list can be long.
