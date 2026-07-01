@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { getPlan } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
-import { getAnalytics } from "@/lib/analytics";
+import { getAnalytics, getDeliveryRows } from "@/lib/analytics";
 import { AnalyticsView } from "./analytics-view";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +37,11 @@ export default async function AnalyticsPage() {
   const isFull = plan.analytics === "full";
 
   const data = await getAnalytics(supabase, operatorId);
+  // The per trip table reuses the CSV export rows, newest first. Full plan
+  // only, like the other breakdowns, so basic plans skip the extra queries.
+  const recentSends = isFull
+    ? (await getDeliveryRows(supabase, operatorId)).slice(0, 12)
+    : [];
 
   return (
     <>
@@ -51,7 +56,12 @@ export default async function AnalyticsPage() {
           review ask, plus the guests captured by QR.
         </p>
 
-        <AnalyticsView data={data} isFull={isFull} planName={plan.displayName} />
+        <AnalyticsView
+          data={data}
+          recentSends={recentSends}
+          isFull={isFull}
+          planName={plan.displayName}
+        />
       </main>
     </>
   );
