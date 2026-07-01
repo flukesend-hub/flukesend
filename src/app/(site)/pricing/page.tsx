@@ -14,6 +14,10 @@ const FAQ: QA[] = [
     a: "Yes. Your first 3 transfers or 30 guest emails are free, whichever comes first. No card required to start.",
   },
   {
+    q: "What do I need to use Flukesend?",
+    a: "A laptop, a camera, and an internet connection at home. You edit and send from home after the trip, so nothing has to happen on the boat beyond shooting photos and collecting emails.",
+  },
+  {
     q: "What counts as a transfer?",
     a: "One send to a trip's guests, however many photos or people are on it. A family of five booked under one name is one transfer.",
   },
