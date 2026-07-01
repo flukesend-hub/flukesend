@@ -2,8 +2,11 @@
   Operator settings, dark workspace with the persistent nav. Edit branding and
   manage review links. Reads go through the RLS client.
 */
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/server";
+import { getOperatorCaptureToken } from "@/lib/capture";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { BrandingForm } from "./branding-form";
 import { ReviewLinks } from "./review-links";
@@ -12,8 +15,8 @@ import { SpeciesPicker } from "./species-picker";
 import { SettingsSection } from "./settings-section";
 import { RosterList } from "./roster-list";
 import { CrewRoster } from "./crew-roster";
+import { CaptureQr } from "./qr-cards";
 import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
-import { getPlan, boatLimitFor } from "@/lib/trial";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -61,6 +64,18 @@ export default async function SettingsPage() {
     .eq("operator_id", operatorId)
     .order("sort_order", { ascending: true });
 
+  // One standing, operator wide capture link, rendered as a single QR. Generated
+  // on the server so the client just renders the SVG string.
+  const captureToken = await getOperatorCaptureToken(operatorId);
+  const hdrs = await headers();
+  const host = hdrs.get("host");
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const baseUrl = host ? `${proto}://${host}` : "";
+  const captureUrl = captureToken && baseUrl ? `${baseUrl}/j/${captureToken}` : null;
+  const captureSvg = captureUrl
+    ? await QRCode.toString(captureUrl, { type: "svg", margin: 1, width: 240 })
+    : null;
+
   // One line summaries so each collapsed section says what is set without
   // opening it. Most of this is set once; species is the part that changes.
   const social = {
@@ -76,11 +91,6 @@ export default async function SettingsPage() {
   const reviewCount = links?.length ?? 0;
   const boatCount = boats?.length ?? 0;
   const crewCount = crew?.length ?? 0;
-  const boatLimit = boatLimitFor(await getPlan(supabase, operatorId));
-  const boatUpgradeNote =
-    boatLimit === 1
-      ? "Your plan covers one boat. Upgrade to run more."
-      : `Your plan covers ${boatLimit} boats. Upgrade to run more.`;
   const retentionDays = branding?.retention_days ?? 5;
   const hasLogo = Boolean(branding?.logo_url);
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
@@ -177,8 +187,6 @@ export default async function SettingsPage() {
                   items={boats ?? []}
                   addAction={addBoat}
                   deleteAction={deleteBoat}
-                  limit={boatLimit}
-                  upgradeNote={boatUpgradeNote}
                 />
                 <CrewRoster
                   items={(crew ?? []) as { id: string; name: string; roles: string[] }[]}
@@ -187,6 +195,14 @@ export default async function SettingsPage() {
                   setRolesAction={setCrewRoles}
                 />
               </div>
+            </SettingsSection>
+
+            <SettingsSection
+              title="Guest sign-up QR"
+              summary="One code guests scan aboard to get their photos"
+              chip={{ label: "Optional", tone: "muted" }}
+            >
+              <CaptureQr operatorName={operator?.name ?? "Operator"} url={captureUrl} svg={captureSvg} />
             </SettingsSection>
           </div>
 

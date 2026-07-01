@@ -6,9 +6,17 @@
   billing button to the Stripe portal. Current plan is marked.
 */
 import { useState } from "react";
+import { PLANS } from "@/lib/plans";
 import { createCheckoutSession, createPortalSession } from "./actions";
 
 type Tier = "single" | "two" | "fleet";
+
+// Names and the emails-per-month line come from the plan catalog; prices stay
+// here alongside the checkout call. Boats are unlimited on every plan now.
+function emailsLine(key: Tier): string {
+  const per = PLANS[key].emailsPerMonth;
+  return per === null ? "Unlimited emails / month" : `${per} emails / month`;
+}
 
 const TIERS: {
   key: Tier;
@@ -19,9 +27,9 @@ const TIERS: {
   yearlyTotal: number;
   popular?: boolean;
 }[] = [
-  { key: "single", name: "Single boat", boats: "1 boat", monthly: 150, yearlyMonthly: 125, yearlyTotal: 1500 },
-  { key: "two", name: "Two boats", boats: "Up to 2 boats", monthly: 250, yearlyMonthly: 208, yearlyTotal: 2500, popular: true },
-  { key: "fleet", name: "Fleet", boats: "Unlimited boats", monthly: 300, yearlyMonthly: 250, yearlyTotal: 3000 },
+  { key: "single", name: PLANS.single.displayName, boats: emailsLine("single"), monthly: 150, yearlyMonthly: 125, yearlyTotal: 1500 },
+  { key: "two", name: PLANS.two.displayName, boats: emailsLine("two"), monthly: 250, yearlyMonthly: 208, yearlyTotal: 2500, popular: true },
+  { key: "fleet", name: PLANS.fleet.displayName, boats: emailsLine("fleet"), monthly: 300, yearlyMonthly: 250, yearlyTotal: 3000 },
 ];
 
 export function BillingClient({

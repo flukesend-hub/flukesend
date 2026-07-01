@@ -27,7 +27,9 @@ export type ReviewEmailInput = {
   logoUrl: string | null;
   recipientName: string | null;
   tripLine: string;
-  reviewLinks: { label: string; url: string }[];
+  // href is the tracked redirect through /g/[token]/review, not the raw
+  // destination, so a tap is logged before the guest lands on Google.
+  reviewLinks: { label: string; href: string }[];
   social: SocialLinks;
 };
 
@@ -48,8 +50,8 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   const buttons = input.reviewLinks
     .map((l, i) =>
       i === 0
-        ? `<a href="${escapeHtml(l.url)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:${brand};color:#ffffff;padding:13px;border-radius:11px">${escapeHtml(l.label)}</a>`
-        : `<a href="${escapeHtml(l.url)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:transparent;color:${brand};border:1px solid ${brand};padding:12px;border-radius:11px">${escapeHtml(l.label)}</a>`,
+        ? `<a href="${escapeHtml(l.href)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:${brand};color:#ffffff;padding:13px;border-radius:11px">${escapeHtml(l.label)}</a>`
+        : `<a href="${escapeHtml(l.href)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:transparent;color:${brand};border:1px solid ${brand};padding:12px;border-radius:11px">${escapeHtml(l.label)}</a>`,
     )
     .join("");
 

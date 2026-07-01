@@ -6,7 +6,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OperatorNav } from "@/app/_ui/operator-nav";
-import { getTrialUsage, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
+import { getTrialUsage, getPlan, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
+import { PLANS } from "@/lib/plans";
+import { getRecipientsUsed, monthlyQuota } from "@/lib/usage";
 import { speciesForSend } from "@/lib/species";
 import { SendForm } from "./send-form";
 
@@ -47,7 +49,29 @@ export default async function SendPage() {
     .eq("operator_id", membership.operator_id)
     .order("sort_order", { ascending: true });
 
+  // Guests captured per boat and not yet pulled into a send. The member RLS
+  // policy scopes this to the operator, so a simple tally is safe.
+  const { data: captured } = await supabase
+    .from("captured_guests")
+    .select("boat_id")
+    .is("consumed_at", null);
+  const capturedByBoat: Record<string, number> = {};
+  for (const row of captured ?? []) {
+    if (row.boat_id) capturedByBoat[row.boat_id] = (capturedByBoat[row.boat_id] ?? 0) + 1;
+  }
+
   const usage = await getTrialUsage(supabase, membership.operator_id);
+
+  // Active operators see how many emails they have left this month, drawn from
+  // their plan's monthly cap. Fleet is unlimited, so nothing to count.
+  let quota: { plan: string; used: number; limit: number | null; remaining: number | null } | null =
+    null;
+  if (usage.status === "active") {
+    const plan = PLANS[(await getPlan(supabase, membership.operator_id)).tier];
+    const used = await getRecipientsUsed(supabase, membership.operator_id);
+    const q = monthlyQuota(used, plan.emailsPerMonth);
+    quota = { plan: plan.displayName, used: q.used, limit: q.limit, remaining: q.remaining };
+  }
 
   return (
     <>
@@ -112,11 +136,46 @@ export default async function SendPage() {
           </div>
         ) : null}
 
+        {quota ? (
+          <div
+            style={{
+              marginTop: "16px",
+              padding: "11px 16px",
+              borderRadius: "11px",
+              border: "1px solid rgba(63,122,77,.45)",
+              background: "rgba(63,122,77,.14)",
+              fontSize: "13px",
+              color: "#33502a",
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <span>
+              {quota.remaining === null ? (
+                <>
+                  <strong>Unlimited</strong> emails this month on your {quota.plan} plan.
+                </>
+              ) : (
+                <>
+                  <strong>{quota.remaining}</strong> of {quota.limit} emails remaining this
+                  month ({quota.used} used).
+                </>
+              )}
+            </span>
+            <a href="/billing" style={{ color: "var(--signal-2)", fontWeight: 600, marginLeft: "auto" }}>
+              Billing
+            </a>
+          </div>
+        ) : null}
+
         <SendForm
           defaultMessage={branding?.default_message ?? ""}
           brandColor={branding?.brand_color ?? "#0b5563"}
           speciesOptions={speciesForSend(branding?.species_options as string[] | null)}
-          boats={(boats ?? []).map((b) => b.name)}
+          boats={(boats ?? []).map((b) => ({ id: b.id as string, name: b.name as string }))}
+          capturedByBoat={capturedByBoat}
           crew={(crew ?? []).map((c) => ({
             name: c.name,
             roles: (c.roles ?? []) as string[],

@@ -61,13 +61,3 @@ export async function getPlan(
     tier: (data?.tier as Tier) ?? "single",
   };
 }
-
-// How many boats a plan allows. The tiers are named for boat count: single is
-// one, two is two, fleet is unlimited. Only an active subscription unlocks more
-// than one; trial and canceled operators get the entry level of one boat.
-export function boatLimitFor(plan: Plan): number {
-  if (plan.status !== "active") return 1;
-  if (plan.tier === "fleet") return Infinity;
-  if (plan.tier === "two") return 2;
-  return 1;
-}

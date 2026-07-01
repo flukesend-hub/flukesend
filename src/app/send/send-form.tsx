@@ -11,7 +11,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { CREW_ROLES, topRole } from "@/lib/roles";
-import { signUploads, createSend } from "./actions";
+import { TRIP_TIME_SLOTS, formatTripTime } from "@/lib/trip-times";
+import { signUploads, createSend, getCapturedForTrip, type CapturedGuest } from "./actions";
+
+type Boat = { id: string; name: string };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -41,20 +44,32 @@ export function SendForm({
   brandColor,
   speciesOptions,
   boats,
+  capturedByBoat,
   crew,
 }: {
   defaultMessage: string;
   brandColor: string;
   speciesOptions: string[];
-  boats: string[];
+  boats: Boat[];
+  capturedByBoat: Record<string, number>;
   crew: { name: string; roles: string[] }[];
 }) {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [emailsRaw, setEmailsRaw] = useState("");
   const [species, setSpecies] = useState<string[]>([]);
-  const [tripDt, setTripDt] = useState("");
-  const [boat, setBoat] = useState("");
+  // Trip date and time are split so the time lines up with the 30 minute slots a
+  // guest picks when self capturing. Together they become the delivery datetime.
+  const [tripDate, setTripDate] = useState("");
+  const [tripTime, setTripTime] = useState("");
+  // Boat holds the selected boat id (empty means no boat). With a single boat
+  // there is nothing to choose, so it is preselected and captured guests load
+  // as soon as a trip time is picked. The name is denormalized at submit time.
+  const [boat, setBoat] = useState(boats.length === 1 ? boats[0].id : "");
+  // Guests self captured for the selected boat and trip, auto loaded and shown
+  // as chips. They ride along as recipients and are consumed when the send goes.
+  const [capturedGuests, setCapturedGuests] = useState<CapturedGuest[]>([]);
+  const [loadingCaptured, setLoadingCaptured] = useState(false);
   // Who was aboard, by name. Each person's roles (set in Settings) decide how
   // they get credited on the delivery, so the send just asks who came along.
   const [aboard, setAboard] = useState<string[]>([]);
@@ -68,6 +83,21 @@ export function SendForm({
   const parsed = useMemo(() => parseEmails(emailsRaw), [emailsRaw]);
   const busy = status !== "idle";
 
+  // The full recipient list: captured guests first, then any pasted emails, one
+  // per address after dedupe. This is what the send actually goes to.
+  const allValid = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const e of [...capturedGuests.map((g) => g.email), ...parsed.valid]) {
+      const k = e.trim().toLowerCase();
+      if (k && !seen.has(k)) {
+        seen.add(k);
+        out.push(k);
+      }
+    }
+    return out;
+  }, [capturedGuests, parsed.valid]);
+
   // Object URL thumbnails for the first four files, revoked when files change.
   const thumbUrls = useMemo(
     () => files.slice(0, 4).map((f) => URL.createObjectURL(f)),
@@ -80,10 +110,33 @@ export function SendForm({
   useEffect(() => {
     const d = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
-    setTripDt(
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
-    );
+    setTripDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
   }, []);
+
+  // Auto load the guests captured for the chosen boat, day, and trip time. Runs
+  // whenever the selection changes. Read only, so switching trips never strands
+  // anyone; the rows are consumed only when the send lands.
+  useEffect(() => {
+    if (!boat || !tripDate || !tripTime) {
+      setCapturedGuests([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingCaptured(true);
+    getCapturedForTrip(boat, tripDate, tripTime)
+      .then((guests) => {
+        if (!cancelled) setCapturedGuests(guests);
+      })
+      .catch(() => {
+        if (!cancelled) setCapturedGuests([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCaptured(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [boat, tripDate, tripTime]);
 
   function addFiles(list: FileList | null) {
     if (!list) return;
@@ -111,13 +164,25 @@ export function SendForm({
     );
   }
 
+  // Drop a captured guest from this send. It stays un-consumed, so it will load
+  // again next time the operator picks this trip.
+  function removeCaptured(id: string) {
+    setCapturedGuests((prev) => prev.filter((g) => g.id !== id));
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setUpgrade(false);
 
     const fd = new FormData(e.currentTarget);
-    const tripDatetime = String(fd.get("trip_datetime") ?? "") || null;
+    // Combine the split date and time into the delivery datetime. Time alone is
+    // never sent without a date; a date without a time defaults to midnight.
+    const tripDatetime = tripDate
+      ? tripTime
+        ? `${tripDate}T${tripTime}`
+        : `${tripDate}T00:00`
+      : null;
     // Credit each aboard person exactly once, by their highest ranked role
     // (captain > naturalist > photographer > crew), so nobody is named twice.
     const credited = crew
@@ -129,14 +194,14 @@ export function SendForm({
     const naturalistName = nameForRole("naturalist");
     const photographerName = nameForRole("photographer");
     const crewNames = credited.filter((c) => c.role === "crew").map((c) => c.name);
-    const boatName = boats.length ? boat || null : null;
+    const boatName = boats.find((b) => b.id === boat)?.name ?? null;
     const customMessage = String(fd.get("custom_message") ?? "").trim() || null;
 
     if (!files.length) {
       setError("Add at least one photo.");
       return;
     }
-    if (!parsed.valid.length) {
+    if (!allValid.length) {
       setError("Add at least one valid guest email.");
       return;
     }
@@ -185,7 +250,8 @@ export function SendForm({
         boatName,
         customMessage,
         photos,
-        emails: parsed.valid,
+        emails: allValid,
+        capturedIds: capturedGuests.map((g) => g.id),
       });
       if ("error" in res) {
         setError(res.error);
@@ -256,29 +322,46 @@ export function SendForm({
           These show up on the gallery and warm up the review email.
         </p>
         <label style={field}>
-          <span className="fl-label-text">Trip date and time</span>
+          <span className="fl-label-text">Trip date</span>
           <input
-            name="trip_datetime"
-            type="datetime-local"
+            type="date"
             className="fl-input"
             style={{ minWidth: 0, maxWidth: "100%" }}
-            value={tripDt}
-            onChange={(e) => setTripDt(e.target.value)}
+            value={tripDate}
+            onChange={(e) => setTripDate(e.target.value)}
           />
         </label>
-        {boats.length ? (
+        {boats.length > 1 ? (
           <label style={field}>
             <span className="fl-label-text">Boat</span>
             <select className="fl-input" value={boat} onChange={(e) => setBoat(e.target.value)}>
               <option value="">No boat</option>
               {boats.map((b) => (
-                <option key={b} value={b}>
-                  {b}
+                <option key={b.id} value={b.id}>
+                  {b.name}
                 </option>
               ))}
             </select>
           </label>
         ) : null}
+        <label style={field}>
+          <span className="fl-label-text">Trip time</span>
+          <select className="fl-input" value={tripTime} onChange={(e) => setTripTime(e.target.value)}>
+            <option value="">No time set</option>
+            {TRIP_TIME_SLOTS.map((slot) => (
+              <option key={slot} value={slot}>
+                {formatTripTime(slot)}
+              </option>
+            ))}
+          </select>
+          {boats.length ? (
+            <span className="fl-hint" style={{ display: "block", marginTop: "6px" }}>
+              {boats.length > 1
+                ? "Pick the boat and trip time to load guests who signed up by QR."
+                : "Pick the trip time to load guests who signed up by QR."}
+            </span>
+          ) : null}
+        </label>
 
         <div style={{ marginBottom: "16px" }}>
           <button type="button" onClick={() => setCrewOpen((o) => !o)} aria-expanded={crewOpen} style={crewToggle}>
@@ -404,9 +487,47 @@ export function SendForm({
         <div className="fl-card">
           <h3 style={h3}>Guest emails</h3>
           <p className="fl-hint" style={{ margin: "0 0 14px" }}>
-            Paste straight from the naturalist&apos;s notes. Line breaks, spaces,
-            semicolons, it all works. No commas needed.
+            {capturedGuests.length
+              ? "QR sign-ups for this trip loaded below. Add more emails in the box, any format."
+              : "Paste straight from the naturalist's notes. Line breaks, spaces, semicolons, it all works. No commas needed."}
           </p>
+
+          {boat && !tripTime && (capturedByBoat[boat] ?? 0) > 0 ? (
+            <div style={captureBox}>
+              <span style={{ fontSize: "13px", color: "var(--text)", lineHeight: 1.45 }}>
+                <b>{capturedByBoat[boat]}</b>{" "}
+                {capturedByBoat[boat] === 1 ? "guest has" : "guests have"} signed up by QR for{" "}
+                {boats.find((b) => b.id === boat)?.name ?? "this boat"}. Pick the trip time above to load them.
+              </span>
+            </div>
+          ) : null}
+
+          {loadingCaptured ? (
+            <p style={{ color: "var(--muted)", fontSize: "12.5px", margin: "0 0 12px" }}>
+              Loading captured guests...
+            </p>
+          ) : capturedGuests.length ? (
+            <div style={{ marginBottom: "12px" }}>
+              <div className="fl-label-text" style={{ marginBottom: "6px" }}>
+                Loaded from QR sign-ups ({capturedGuests.length})
+              </div>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {capturedGuests.map((g) => (
+                  <span key={g.id} style={chipCaptured}>
+                    {g.email}
+                    <button
+                      type="button"
+                      onClick={() => removeCaptured(g.id)}
+                      aria-label={`Remove ${g.email}`}
+                      style={chipRemove}
+                    >
+                      {"×"}
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div style={{ border: "1px solid var(--line-strong)", borderRadius: "12px", background: "var(--ink)", padding: "10px" }}>
             {parsed.valid.length || parsed.invalid.length ? (
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
@@ -431,7 +552,7 @@ export function SendForm({
           </div>
           <div style={{ display: "flex", gap: "14px", alignItems: "center", marginTop: "11px", fontSize: "12.5px", color: "var(--muted)", flexWrap: "wrap" }}>
             <span>
-              <b style={{ color: "var(--text)" }}>{parsed.valid.length}</b> guests ready
+              <b style={{ color: "var(--text)" }}>{allValid.length}</b> guests ready
             </span>
             {parsed.invalid.length ? (
               <span style={{ color: "var(--bad)" }}>
@@ -458,8 +579,8 @@ export function SendForm({
           ) : null}
 
           <div style={{ marginTop: "16px", display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-            <button type="submit" disabled={!parsed.valid.length || !files.length} className="fl-btn" style={{ padding: "11px 18px", fontSize: "14px" }}>
-              Send to {parsed.valid.length} guests
+            <button type="submit" disabled={!allValid.length || !files.length} className="fl-btn" style={{ padding: "11px 18px", fontSize: "14px" }}>
+              Send to {allValid.length} {allValid.length === 1 ? "guest" : "guests"}
             </button>
             <span style={{ fontSize: "12px", color: "var(--muted-2)" }}>
               review asks schedule for this evening
@@ -473,6 +594,16 @@ export function SendForm({
 
 const h3: React.CSSProperties = { margin: "0 0 2px", fontSize: "15px", fontWeight: 600 };
 const field: React.CSSProperties = { display: "block", marginBottom: "14px" };
+const captureBox: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  padding: "11px 13px",
+  borderRadius: "11px",
+  border: "1px solid rgba(63,122,77,.45)",
+  background: "rgba(63,122,77,.12)",
+  marginBottom: "12px",
+};
 const dropzone: React.CSSProperties = {
   border: "1.5px dashed var(--line-strong)",
   borderRadius: "13px",
@@ -595,4 +726,24 @@ const chipBad: React.CSSProperties = {
   borderRadius: "999px",
   padding: "4px 11px",
   color: "var(--bad)",
+};
+const chipCaptured: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  fontSize: "12.5px",
+  background: "rgba(63,122,77,.14)",
+  border: "1px solid rgba(63,122,77,.45)",
+  borderRadius: "999px",
+  padding: "4px 6px 4px 11px",
+  color: "var(--text)",
+};
+const chipRemove: React.CSSProperties = {
+  background: "transparent",
+  border: "none",
+  color: "var(--muted)",
+  cursor: "pointer",
+  fontSize: "15px",
+  lineHeight: 1,
+  padding: "0 2px",
 };

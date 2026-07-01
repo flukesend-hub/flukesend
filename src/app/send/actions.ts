@@ -17,7 +17,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, operatorFromAddress } from "@/lib/email";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
-import { getTrialUsage, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
+import { getTrialUsage, getPlan, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
+import { PLANS } from "@/lib/plans";
+import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
 
 const PHOTO_TYPES = [
   "image/png",
@@ -106,6 +108,38 @@ export async function signUploads(
   return { uploads };
 }
 
+export type CapturedGuest = { id: string; email: string; name: string | null };
+
+// The guests captured for one trip (boat, day, and time slot) that have not
+// been pulled into a send yet. Read only: nothing is consumed here, so the
+// operator can change their boat or time selection freely. Admin client, but
+// strictly scoped by this operator's id, so a crafted boat id from another
+// tenant matches nothing. Consuming happens in createSend once the send lands.
+export async function getCapturedForTrip(
+  boatId: string,
+  tripDate: string,
+  tripTime: string,
+): Promise<CapturedGuest[]> {
+  const { operatorId } = await resolveOperator();
+  if (!boatId || !tripDate || !tripTime) return [];
+
+  const admin = createAdminClient();
+  const { data: rows } = await admin
+    .from("captured_guests")
+    .select("id, email, name")
+    .eq("operator_id", operatorId)
+    .eq("boat_id", boatId)
+    .eq("trip_date", tripDate)
+    .eq("trip_time", tripTime)
+    .is("consumed_at", null);
+
+  return (rows ?? []).map((r) => ({
+    id: r.id as string,
+    email: r.email as string,
+    name: (r.name as string | null) ?? null,
+  }));
+}
+
 export type CreateSendInput = {
   tripDatetime: string | null;
   species: string[];
@@ -117,6 +151,9 @@ export type CreateSendInput = {
   customMessage: string | null;
   photos: { storageKey: string; filename: string; size: number }[];
   emails: string[];
+  // Captured-guest rows that were auto-loaded for this trip. Consumed once the
+  // send is saved so they never load again.
+  capturedIds?: string[];
 };
 
 export type CreateSendResult =
@@ -151,9 +188,10 @@ export async function createSend(
     return { error: "Add at least one valid guest email." };
   }
 
-  // Plan gate. Active (paid or comped) operators are unlimited. Canceled means
-  // no plan: they must buy before sending, with no free allowance. Trial (or no
-  // row) gets the free allowance up to TRIAL_TRANSFERS or TRIAL_EMAILS.
+  // Plan gate. Canceled means no plan: they must buy before sending, with no
+  // free allowance. Trial (or no row) gets the free allowance up to
+  // TRIAL_TRANSFERS or TRIAL_EMAILS, both counted in recipients. Active
+  // operators are held to their plan's per send and monthly recipient caps.
   const usage = await getTrialUsage(supabase, operatorId);
   if (usage.status === "canceled") {
     return {
@@ -173,6 +211,23 @@ export async function createSend(
         error: `This send would pass your ${TRIAL_EMAILS} free trial guest emails (${usage.emails} used so far). Upgrade to keep sending.`,
         upgrade: true,
       };
+    }
+  } else {
+    const plan = PLANS[(await getPlan(supabase, operatorId)).tier];
+    if (emails.length > plan.emailsPerSend) {
+      return {
+        error: `This send has ${emails.length} guests, over your ${plan.displayName} plan limit of ${plan.emailsPerSend} emails per send. Upgrade to send to more at once.`,
+        upgrade: true,
+      };
+    }
+    if (plan.emailsPerMonth !== null) {
+      const used = await getRecipientsUsed(supabase, operatorId);
+      if (used + emails.length > plan.emailsPerMonth) {
+        return {
+          error: `This send would pass your ${plan.displayName} plan limit of ${plan.emailsPerMonth} emails this month (${used} used so far). Upgrade to keep sending.`,
+          upgrade: true,
+        };
+      }
     }
   }
 
@@ -242,6 +297,23 @@ export async function createSend(
   if (rErr || !recipients) {
     await cleanupFailedSend(delivery.id, input.photos.map((p) => p.storageKey));
     return { error: "Could not save the recipients. Try again." };
+  }
+
+  // Meter the send: bump this operator's monthly recipient counter by the
+  // number of guests. This is the only place usage is incremented. The review
+  // ask that fires later is downstream and is never metered.
+  await incrementRecipientsUsed(operatorId, emails.length);
+
+  // Consume the captured guests that rode along on this trip, scoped to this
+  // operator so a crafted id cannot touch another tenant's rows. Best effort:
+  // the send already exists, so a failure here just means they might reappear.
+  if (input.capturedIds?.length) {
+    const admin = createAdminClient();
+    await admin
+      .from("captured_guests")
+      .update({ consumed_at: new Date().toISOString() })
+      .eq("operator_id", operatorId)
+      .in("id", input.capturedIds);
   }
 
   // Ship it: email each guest their gallery link. Best effort, run in parallel,
