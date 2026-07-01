@@ -12,6 +12,10 @@ import { getRecipientsUsed, monthlyQuota } from "@/lib/usage";
 import { speciesForSend } from "@/lib/species";
 import { SendForm } from "./send-form";
 
+// Covers createSend when the email batch falls back to one guest at a time:
+// spaced sends for a big guest list need more than the default action window.
+export const maxDuration = 60;
+
 export default async function SendPage() {
   const supabase = await createClient();
   const {

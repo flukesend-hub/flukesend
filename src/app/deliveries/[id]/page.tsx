@@ -29,10 +29,10 @@ export default async function DeliveryPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ emailed?: string }>;
+  searchParams: Promise<{ emailed?: string; failed?: string }>;
 }) {
   const { id } = await params;
-  const { emailed } = await searchParams;
+  const { emailed, failed } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -108,6 +108,7 @@ export default async function DeliveryPage({
   const guests = recipients?.length ?? 0;
   const photos = photoCount ?? 0;
   const emailedN = emailed !== undefined ? Number(emailed) : null;
+  const failedEmails = failed ? failed.split(",").filter(Boolean) : [];
   const expires = fmtDate(delivery.expires_at);
 
   return (
@@ -127,17 +128,46 @@ export default async function DeliveryPage({
           )}
 
           <h1 className="fl-h1" style={{ fontSize: "30px", marginTop: "22px" }}>
-            {emailedN === 0 ? "Send created" : "Email sent!"}
+            {emailedN === 0
+              ? "Send created"
+              : failedEmails.length
+                ? "Sent, with problems"
+                : "Email sent!"}
           </h1>
           <p style={{ color: "var(--muted)", fontSize: "14.5px", margin: "6px 0 0" }}>
             {guests} guest{guests === 1 ? "" : "s"} and {photos} photo{photos === 1 ? "" : "s"}
             {expires ? ` · available until ${expires}` : ""}.
           </p>
 
-          {emailedN === 0 ? (
+          {emailedN === 0 && !failedEmails.length ? (
             <p style={{ color: "var(--bad)", fontSize: "13px", margin: "10px 0 0" }}>
               Guests were not emailed. Check that the email service is configured.
             </p>
+          ) : null}
+
+          {failedEmails.length ? (
+            <div
+              style={{
+                textAlign: "left",
+                border: "1px solid var(--bad)",
+                borderRadius: "12px",
+                padding: "12px 14px",
+                margin: "14px 0 0",
+                fontSize: "13px",
+              }}
+            >
+              <p style={{ color: "var(--bad)", fontWeight: 600, margin: 0 }}>
+                {failedEmails.length} of {guests} guest email
+                {failedEmails.length === 1 ? "" : "s"} did not send:
+              </p>
+              <p style={{ margin: "6px 0 0", wordBreak: "break-word" }}>
+                {failedEmails.join(", ")}
+              </p>
+              <p style={{ color: "var(--muted)", margin: "6px 0 0" }}>
+                Use the Resend button next to each guest under Transfer details
+                below.
+              </p>
+            </div>
           ) : null}
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "24px" }}>
