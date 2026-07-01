@@ -37,9 +37,16 @@ export default async function LandingPage() {
           <Link href="/login" style={primaryBtn}>
             Start free
           </Link>
-          <Link href="/pricing" style={secondaryBtn}>
-            See pricing
-          </Link>
+          {/* A real gallery on a demo tenant: same code path guests use, so
+              the sample IS the product, not a mockup. */}
+          <a
+            href="/g/a87749e6e13e507e88e17e07f80e4782"
+            target="_blank"
+            rel="noreferrer"
+            style={secondaryBtn}
+          >
+            See a sample gallery
+          </a>
         </div>
         <p style={{ fontSize: "13px", color: "#8a938f", marginTop: "14px" }}>
           Your first 3 transfers or 30 guest emails are free. No card required.
@@ -72,7 +79,7 @@ export default async function LandingPage() {
           />
           <Feature
             title="Repeat customers, built in"
-            body="Every send grows a clean list of past guests, yours to keep and export. Next season's announcement reaches everyone who sailed with you this year."
+            body="Every send grows a clean list of past guests, yours to keep and export. Drop it into your newsletter and next season's announcement reaches everyone who sailed with you this year."
           />
           <Feature
             title="Proof it is working"
