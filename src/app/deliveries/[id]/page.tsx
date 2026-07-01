@@ -116,14 +116,10 @@ export default async function DeliveryPage({
       <main style={{ maxWidth: "720px", margin: "0 auto", padding: "28px 22px 80px" }}>
         <div style={{ maxWidth: "460px", margin: "0 auto", textAlign: "center" }}>
           {previewUrl ? (
-            <a href={openUrl ?? undefined} target="_blank" rel="noreferrer" style={previewWrap}>
+            <div style={previewWrap}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={previewUrl} alt="Send preview" style={previewImg} />
-              <span style={openPill}>
-                <span style={playTri} aria-hidden="true" />
-                Open
-              </span>
-            </a>
+            </div>
           ) : (
             <div style={{ ...previewWrap, display: "grid", placeItems: "center", color: "var(--muted)", fontSize: "14px" }}>
               {photos} photo{photos === 1 ? "" : "s"}
@@ -156,7 +152,7 @@ export default async function DeliveryPage({
           </div>
         </div>
 
-        <Reveal label="See what's inside">
+        <Reveal label="Transfer details">
           <div className="fl-card">
             <h3 style={h3}>Trip</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -224,27 +220,4 @@ const previewImg: React.CSSProperties = {
   height: "100%",
   objectFit: "cover",
   display: "block",
-};
-const openPill: React.CSSProperties = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "9px",
-  background: "#fff",
-  color: "var(--text)",
-  fontWeight: 600,
-  fontSize: "15px",
-  padding: "12px 22px",
-  borderRadius: "999px",
-  boxShadow: "0 4px 14px rgba(0,0,0,.18)",
-};
-const playTri: React.CSSProperties = {
-  width: 0,
-  height: 0,
-  borderTop: "7px solid transparent",
-  borderBottom: "7px solid transparent",
-  borderLeft: "11px solid var(--text)",
 };
