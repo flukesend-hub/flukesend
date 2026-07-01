@@ -48,7 +48,16 @@ export default async function LandingPage() {
 
       {/* Value props */}
       <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "30px 24px 50px" }}>
+        <h2 style={{ ...h2, marginBottom: "8px" }}>More than delivery</h2>
+        <p style={{ textAlign: "center", color: "#5f6b68", fontSize: "15.5px", margin: "0 auto 26px", maxWidth: "52ch" }}>
+          The photos make the trip better. The trip makes the reviews. The
+          list brings everyone back next season.
+        </p>
         <div style={grid3}>
+          <Feature
+            title="Part of the trip you sell"
+            body="Guests go home with professional shots of their own whale, waiting in their inbox that evening. The trip does not end at the dock, and a better ending is a better memory."
+          />
           <Feature
             title="Branded, not a file dump"
             body="Every guest opens a gallery in your colors and your logo, with the trip written as warm copy. It looks like your operation, not a generic link."
@@ -58,8 +67,12 @@ export default async function LandingPage() {
             body="The evening after a guest saves their photos, they get a warm, branded ask to leave a review. Automatically. No Gmail scripts, no spreadsheets."
           />
           <Feature
-            title="The email list is yours"
-            body="Every guest email is yours to keep and export. You are the sender of record, we are just the engine. Clean on CAN-SPAM, by design."
+            title="Built for sharing"
+            body="A gallery link is easy to text to the whole family. Friends who were not aboard see your brand wrapped around photos worth booking a trip for."
+          />
+          <Feature
+            title="Repeat customers, built in"
+            body="Every send grows a clean list of past guests, yours to keep and export. Next season's announcement reaches everyone who sailed with you this year."
           />
           <Feature
             title="Proof it is working"
