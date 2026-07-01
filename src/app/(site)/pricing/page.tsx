@@ -15,7 +15,11 @@ const FAQ: QA[] = [
   },
   {
     q: "What do I need to use Flukesend?",
-    a: "A laptop, a camera, and an internet connection at home. You edit and send from home after the trip, so nothing has to happen on the boat beyond shooting photos and collecting emails.",
+    a: "A camera, a laptop, and an internet connection at home. You edit and send from home after the trip. On the boat, guests sign themselves up by scanning your printed QR code, so nothing has to happen on deck beyond shooting.",
+  },
+  {
+    q: "How do I collect guest emails on the boat?",
+    a: "Print your Flukesend QR code once and post it aboard. Guests scan it, type their own email, and pick their boat and trip time. When you create the send for that trip, those guests are already loaded. Pasting emails by hand still works too, in any format.",
   },
   {
     q: "What counts as a transfer?",
@@ -23,7 +27,11 @@ const FAQ: QA[] = [
   },
   {
     q: "Do my guests need an account?",
-    a: "No. Each guest opens a private link, views their gallery, and downloads. No login, no app to install.",
+    a: "No. Each guest opens a private link, views their gallery, and saves their photos. On a phone one tap puts every shot straight into their camera roll; on a computer it comes down as a single zip. No login, no app to install.",
+  },
+  {
+    q: "How do I know it is working?",
+    a: "The analytics page shows the whole funnel for every send: guests reached, galleries opened, photos downloaded, review asks sent, and review links clicked, broken down by boat and by photographer.",
   },
   {
     q: "Who owns the guest emails?",
