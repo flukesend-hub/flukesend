@@ -141,11 +141,19 @@ export async function GET(request: Request) {
   let sent = 0;
   let skipped = 0;
   let errors = 0;
+  let noLinks = 0;
 
   for (const r of eligible) {
     const ctx = await loadContext(r.delivery_id);
     if (!ctx) {
       errors++;
+      continue;
+    }
+    // Each guest gets exactly one review ask, so never spend it on an email
+    // with no review buttons. Leave the recipient pending: once the operator
+    // adds a review link in settings, the next run sends the real thing.
+    if (!ctx.reviewLinks.length) {
+      noLinks++;
       continue;
     }
     // Route each button through the tracking redirect so a tap is logged. Fall
@@ -181,8 +189,17 @@ export async function GET(request: Request) {
       skipped++;
     } else {
       // Transient send failure. Leave pending to retry on the next run.
+      console.error(
+        `review email failed for recipient ${r.id}: ${"error" in result ? result.error : "unknown"}`,
+      );
       errors++;
     }
+  }
+
+  if (noLinks) {
+    console.error(
+      `review cron: ${noLinks} eligible recipient(s) held because their operator has no review links configured`,
+    );
   }
 
   return Response.json({
@@ -190,6 +207,7 @@ export async function GET(request: Request) {
     sent,
     skipped,
     errors,
+    noLinks,
     resendConfigured: Boolean(process.env.RESEND_API_KEY),
   });
 }
