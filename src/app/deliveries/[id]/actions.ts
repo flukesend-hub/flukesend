@@ -11,10 +11,109 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, operatorFromAddress } from "@/lib/email";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
+import { getTrialUsage, getPlan, TRIAL_EMAILS } from "@/lib/trial";
+import { PLANS } from "@/lib/plans";
+import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type RowResult = { ok: true; email?: string } | { error: string };
+
+export type AddGuestResult =
+  | { ok: true; email: string; emailed: boolean }
+  | { error: string; upgrade?: boolean };
+
+// Add a forgotten guest to a send that already went out. They get their own
+// recipient row, their own gallery token, and their own review ask later, the
+// same as everyone who was on the original send. Gated by the same plan rules
+// as a new send, for one more guest, and metered the same way.
+export async function addRecipient(
+  deliveryId: string,
+  emailRaw: string,
+): Promise<AddGuestResult> {
+  const email = emailRaw.trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) {
+    return { error: "Enter a valid email." };
+  }
+  const supabase = await createClient();
+
+  // RLS scopes this read to the operator's own sends.
+  const { data: d } = await supabase
+    .from("deliveries")
+    .select("id, operator_id, expires_at")
+    .eq("id", deliveryId)
+    .maybeSingle();
+  if (!d) {
+    return { error: "Send not found." };
+  }
+  if (d.expires_at && new Date(d.expires_at).getTime() < Date.now()) {
+    return { error: "This send has expired. Create a new send instead." };
+  }
+
+  const { data: existing } = await supabase
+    .from("recipients")
+    .select("id")
+    .eq("delivery_id", deliveryId)
+    .eq("email", email)
+    .maybeSingle();
+  if (existing) {
+    return { error: "That guest is already on this send." };
+  }
+
+  const operatorId = d.operator_id as string;
+  const usage = await getTrialUsage(supabase, operatorId);
+  if (usage.status === "canceled") {
+    return {
+      error: "This account has no active plan. Choose a plan to add guests.",
+      upgrade: true,
+    };
+  }
+  if (usage.status !== "active") {
+    if (usage.emails + 1 > TRIAL_EMAILS) {
+      return {
+        error: `Adding a guest would pass your ${TRIAL_EMAILS} free trial guest emails. Upgrade to add more.`,
+        upgrade: true,
+      };
+    }
+  } else {
+    const plan = PLANS[(await getPlan(supabase, operatorId)).tier];
+    const { count: onSend } = await supabase
+      .from("recipients")
+      .select("*", { count: "exact", head: true })
+      .eq("delivery_id", deliveryId);
+    if ((onSend ?? 0) + 1 > plan.emailsPerSend) {
+      return {
+        error: `This send is at your ${plan.displayName} plan limit of ${plan.emailsPerSend} guests per send.`,
+        upgrade: true,
+      };
+    }
+    if (plan.emailsPerMonth !== null) {
+      const used = await getRecipientsUsed(supabase, operatorId);
+      if (used + 1 > plan.emailsPerMonth) {
+        return {
+          error: `You are at your ${plan.displayName} plan limit of ${plan.emailsPerMonth} emails this month.`,
+          upgrade: true,
+        };
+      }
+    }
+  }
+
+  const { data: inserted, error: iErr } = await supabase
+    .from("recipients")
+    .insert({ delivery_id: deliveryId, email })
+    .select("id")
+    .single();
+  if (iErr || !inserted) {
+    return { error: "Could not add the guest. Try again." };
+  }
+
+  await incrementRecipientsUsed(operatorId, 1);
+
+  // Email them their gallery link through the same path as the Resend button.
+  // If it fails they are still on the send, with Resend right there.
+  const sent = await resendDelivery(inserted.id as string);
+  return { ok: true, email, emailed: !("error" in sent) };
+}
 
 export async function updateRecipientEmail(
   recipientId: string,
