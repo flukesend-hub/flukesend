@@ -25,9 +25,14 @@ export async function POST(
     .limit(1)
     .maybeSingle();
   if (!existing) {
-    await admin
+    const { error } = await admin
       .from("events")
       .insert({ recipient_id: data.recipient.id, type: "opened" });
+    if (error) {
+      console.error(
+        `open event insert failed for recipient ${data.recipient.id}: ${error.message}`,
+      );
+    }
   }
 
   return new Response(null, { status: 204 });

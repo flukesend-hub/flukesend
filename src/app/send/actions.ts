@@ -315,11 +315,16 @@ export async function createSend(
   // the send already exists, so a failure here just means they might reappear.
   if (input.capturedIds?.length) {
     const admin = createAdminClient();
-    await admin
+    const { error: cgErr } = await admin
       .from("captured_guests")
       .update({ consumed_at: new Date().toISOString() })
       .eq("operator_id", operatorId)
       .in("id", input.capturedIds);
+    if (cgErr) {
+      console.error(
+        `captured guest consume failed for delivery ${delivery.id}: ${cgErr.message}`,
+      );
+    }
   }
 
   // Ship it: email each guest their gallery link. Best effort, run in parallel,
@@ -416,8 +421,19 @@ function formatTripDate(tripDatetime: string | null): string | null {
 // rows; we also drop the uploaded files so a failed send leaves nothing behind.
 async function cleanupFailedSend(deliveryId: string, storageKeys: string[]) {
   const admin = createAdminClient();
-  await admin.from("deliveries").delete().eq("id", deliveryId);
+  const { error: delErr } = await admin
+    .from("deliveries")
+    .delete()
+    .eq("id", deliveryId);
+  if (delErr) {
+    console.error(`cleanup: delivery ${deliveryId} delete failed: ${delErr.message}`);
+  }
   if (storageKeys.length) {
-    await admin.storage.from("photos").remove(storageKeys);
+    const { error: rmErr } = await admin.storage.from("photos").remove(storageKeys);
+    if (rmErr) {
+      console.error(
+        `cleanup: removing ${storageKeys.length} photos for delivery ${deliveryId} failed: ${rmErr.message}`,
+      );
+    }
   }
 }
