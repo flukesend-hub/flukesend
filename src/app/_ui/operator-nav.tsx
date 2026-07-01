@@ -21,10 +21,8 @@ export function OperatorNav({ operatorName }: { operatorName: string }) {
       <div className="fl-nav-wrap">
         <div className="fl-nav-inner">
           <div className="fl-nav-pill fl-nav-brand">
-            <span style={dot} />
-            <span className="fl-display" style={{ fontSize: "16px" }}>
-              Flukesend
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/flukesend-wordmark.png" alt="Flukesend" style={{ height: "20px", width: "auto", display: "block" }} />
           </div>
 
           <nav className="fl-nav-pill fl-nav-links">
@@ -62,14 +60,6 @@ export function OperatorNav({ operatorName }: { operatorName: string }) {
   );
 }
 
-const dot: React.CSSProperties = {
-  width: 9,
-  height: 9,
-  borderRadius: "50%",
-  background: "var(--signal)",
-  boxShadow: "0 0 10px var(--signal)",
-  flex: "0 0 auto",
-};
 const divider: React.CSSProperties = { width: 1, height: 20, background: "var(--line-strong)", flex: "0 0 auto" };
 function navLink(active: boolean): React.CSSProperties {
   return {
