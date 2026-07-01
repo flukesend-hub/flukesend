@@ -26,13 +26,16 @@ export default async function AdminPage() {
     const s = subByOp.get(o.id);
     const paid = s?.status === "active" && !!s?.stripe_customer_id;
     const comped = s?.status === "active" && !s?.stripe_customer_id;
+    let value = "trial";
+    if (comped) value = s!.tier as string;
+    else if (s?.status === "canceled") value = "canceled";
     return {
       operatorId: o.id,
       name: o.name,
       email: ownerByOp.get(o.id) ?? "",
       paid,
       tier: (s?.tier as string) ?? null,
-      value: comped ? (s!.tier as string) : "trial",
+      value,
     };
   });
 

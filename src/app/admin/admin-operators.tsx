@@ -20,6 +20,7 @@ export type OperatorRow = {
 
 const OPTIONS = [
   { value: "trial", label: "Free trial" },
+  { value: "canceled", label: "No plan (must buy)" },
   { value: "single", label: "Comp: Single boat" },
   { value: "two", label: "Comp: Two boats" },
   { value: "fleet", label: "Comp: Fleet" },

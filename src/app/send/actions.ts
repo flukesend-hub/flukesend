@@ -151,10 +151,16 @@ export async function createSend(
     return { error: "Add at least one valid guest email." };
   }
 
-  // Free trial gate. Operators on the trial can send up to TRIAL_TRANSFERS
-  // transfers or TRIAL_EMAILS guest emails, whichever comes first. Active
-  // (paid) operators are unlimited.
+  // Plan gate. Active (paid or comped) operators are unlimited. Canceled means
+  // no plan: they must buy before sending, with no free allowance. Trial (or no
+  // row) gets the free allowance up to TRIAL_TRANSFERS or TRIAL_EMAILS.
   const usage = await getTrialUsage(supabase, operatorId);
+  if (usage.status === "canceled") {
+    return {
+      error: "This account has no active plan. Choose a plan to start sending.",
+      upgrade: true,
+    };
+  }
   if (usage.status !== "active") {
     if (usage.transfers >= TRIAL_TRANSFERS) {
       return {
