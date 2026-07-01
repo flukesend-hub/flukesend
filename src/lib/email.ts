@@ -35,6 +35,53 @@ export function operatorFromAddress(operatorName: string): string {
   return `"${display}" <${slug}@${FROM_DOMAIN}>`;
 }
 
+// Resend throttles at roughly 2 requests per second and returns 429 over
+// that. Rate limited and 5xx responses are worth retrying; anything else
+// (bad address, bad payload) is not.
+function retryable(status: number) {
+  return status === 429 || status >= 500;
+}
+
+function wait(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function postResend(
+  path: string,
+  key: string,
+  body: unknown,
+  label: string,
+): Promise<SendResult> {
+  let lastError = "send failed";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await wait(attempt * 1000);
+    }
+    try {
+      const res = await fetch(`https://api.resend.com${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        return { status: "sent" };
+      }
+      const text = await res.text();
+      lastError = `${res.status} ${text.slice(0, 200)}`;
+      if (!retryable(res.status)) {
+        break;
+      }
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : "send failed";
+    }
+  }
+  console.error(`Resend ${path} failed for ${label}: ${lastError}`);
+  return { status: "error", error: lastError };
+}
+
 export async function sendEmail(
   to: string,
   subject: string,
@@ -57,24 +104,37 @@ export async function sendEmail(
   if (replyTo) {
     payload.reply_to = replyTo;
   }
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      return { status: "error", error: `${res.status} ${body.slice(0, 200)}` };
-    }
-    return { status: "sent" };
-  } catch (e) {
-    return {
-      status: "error",
-      error: e instanceof Error ? e.message : "send failed",
-    };
+  return postResend("/emails", key, payload, to);
+}
+
+export type BatchEmail = { to: string; subject: string; html: string };
+
+// One batch call delivers up to 100 emails and counts as a single request
+// against the rate limit, so a full boat of guests goes out in one shot
+// instead of a burst of per guest calls that trip the 2 per second cap.
+export async function sendEmailBatch(
+  emails: BatchEmail[],
+  fromAddress: string,
+  replyTo?: string | null,
+): Promise<SendResult> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    return { status: "skipped" };
   }
+  if (!emails.length) {
+    return { status: "sent" };
+  }
+  const payload = emails.map((e) => {
+    const item: Record<string, unknown> = {
+      from: fromAddress,
+      to: e.to,
+      subject: e.subject,
+      html: e.html,
+    };
+    if (replyTo) {
+      item.reply_to = replyTo;
+    }
+    return item;
+  });
+  return postResend("/emails/batch", key, payload, `batch of ${emails.length}`);
 }

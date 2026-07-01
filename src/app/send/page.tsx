@@ -12,6 +12,10 @@ import { getRecipientsUsed, monthlyQuota } from "@/lib/usage";
 import { speciesForSend } from "@/lib/species";
 import { SendForm } from "./send-form";
 
+// Covers createSend when the email batch falls back to one guest at a time:
+// spaced sends for a big guest list need more than the default action window.
+export const maxDuration = 60;
+
 export default async function SendPage() {
   const supabase = await createClient();
   const {
@@ -60,6 +64,13 @@ export default async function SendPage() {
     if (row.boat_id) capturedByBoat[row.boat_id] = (capturedByBoat[row.boat_id] ?? 0) + 1;
   }
 
+  // Each guest gets exactly one review ask. With no review links configured
+  // the nightly job holds those asks, so warn before the send, not after.
+  const { count: reviewLinkCount } = await supabase
+    .from("review_destinations")
+    .select("*", { count: "exact", head: true })
+    .eq("operator_id", membership.operator_id);
+
   const usage = await getTrialUsage(supabase, membership.operator_id);
 
   // Active operators see how many emails they have left this month, drawn from
@@ -85,6 +96,32 @@ export default async function SendPage() {
           Fill the trip, drop the photos, paste the guest emails. Each guest gets
           their own gallery link and their own review ask later this evening.
         </p>
+
+        {!reviewLinkCount ? (
+          <div
+            style={{
+              marginTop: "16px",
+              padding: "11px 16px",
+              borderRadius: "11px",
+              border: "1px solid rgba(194,145,63,.5)",
+              background: "rgba(194,145,63,.14)",
+              fontSize: "13px",
+              color: "#7a5a1e",
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <span>
+              No review links yet. Guests will get their photos, but the review
+              ask waits until you add a link (Google, Tripadvisor) in settings.
+            </span>
+            <a href="/settings" style={{ color: "#7a5a1e", fontWeight: 600, marginLeft: "auto" }}>
+              Add review links
+            </a>
+          </div>
+        ) : null}
 
         {usage.status === "trial" ? (
           <div

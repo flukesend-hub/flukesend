@@ -260,7 +260,10 @@ export function SendForm({
         return;
       }
 
-      router.push(`/deliveries/${res.deliveryId}?emailed=${res.emailed}`);
+      const failedQ = res.failed.length
+        ? `&failed=${encodeURIComponent(res.failed.join(","))}`
+        : "";
+      router.push(`/deliveries/${res.deliveryId}?emailed=${res.emailed}${failedQ}`);
     } catch {
       setError("Something went wrong. Try again.");
       setStatus("idle");

@@ -21,7 +21,11 @@ export async function GET(
     return new Response("This gallery has expired.", { status: 410 });
   }
 
-  const photoId = new URL(request.url).searchParams.get("p");
+  const search = new URL(request.url).searchParams;
+  const photoId = search.get("p");
+  // Preview downloads come from the operator checking their own send and must
+  // not write the downloaded event that triggers the guest's review ask.
+  const preview = search.get("preview") === "1";
   if (!photoId) {
     return new Response("Missing photo", { status: 400 });
   }
@@ -47,9 +51,16 @@ export async function GET(
   // The trigger. Recorded after the file is in hand so we only log real
   // downloads. The nightly job keys off review_email_status, so logging on
   // every photo download is fine and never double sends.
-  await admin
-    .from("events")
-    .insert({ recipient_id: data.recipient.id, type: "downloaded" });
+  if (!preview) {
+    const { error: evErr } = await admin
+      .from("events")
+      .insert({ recipient_id: data.recipient.id, type: "downloaded" });
+    if (evErr) {
+      console.error(
+        `download event insert failed for recipient ${data.recipient.id}: ${evErr.message}`,
+      );
+    }
+  }
 
   const filename = (photo.filename ?? "photo").replace(/["\r\n]/g, "");
   return new Response(blob, {

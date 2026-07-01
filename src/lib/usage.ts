@@ -44,11 +44,16 @@ export async function incrementRecipientsUsed(
 ): Promise<void> {
   if (count <= 0) return;
   const admin = createAdminClient();
-  await admin.rpc("increment_recipients_used", {
+  const { error } = await admin.rpc("increment_recipients_used", {
     p_operator_id: operatorId,
     p_period: period,
     p_count: count,
   });
+  if (error) {
+    console.error(
+      `usage increment failed for operator ${operatorId} (${period}, +${count}): ${error.message}`,
+    );
+  }
 }
 
 export type MonthlyQuota = {

@@ -15,7 +15,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEmail, operatorFromAddress } from "@/lib/email";
+import { sendEmail, sendEmailBatch, operatorFromAddress, type BatchEmail } from "@/lib/email";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { getTrialUsage, getPlan, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
@@ -158,7 +158,13 @@ export type CreateSendInput = {
 
 export type CreateSendResult =
   | { error: string; upgrade?: boolean }
-  | { ok: true; deliveryId: string; recipientCount: number; emailed: number };
+  | {
+      ok: true;
+      deliveryId: string;
+      recipientCount: number;
+      emailed: number;
+      failed: string[];
+    };
 
 export async function createSend(
   input: CreateSendInput,
@@ -309,11 +315,16 @@ export async function createSend(
   // the send already exists, so a failure here just means they might reappear.
   if (input.capturedIds?.length) {
     const admin = createAdminClient();
-    await admin
+    const { error: cgErr } = await admin
       .from("captured_guests")
       .update({ consumed_at: new Date().toISOString() })
       .eq("operator_id", operatorId)
       .in("id", input.capturedIds);
+    if (cgErr) {
+      console.error(
+        `captured guest consume failed for delivery ${delivery.id}: ${cgErr.message}`,
+      );
+    }
   }
 
   // Ship it: email each guest their gallery link. Best effort, run in parallel,
@@ -332,38 +343,64 @@ export async function createSend(
   const message = input.customMessage || branding?.default_message || "";
 
   let emailed = 0;
+  const failed: string[] = [];
   if (baseUrl) {
     const deliveryFrom = operatorFromAddress(operator?.name ?? "your crew");
     const deliveryReplyTo = branding?.reply_to_email ?? null;
-    const sends = await Promise.allSettled(
-      recipients.map((r) => {
-        const { subject, html } = buildDeliveryEmail({
-          operatorName: operator?.name ?? "your crew",
-          brandColor: branding?.brand_color ?? "#0b5563",
-          logoUrl: branding?.logo_url ?? null,
-          recipientName: null,
-          tripDate: formatTripDate(input.tripDatetime),
-          captainName: input.captainName,
-          naturalistName: input.naturalistName,
-          photographerName: input.photographerName,
-          species: input.species,
-          message,
-          galleryUrl: `${baseUrl}/g/${r.token}`,
-          social: {
-            website_url: branding?.website_url ?? null,
-            facebook_url: branding?.facebook_url ?? null,
-            instagram_url: branding?.instagram_url ?? null,
-            tiktok_url: branding?.tiktok_url ?? null,
-            youtube_url: branding?.youtube_url ?? null,
-            x_url: branding?.x_url ?? null,
-          },
-        });
-        return sendEmail(r.email, subject, html, deliveryFrom, deliveryReplyTo);
-      }),
-    );
-    emailed = sends.filter(
-      (s) => s.status === "fulfilled" && s.value.status === "sent",
-    ).length;
+    const messages: BatchEmail[] = recipients.map((r) => {
+      const { subject, html } = buildDeliveryEmail({
+        operatorName: operator?.name ?? "your crew",
+        brandColor: branding?.brand_color ?? "#0b5563",
+        logoUrl: branding?.logo_url ?? null,
+        recipientName: null,
+        tripDate: formatTripDate(input.tripDatetime),
+        captainName: input.captainName,
+        naturalistName: input.naturalistName,
+        photographerName: input.photographerName,
+        species: input.species,
+        message,
+        galleryUrl: `${baseUrl}/g/${r.token}`,
+        social: {
+          website_url: branding?.website_url ?? null,
+          facebook_url: branding?.facebook_url ?? null,
+          instagram_url: branding?.instagram_url ?? null,
+          tiktok_url: branding?.tiktok_url ?? null,
+          youtube_url: branding?.youtube_url ?? null,
+          x_url: branding?.x_url ?? null,
+        },
+      });
+      return { to: r.email, subject, html };
+    });
+
+    // One batch call per 100 guests keeps the whole send inside Resend's
+    // rate limit. If a batch is rejected, fall back to one guest at a time,
+    // spaced under the 2 per second cap, so one bad response cannot silently
+    // drop a whole boat. Every failure is collected and reported by address.
+    for (let i = 0; i < messages.length; i += 100) {
+      const chunk = messages.slice(i, i + 100);
+      const batch = await sendEmailBatch(chunk, deliveryFrom, deliveryReplyTo);
+      if (batch.status === "sent") {
+        emailed += chunk.length;
+        continue;
+      }
+      if (batch.status === "skipped") {
+        continue;
+      }
+      for (const m of chunk) {
+        const single = await sendEmail(m.to, m.subject, m.html, deliveryFrom, deliveryReplyTo);
+        if (single.status === "sent") {
+          emailed += 1;
+        } else if (single.status === "error") {
+          failed.push(m.to);
+        }
+        await new Promise((r) => setTimeout(r, 600));
+      }
+    }
+    if (failed.length) {
+      console.error(
+        `createSend ${delivery.id}: ${failed.length} of ${recipients.length} delivery emails failed: ${failed.join(", ")}`,
+      );
+    }
   }
 
   return {
@@ -371,6 +408,7 @@ export async function createSend(
     deliveryId: delivery.id,
     recipientCount: emails.length,
     emailed,
+    failed,
   };
 }
 
@@ -383,8 +421,19 @@ function formatTripDate(tripDatetime: string | null): string | null {
 // rows; we also drop the uploaded files so a failed send leaves nothing behind.
 async function cleanupFailedSend(deliveryId: string, storageKeys: string[]) {
   const admin = createAdminClient();
-  await admin.from("deliveries").delete().eq("id", deliveryId);
+  const { error: delErr } = await admin
+    .from("deliveries")
+    .delete()
+    .eq("id", deliveryId);
+  if (delErr) {
+    console.error(`cleanup: delivery ${deliveryId} delete failed: ${delErr.message}`);
+  }
   if (storageKeys.length) {
-    await admin.storage.from("photos").remove(storageKeys);
+    const { error: rmErr } = await admin.storage.from("photos").remove(storageKeys);
+    if (rmErr) {
+      console.error(
+        `cleanup: removing ${storageKeys.length} photos for delivery ${deliveryId} failed: ${rmErr.message}`,
+      );
+    }
   }
 }
