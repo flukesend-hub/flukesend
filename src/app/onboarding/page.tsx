@@ -4,6 +4,7 @@
 */
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/admin";
 import { OnboardingForm } from "./onboarding-form";
 
 export default async function OnboardingPage() {
@@ -13,6 +14,12 @@ export default async function OnboardingPage() {
   } = await supabase.auth.getUser();
   if (!user) {
     redirect("/login");
+  }
+
+  // The platform admin has no operator by design. Send them to the admin
+  // screen instead of nudging them to create a workspace.
+  if (isAdminEmail(user.email)) {
+    redirect("/admin");
   }
 
   const { data: membership } = await supabase
