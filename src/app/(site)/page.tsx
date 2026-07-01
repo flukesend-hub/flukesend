@@ -22,7 +22,7 @@ export default function LandingPage() {
         <p style={lede}>
           Flukesend delivers your guests their whale watch photos in a gallery
           that looks like you, then quietly asks for a review the moment they
-          download. WeTransfer, built for the water.
+          download. Enhance your experience, and build reviews.
         </p>
         <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginTop: "26px" }}>
           <Link href="/login" style={primaryBtn}>
@@ -60,9 +60,9 @@ export default function LandingPage() {
         <div style={{ maxWidth: "1080px", margin: "0 auto", padding: "54px 24px" }}>
           <h2 style={h2}>How it works</h2>
           <div style={grid3}>
-            <Step n="1" title="Get home and edit" body="Off the boat, photos edited. Nothing happens on the water." />
-            <Step n="2" title="Create a send" body="Trip details, drop the photos, paste the guest emails. Each guest becomes their own gallery." />
-            <Step n="3" title="Reviews roll in" body="Guests download their photos, and the review asks go out on their own that evening." />
+            <Step n="1" title="Photograph and collect" body="The photographer shoots the photos and collects the emails on the boat." />
+            <Step n="2" title="Create a send" body="They select the trip details, drop the photos in, paste the emails, and ship it off." />
+            <Step n="3" title="Reviews roll in" body="Guests download their photos, and the review ask goes out that evening." />
           </div>
         </div>
       </section>
