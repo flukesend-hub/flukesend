@@ -91,5 +91,5 @@ const trial: React.CSSProperties = {
   borderRadius: "999px",
   padding: "10px 18px",
   fontSize: "14px",
-  color: "#7a5a17",
+  color: "#33502a",
 };

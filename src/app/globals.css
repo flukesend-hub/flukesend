@@ -7,23 +7,23 @@
 */
 
 :root {
-  /* operator workspace: warm paper (unified with the marketing + guest light scheme) */
-  --ink: #f8f7f3;
-  --ink-2: #f1efe8;
-  --panel: #fffdf9;
-  --panel-2: #f1efe8;
-  --line: #e7e2d8;
-  --line-strong: #d7d0c2;
-  --text: #10221f;
-  --text-2: #3a4744;
-  --muted: #5f6b68;
-  --muted-2: #8a938f;
+  /* clean white surfaces across the whole product */
+  --ink: #ffffff;
+  --ink-2: #f4f5f4;
+  --panel: #ffffff;
+  --panel-2: #eef0ee;
+  --line: #e6e7e3;
+  --line-strong: #d3d5d0;
+  --text: #0e1a18;
+  --text-2: #29332f;
+  --muted: #4d5854;
+  --muted-2: #737b76;
 
-  /* golden hour action color */
-  --signal: #e7b14c;
-  /* gold used as TEXT, darkened so eyebrows and badges stay readable on paper. */
-  --signal-2: #9a7b2e;
-  --signal-ink: #3a2c0a;
+  /* sea green action color */
+  --signal: #3f7a4d;
+  /* green used as TEXT, dark enough for eyebrows, badges, and links on white. */
+  --signal-2: #35662f;
+  --signal-ink: #ffffff;
   --good: #2f8f63;
   --bad: #c2533f;
 
@@ -56,11 +56,11 @@ body {
   font-family: var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 ::selection {
-  background: rgba(231, 177, 76, 0.3);
+  background: rgba(63, 122, 77, 0.22);
 }
 
 a {
@@ -75,7 +75,7 @@ a {
   font: inherit;
   font-size: 14px;
   color: var(--text);
-  background: var(--ink);
+  background: var(--ink-2);
   border: 1px solid var(--line-strong);
   border-radius: 10px;
   padding: 11px 12px;
@@ -91,7 +91,7 @@ input:focus,
 textarea:focus,
 select:focus {
   border-color: var(--signal) !important;
-  box-shadow: 0 0 0 3px rgba(231, 177, 76, 0.14);
+  box-shadow: 0 0 0 3px rgba(63, 122, 77, 0.16);
 }
 
 /* Safari/WebKit give datetime-local an oversized intrinsic width that ignores
@@ -168,21 +168,21 @@ input[type="color"]::-webkit-color-swatch {
 
 /* ---- reusable atoms ---- */
 .fl-card {
-  background: linear-gradient(180deg, var(--panel), var(--panel) 60%, var(--ink-2));
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 22px;
 }
 .fl-label-text {
   display: block;
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 12.5px;
+  color: var(--text-2);
   margin-bottom: 6px;
-  font-weight: 500;
+  font-weight: 600;
 }
 .fl-hint {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .fl-eyebrow {
   font-size: 11px;

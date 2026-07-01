@@ -8,7 +8,7 @@ export function MarketingFooter() {
     <footer style={wrap}>
       <div style={{ maxWidth: "1080px", margin: "0 auto", padding: "40px 24px", display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: "9px", fontFamily: "var(--font-fraunces), serif", fontWeight: 600, fontSize: "17px", color: "#10221f" }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#e7b14c" }} />
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#3f7a4d" }} />
           Flukesend
         </div>
         <nav style={{ display: "flex", gap: "18px", flexWrap: "wrap", fontSize: "13.5px", color: "#5f6b68" }}>

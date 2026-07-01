@@ -112,8 +112,8 @@ const upgradeBox: React.CSSProperties = {
   gap: "12px",
   padding: "12px 14px",
   borderRadius: "11px",
-  border: "1px solid rgba(231,177,76,.45)",
-  background: "rgba(231,177,76,.12)",
+  border: "1px solid rgba(63,122,77,.45)",
+  background: "rgba(63,122,77,.12)",
 };
 const removeBtn: React.CSSProperties = {
   background: "transparent",

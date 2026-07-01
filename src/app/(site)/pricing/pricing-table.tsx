@@ -130,7 +130,7 @@ function seg(active: boolean): React.CSSProperties {
 const saveTag: React.CSSProperties = {
   fontSize: "12.5px",
   fontWeight: 600,
-  color: "#7a5a17",
+  color: "#33502a",
   background: "#fbf3e0",
   border: "1px solid #ecdcb4",
   borderRadius: "999px",
@@ -152,7 +152,7 @@ const tierCard: React.CSSProperties = {
 const popularCard: React.CSSProperties = { border: "2px solid #0c1a21" };
 const popularTag: React.CSSProperties = {
   background: "#0c1a21",
-  color: "#e7b14c",
+  color: "#3f7a4d",
   textAlign: "center",
   fontSize: "12px",
   fontWeight: 600,

@@ -105,7 +105,7 @@ const eyebrow: React.CSSProperties = {
   fontSize: "12px",
   letterSpacing: "0.16em",
   textTransform: "uppercase",
-  color: "#9a7b2e",
+  color: "#35662f",
   fontWeight: 600,
 };
 const hero: React.CSSProperties = {
@@ -151,7 +151,7 @@ const stepNum: React.CSSProperties = {
   height: "34px",
   borderRadius: "50%",
   background: "#0c1a21",
-  color: "#e7b14c",
+  color: "#3f7a4d",
   display: "grid",
   placeItems: "center",
   fontFamily: "var(--font-fraunces), serif",
