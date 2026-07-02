@@ -173,9 +173,6 @@ export function CaptureForm({
       <p style={{ margin: "14px 0 0", color: "#33464a", fontSize: "13px", fontWeight: 700, lineHeight: 1.5, textAlign: "center" }}>
         Make sure to check your spam folder.
       </p>
-      <p style={{ margin: "8px 0 0", color: "#8a938f", fontSize: "12px", lineHeight: 1.5, textAlign: "center" }}>
-        We use this only to send your trip photos and a review ask. Nothing else.
-      </p>
     </form>
   );
 }
