@@ -248,6 +248,21 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     branding?.reply_to_email ?? null,
   );
   if (result.status === "sent") {
+    // Fresh attempt: track the new email id and clear any old bounce so a
+    // corrected address gets a clean slate on the guest row.
+    const { error: idErr } = await supabase
+      .from("recipients")
+      .update({
+        resend_email_id: result.ids[0] ?? null,
+        email_status: null,
+        email_status_at: null,
+      })
+      .eq("id", recipientId);
+    if (idErr) {
+      console.error(
+        `resendDelivery: storing resend id for ${recipientId} failed: ${idErr.message}`,
+      );
+    }
     return { ok: true };
   }
   if (result.status === "skipped") {

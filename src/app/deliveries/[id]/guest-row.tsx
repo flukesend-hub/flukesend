@@ -127,7 +127,7 @@ function StatusChip({ status }: { status: RecipientStatus }) {
   return <span style={chipStyle(meta.tone)}>{meta.label}</span>;
 }
 
-const chipStyle = (tone: "good" | "info" | "muted"): React.CSSProperties => ({
+const chipStyle = (tone: "good" | "info" | "muted" | "bad"): React.CSSProperties => ({
   flex: "0 0 auto",
   fontSize: "11.5px",
   fontWeight: 600,
@@ -138,7 +138,9 @@ const chipStyle = (tone: "good" | "info" | "muted"): React.CSSProperties => ({
     ? { color: "var(--good)", background: "rgba(34,160,90,.14)" }
     : tone === "info"
       ? { color: "#185fa5", background: "rgba(24,95,165,.12)" }
-      : { color: "var(--muted)", background: "var(--line)" }),
+      : tone === "bad"
+        ? { color: "var(--bad)", background: "rgba(176,58,46,.12)" }
+        : { color: "var(--muted)", background: "var(--line)" }),
 });
 
 const card: React.CSSProperties = {

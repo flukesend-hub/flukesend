@@ -299,7 +299,7 @@ export async function createSend(
   const { data: recipients, error: rErr } = await supabase
     .from("recipients")
     .insert(recipientRows)
-    .select("email, token");
+    .select("id, email, token");
   if (rErr || !recipients) {
     await cleanupFailedSend(delivery.id, input.photos.map((p) => p.storageKey));
     return { error: "Could not save the recipients. Try again." };
@@ -376,20 +376,35 @@ export async function createSend(
     // rate limit. If a batch is rejected, fall back to one guest at a time,
     // spaced under the 2 per second cap, so one bad response cannot silently
     // drop a whole boat. Every failure is collected and reported by address.
+    // Remember each guest's Resend email id so the webhook can report what
+    // happened (delivered, bounced) back onto their row. Best effort.
+    const rememberId = async (recipientId: string, resendId: string | null) => {
+      if (!resendId) return;
+      const { error: idErr } = await supabase
+        .from("recipients")
+        .update({ resend_email_id: resendId })
+        .eq("id", recipientId);
+      if (idErr) {
+        console.error(`createSend: storing resend id for ${recipientId} failed: ${idErr.message}`);
+      }
+    };
     for (let i = 0; i < messages.length; i += 100) {
       const chunk = messages.slice(i, i + 100);
       const batch = await sendEmailBatch(chunk, deliveryFrom, deliveryReplyTo);
       if (batch.status === "sent") {
         emailed += chunk.length;
+        await Promise.all(chunk.map((_, j) => rememberId(recipients[i + j].id, batch.ids[j] ?? null)));
         continue;
       }
       if (batch.status === "skipped") {
         continue;
       }
-      for (const m of chunk) {
+      for (let j = 0; j < chunk.length; j++) {
+        const m = chunk[j];
         const single = await sendEmail(m.to, m.subject, m.html, deliveryFrom, deliveryReplyTo);
         if (single.status === "sent") {
           emailed += 1;
+          await rememberId(recipients[i + j].id, single.ids[0] ?? null);
         } else if (single.status === "error") {
           failed.push(m.to);
         }

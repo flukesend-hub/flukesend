@@ -98,6 +98,17 @@ export async function sendReviewAskAfterDownload(
     operator?.name ?? "your crew",
     branding?.reply_to_email ?? null,
   );
+  if (result.status === "sent" && result.ids[0]) {
+    // Track the review email's id so the webhook can report a bounce of the
+    // ask itself onto the guest row.
+    const { error: idErr } = await admin
+      .from("recipients")
+      .update({ resend_email_id: result.ids[0] })
+      .eq("id", r.id);
+    if (idErr) {
+      console.error(`instant review ask: storing resend id for ${r.id} failed: ${idErr.message}`);
+    }
+  }
   if (result.status !== "sent") {
     // Release the claim so the nightly sweep retries (covers both hard
     // failures and Resend not being configured).

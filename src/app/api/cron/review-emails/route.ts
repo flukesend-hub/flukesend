@@ -167,7 +167,7 @@ export async function GET(request: Request) {
     if (result.status === "sent") {
       await admin
         .from("recipients")
-        .update({ review_email_status: "sent" })
+        .update({ review_email_status: "sent", resend_email_id: result.ids[0] ?? null })
         .eq("id", r.id);
       sent++;
     } else if (result.status === "skipped") {
