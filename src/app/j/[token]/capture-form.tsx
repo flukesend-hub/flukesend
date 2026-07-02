@@ -73,7 +73,8 @@ export function CaptureForm({
         </div>
         <p style={{ margin: "12px 0 4px", fontWeight: 600, fontSize: "16px" }}>You are on the list.</p>
         <p style={{ margin: 0, color: "#6b7a7d", fontSize: "13.5px", lineHeight: 1.55 }}>
-          {operatorName} will email your photos after the trip. You can close this page.
+          {operatorName} will email your photos after the trip. If you do not
+          see them, check your spam or junk folder. You can close this page.
         </p>
       </div>
     );
