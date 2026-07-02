@@ -19,6 +19,16 @@ export function isTripTime(value: string): boolean {
   return TRIP_TIME_SLOTS.includes(value);
 }
 
+// The trip times to show on the send form and the guest QR form. An operator
+// picks their real departure times in Settings; until they do (empty list) we
+// fall back to every slot so nothing is ever missing. Always returned valid
+// and in chronological order.
+export function tripTimesFor(configured: string[] | null | undefined): string[] {
+  const clean = (configured ?? []).filter((t) => TRIP_TIME_SLOTS.includes(t));
+  if (!clean.length) return TRIP_TIME_SLOTS;
+  return TRIP_TIME_SLOTS.filter((slot) => clean.includes(slot));
+}
+
 // "09:30" becomes "9:30 AM".
 export function formatTripTime(hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);

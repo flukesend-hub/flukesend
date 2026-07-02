@@ -9,6 +9,7 @@ import { getTrialUsage, getPlan, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/tri
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, monthlyQuota } from "@/lib/usage";
 import { speciesForSend } from "@/lib/species";
+import { tripTimesFor } from "@/lib/trip-times";
 import { SendForm } from "./send-form";
 
 // Covers createSend when the email batch falls back to one guest at a time:
@@ -34,7 +35,7 @@ export default async function SendPage() {
   ] = await Promise.all([
     supabase
       .from("branding")
-      .select("default_message, brand_color, plan, species_options")
+      .select("default_message, brand_color, plan, species_options, trip_times")
       .eq("operator_id", operatorId)
       .maybeSingle(),
     supabase
@@ -203,6 +204,7 @@ export default async function SendPage() {
           defaultMessage={branding?.default_message ?? ""}
           brandColor={branding?.brand_color ?? "#0b5563"}
           speciesOptions={speciesForSend(branding?.species_options as string[] | null)}
+          tripTimes={tripTimesFor(branding?.trip_times as string[] | null)}
           boats={(boats ?? []).map((b) => ({ id: b.id as string, name: b.name as string }))}
           capturedByBoat={capturedByBoat}
           crew={(crew ?? []).map((c) => ({

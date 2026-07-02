@@ -51,6 +51,7 @@ export default async function CapturePage({
             brand={brand}
             operatorName={operator.name}
             boats={boats}
+            tripTimes={ctx.tripTimes}
             defaultBoatId={ctx.link.boat_id ?? ""}
           />
         </div>

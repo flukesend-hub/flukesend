@@ -8,7 +8,7 @@
   swaps to a short thank you.
 */
 import { useEffect, useState } from "react";
-import { TRIP_TIME_SLOTS, formatTripTime } from "@/lib/trip-times";
+import { formatTripTime } from "@/lib/trip-times";
 import { captureGuest } from "./actions";
 
 export function CaptureForm({
@@ -16,12 +16,14 @@ export function CaptureForm({
   brand,
   operatorName,
   boats,
+  tripTimes,
   defaultBoatId,
 }: {
   token: string;
   brand: string;
   operatorName: string;
   boats: { id: string; name: string }[];
+  tripTimes: string[];
   defaultBoatId: string;
 }) {
   const [boatId, setBoatId] = useState(defaultBoatId || (boats.length === 1 ? boats[0].id : ""));
@@ -100,7 +102,7 @@ export function CaptureForm({
         <span style={labelText}>Which trip? (today, {dateLabel})</span>
         <select value={tripTime} onChange={(e) => setTripTime(e.target.value)} style={input}>
           <option value="">Choose your trip time</option>
-          {TRIP_TIME_SLOTS.map((slot) => (
+          {tripTimes.map((slot) => (
             <option key={slot} value={slot}>
               {formatTripTime(slot)}
             </option>

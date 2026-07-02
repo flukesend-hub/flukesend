@@ -11,6 +11,7 @@ import { BrandingForm } from "./branding-form";
 import { ReviewLinks } from "./review-links";
 import { SocialLinksForm } from "./social-links-form";
 import { SpeciesPicker } from "./species-picker";
+import { TripTimesPicker } from "./trip-times-picker";
 import { SettingsSection } from "./settings-section";
 import { RosterList } from "./roster-list";
 import { CrewRoster } from "./crew-roster";
@@ -28,7 +29,7 @@ export default async function SettingsPage() {
       supabase
         .from("branding")
         .select(
-          "logo_url, brand_color, default_message, retention_days, plan, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url, species_options",
+          "logo_url, brand_color, default_message, retention_days, plan, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url, species_options, trip_times",
         )
         .eq("operator_id", operatorId)
         .maybeSingle(),
@@ -74,6 +75,7 @@ export default async function SettingsPage() {
   };
   const socialCount = Object.values(social).filter(Boolean).length;
   const speciesList = (branding?.species_options ?? []) as string[];
+  const tripTimes = (branding?.trip_times ?? []) as string[];
   const reviewCount = links?.length ?? 0;
   const boatCount = boats?.length ?? 0;
   const crewCount = crew?.length ?? 0;
@@ -195,6 +197,13 @@ export default async function SettingsPage() {
           <div style={{ fontSize: "12px", color: "var(--muted)", margin: "20px 2px 8px" }}>
             Changes by season
           </div>
+          <SettingsSection
+            title="Trip times"
+            summary={tripTimes.length ? `${tripTimes.length} departure ${tripTimes.length === 1 ? "time" : "times"}, shown on a send and your QR` : "Showing every slot, pick yours to narrow it"}
+            chip={tripTimes.length ? doneChip : { label: "Default", tone: "muted" }}
+          >
+            <TripTimesPicker selected={tripTimes} />
+          </SettingsSection>
           <SettingsSection
             title="Species"
             summary={speciesList.length ? `${speciesList.length} selected, shown as pills on a send` : "Using the default list"}
