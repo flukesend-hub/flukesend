@@ -158,15 +158,16 @@ export default async function LandingPage() {
 function PhoneMock() {
   return (
     <div style={phone} aria-hidden="true">
-      <div style={{ padding: "18px 16px 4px", textAlign: "center" }}>
-        {/* The operator's real logo, same as the real gallery header */}
+      {/* Dark brand header, same as the real gallery: the operator's brand
+          color fills the band and the white logo sits on it. */}
+      <div style={{ background: "#0c1a21", padding: "18px 16px 15px", textAlign: "center" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/operators/enocean-tours.jpg"
+          src="/operators/enocean-tours-white.png"
           alt=""
-          style={{ height: "34px", width: "auto", margin: "0 auto", display: "block" }}
+          style={{ height: "22px", width: "auto", maxWidth: "72%", margin: "0 auto", display: "block", objectFit: "contain" }}
         />
-        <div style={{ fontSize: "11px", color: "#6b7a7d", marginTop: "6px" }}>
+        <div style={{ fontSize: "11px", color: "rgba(255,255,255,.78)", marginTop: "8px" }}>
           Your 6:54 AM trip with Captain Slater
         </div>
       </div>
@@ -224,6 +225,8 @@ const phone: React.CSSProperties = {
   border: "1px solid #e3ddd0",
   background: "#faf8f4",
   boxShadow: "0 18px 44px rgba(16,34,31,.12)",
+  // Clip the dark header's top corners to the phone's rounding.
+  overflow: "hidden",
 };
 const mockSave: React.CSSProperties = {
   background: "#0c1a21",

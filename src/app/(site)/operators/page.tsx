@@ -14,6 +14,9 @@ type Op = {
   line: string;
   color: string;
   logo: string;
+  // Backing the logo sits on. Enocean's mark is white so it needs a dark
+  // panel; Princess's is dark on light so it needs a light one.
+  logoBg: string;
   site: string;
   // A real guest's Google review excerpt. Guests raving about the photos is
   // the strongest proof this page can carry; keep excerpts faithful.
@@ -26,7 +29,8 @@ const OPERATORS: Op[] = [
     place: "Moss Landing, CA",
     line: "Premium 6 passenger vessel out of Moss Landing, CA.",
     color: "#0c1a21",
-    logo: "/operators/enocean-tours.jpg",
+    logo: "/operators/enocean-tours-white.png",
+    logoBg: "#0c1a21",
     site: "https://www.enoceantours.com/",
     quote:
       "They included a photo package of everything we saw, which was such an unexpected and thoughtful bonus... having professional photos to look back on makes it even better.",
@@ -37,6 +41,7 @@ const OPERATORS: Op[] = [
     line: "Year-round whale watching out of Monterey's Old Fisherman's Wharf.",
     color: "#2c2f6d",
     logo: "/operators/princess-whale-watching.png",
+    logoBg: "#ffffff",
     site: "https://montereywhalewatching.com/",
     quote:
       "A professional photographer was on board taking photos of the whales and shared them with everyone on board for free!",
@@ -58,8 +63,7 @@ export default function OperatorsPage() {
         <div style={grid}>
           {OPERATORS.map((op) => (
             <div key={op.name} style={card}>
-              <div style={{ ...band, background: op.color }} />
-              <div style={logoBox}>
+              <div style={{ ...logoPanel, background: op.logoBg }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={op.logo} alt={`${op.name} logo`} style={logoImg} />
               </div>
@@ -122,15 +126,16 @@ const card: React.CSSProperties = {
   borderRadius: "16px",
   overflow: "hidden",
 };
-const band: React.CSSProperties = { height: "8px" };
-const logoBox: React.CSSProperties = {
+const logoPanel: React.CSSProperties = {
+  height: "132px",
   display: "grid",
   placeItems: "center",
-  padding: "20px 22px 12px",
+  padding: "22px",
+  borderBottom: "1px solid #ece7dd",
 };
 const logoImg: React.CSSProperties = {
-  height: "84px",
-  maxWidth: "100%",
+  maxHeight: "64px",
+  maxWidth: "82%",
   objectFit: "contain",
 };
 const quoteBox: React.CSSProperties = {
