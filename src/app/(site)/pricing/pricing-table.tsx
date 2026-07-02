@@ -61,6 +61,7 @@ const TIERS: Tier[] = [
     features: [
       "Up to 100 emails per send",
       "Unlimited emails a month",
+      "Send from your own email domain",
       "Unlimited boats",
       `Everything in ${PLANS.two.displayName}`,
       "Priority support",

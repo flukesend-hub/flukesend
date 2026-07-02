@@ -25,6 +25,8 @@ export type Plan = {
   boats: number | null;
   analytics: AnalyticsTier;
   video: boolean;
+  // Send guest email from the operator's own domain (photos@theirs.com).
+  whiteLabel: boolean;
 };
 
 export const PLANS: Record<PlanKey, Plan> = {
@@ -36,6 +38,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     boats: null,
     analytics: "basic",
     video: false,
+    whiteLabel: false,
   },
   two: {
     key: "two",
@@ -45,6 +48,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     boats: null,
     analytics: "full",
     video: false,
+    whiteLabel: false,
   },
   fleet: {
     key: "fleet",
@@ -54,6 +58,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     boats: null,
     analytics: "full",
     video: true,
+    whiteLabel: true,
   },
 };
 

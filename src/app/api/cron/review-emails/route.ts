@@ -20,9 +20,11 @@ import {
   tripLine,
 } from "@/lib/review-email";
 import { type SocialLinks } from "@/lib/social";
+import { resolveFromAddress } from "@/lib/sender-domain";
 
 type OperatorContext = {
   operatorName: string;
+  from: string;
   brandColor: string;
   logoUrl: string | null;
   tripLine: string;
@@ -107,6 +109,10 @@ export async function GET(request: Request) {
 
     const ctx: OperatorContext = {
       operatorName: operator?.name ?? "your crew",
+      from: await resolveFromAddress(
+        delivery.operator_id as string,
+        operator?.name ?? "your crew",
+      ),
       brandColor: branding?.brand_color ?? "#0b5563",
       logoUrl: branding?.logo_url ?? null,
       tripLine: tripLine(delivery),
@@ -162,7 +168,7 @@ export async function GET(request: Request) {
       r.email,
       subject,
       html,
-      ctx.operatorName,
+      ctx.from,
       ctx.replyTo,
     );
     if (result.status === "sent") {
