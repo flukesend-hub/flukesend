@@ -49,7 +49,6 @@ export type Analytics = {
   monthLabel: string;
   month: Funnel;
   trend: TrendPoint[];
-  byBoat: GroupRow[];
   byPhotographer: GroupRow[];
   windowMonths: number;
 };
@@ -186,13 +185,12 @@ export async function getAnalytics(
 
   // Per delivery info, derived from the recipient rows (every delivery has at
   // least one recipient, so nothing is missed).
-  type Del = { key: string; boat: string; photographers: string[] };
+  type Del = { key: string; photographers: string[] };
   const delById = new Map<string, Del>();
   for (const r of recipients) {
     if (!delById.has(r.delivery_id)) {
       delById.set(r.delivery_id, {
         key: monthKey(r.deliveries.created_at),
-        boat: r.deliveries.boat_name?.trim() || NO_BOAT,
         photographers: photographersFor(r.deliveries, photographerNames),
       });
     }
@@ -226,9 +224,9 @@ export async function getAnalytics(
     };
   });
 
-  // Per boat and per photographer across the whole window. Sends where
-  // nobody aboard shoots stay out of the photographer table.
-  const byBoat = groupBy(recipients, delById, downloaded, (d) => [d.boat]);
+  // Per photographer across the whole window. Sends where nobody aboard
+  // shoots stay out of the table. The per boat view lives in the Recent
+  // sends rows, which carry a boat column per trip.
   const byPhotographer = groupBy(recipients, delById, downloaded, (d) => d.photographers);
 
   return {
@@ -236,7 +234,6 @@ export async function getAnalytics(
     monthLabel: monthLabel(currentKey),
     month,
     trend,
-    byBoat,
     byPhotographer,
     windowMonths: WINDOW_MONTHS,
   };
@@ -247,9 +244,9 @@ export async function getAnalytics(
 // sends counts distinct deliveries.
 function groupBy(
   recipients: RecipientRow[],
-  delById: Map<string, { key: string; boat: string; photographers: string[] }>,
+  delById: Map<string, { key: string; photographers: string[] }>,
   downloaded: Set<string>,
-  keysOf: (d: { boat: string; photographers: string[] }) => string[],
+  keysOf: (d: { photographers: string[] }) => string[],
 ): GroupRow[] {
   const map = new Map<string, { reached: number; downloaded: number; delIds: Set<string> }>();
   const ensure = (name: string) => {
