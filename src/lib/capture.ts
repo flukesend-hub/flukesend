@@ -9,11 +9,15 @@
 import "server-only";
 import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { tripTimesFor } from "@/lib/trip-times";
 
 export type CaptureContext = {
   link: { id: string; operator_id: string; boat_id: string | null };
   operator: { id: string; name: string };
   branding: { logo_url: string | null; brand_color: string; default_message: string } | null;
+  // The operator's chosen departure times, so the guest only sees trips that
+  // really sail. Empty means show every slot (not yet configured).
+  tripTimes: string[];
   boatName: string | null;
   // The operator's boats, so the guest can pick which one they were on. The
   // scanned link's boat, if any, is the default.
@@ -42,7 +46,7 @@ export async function getCaptureByToken(token: string): Promise<CaptureContext |
 
   const { data: branding } = await admin
     .from("branding")
-    .select("logo_url, brand_color, default_message")
+    .select("logo_url, brand_color, default_message, trip_times")
     .eq("operator_id", link.operator_id)
     .maybeSingle();
 
@@ -60,6 +64,7 @@ export async function getCaptureByToken(token: string): Promise<CaptureContext |
     link: { id: link.id, operator_id: link.operator_id, boat_id: link.boat_id },
     operator: operator ?? { id: link.operator_id, name: "Operator" },
     branding: branding ?? null,
+    tripTimes: tripTimesFor((branding?.trip_times as string[] | null) ?? null),
     boatName,
     boats: boatList,
   };

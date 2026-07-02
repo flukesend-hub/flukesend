@@ -15,6 +15,7 @@ import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { isCrewRole } from "@/lib/roles";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
 import { normalizeSpecies } from "@/lib/species";
+import { TRIP_TIME_SLOTS } from "@/lib/trip-times";
 
 export type SettingsState =
   | { error?: string; ok?: string; upgrade?: boolean }
@@ -139,6 +140,25 @@ export async function updateSpecies(species: string[]): Promise<SettingsState> {
   revalidatePath("/settings");
   revalidatePath("/send");
   return { ok: "Species saved." };
+}
+
+// The operator's trip departure times, picked from the standard slots. Saved
+// to branding.trip_times and shown on both the send form and the guest QR
+// form so a guest can only pick a trip the operator actually runs.
+export async function updateTripTimes(times: string[]): Promise<SettingsState> {
+  const { supabase, operatorId } = await resolveOperator();
+  // Keep only valid slots, deduped and in chronological order.
+  const clean = TRIP_TIME_SLOTS.filter((slot) => times.includes(slot));
+  const { error } = await supabase
+    .from("branding")
+    .update({ trip_times: clean })
+    .eq("operator_id", operatorId);
+  if (error) {
+    return { error: "Could not save your trip times. Try again." };
+  }
+  revalidatePath("/settings");
+  revalidatePath("/send");
+  return { ok: "Trip times saved." };
 }
 
 export async function removeLogo(): Promise<void> {

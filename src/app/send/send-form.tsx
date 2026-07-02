@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { CREW_ROLES, topRole } from "@/lib/roles";
-import { TRIP_TIME_SLOTS, formatTripTime } from "@/lib/trip-times";
+import { formatTripTime } from "@/lib/trip-times";
 import { signUploads, createSend, getCapturedForTrip, type CapturedGuest } from "./actions";
 
 type Boat = { id: string; name: string };
@@ -43,6 +43,7 @@ export function SendForm({
   defaultMessage,
   brandColor,
   speciesOptions,
+  tripTimes,
   boats,
   capturedByBoat,
   crew,
@@ -50,6 +51,7 @@ export function SendForm({
   defaultMessage: string;
   brandColor: string;
   speciesOptions: string[];
+  tripTimes: string[];
   boats: Boat[];
   capturedByBoat: Record<string, number>;
   crew: { name: string; roles: string[] }[];
@@ -364,7 +366,7 @@ export function SendForm({
           <span className="fl-label-text">Trip time</span>
           <select className="fl-input" value={tripTime} onChange={(e) => setTripTime(e.target.value)}>
             <option value="">No time set</option>
-            {TRIP_TIME_SLOTS.map((slot) => (
+            {tripTimes.map((slot) => (
               <option key={slot} value={slot}>
                 {formatTripTime(slot)}
               </option>
