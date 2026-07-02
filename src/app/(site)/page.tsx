@@ -168,7 +168,7 @@ function PhoneMock() {
           style={{ height: "22px", width: "auto", maxWidth: "72%", margin: "0 auto", display: "block", objectFit: "contain" }}
         />
         <div style={{ fontSize: "11px", color: "rgba(255,255,255,.78)", marginTop: "8px" }}>
-          Your 6:54 AM trip with Captain Slater
+          Your 9:00 AM trip with Captain Slater
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", padding: "12px 14px 8px" }}>
