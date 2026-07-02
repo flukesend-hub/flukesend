@@ -6,8 +6,11 @@
 */
 import "server-only";
 
+// On success, ids are the Resend email ids in send order (one for a single
+// send, one per message for a batch). The webhook uses them to report what
+// happened to each email after we hand it off.
 export type SendResult =
-  | { status: "sent" }
+  | { status: "sent"; ids: (string | null)[] }
   | { status: "skipped" }
   | { status: "error"; error: string };
 
@@ -67,7 +70,17 @@ async function postResend(
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        return { status: "sent" };
+        // Single send responds { id }, batch responds { data: [{ id }, ...] }
+        // in message order. Ids are best effort; a parse failure never turns
+        // a delivered send into an error.
+        let ids: (string | null)[] = [];
+        try {
+          const json = (await res.json()) as { id?: string; data?: { id?: string }[] };
+          ids = json.data ? json.data.map((d) => d.id ?? null) : [json.id ?? null];
+        } catch {
+          ids = [];
+        }
+        return { status: "sent", ids };
       }
       const text = await res.text();
       lastError = `${res.status} ${text.slice(0, 200)}`;
@@ -122,7 +135,7 @@ export async function sendEmailBatch(
     return { status: "skipped" };
   }
   if (!emails.length) {
-    return { status: "sent" };
+    return { status: "sent", ids: [] };
   }
   const payload = emails.map((e) => {
     const item: Record<string, unknown> = {

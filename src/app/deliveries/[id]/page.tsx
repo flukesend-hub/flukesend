@@ -56,7 +56,10 @@ export default async function DeliveryPage({
         .order("sort_order", { ascending: true })
         .limit(1)
         .maybeSingle(),
-      supabase.from("recipients").select("id, email, token, review_email_status").eq("delivery_id", id),
+      supabase
+        .from("recipients")
+        .select("id, email, token, review_email_status, email_status")
+        .eq("delivery_id", id),
     ]);
   if (!delivery) {
     notFound();
@@ -207,7 +210,7 @@ export default async function DeliveryPage({
                     id={r.id}
                     email={r.email}
                     galleryUrl={`${baseUrl}/g/${r.token}`}
-                    status={recipientStatus(r.review_email_status, ev?.download ?? false, ev?.open ?? false)}
+                    status={recipientStatus(r.review_email_status, ev?.download ?? false, ev?.open ?? false, r.email_status)}
                   />
                 );
               })}
