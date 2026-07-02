@@ -65,7 +65,7 @@ export function BrandingForm({
             <input
               name="logo"
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              accept="image/png,image/jpeg,image/webp"
               onChange={onLogoChange}
               style={{ display: "none" }}
             />

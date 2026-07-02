@@ -11,7 +11,13 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") ?? "/send";
+  // Only relative paths: "next" rides in from the email link, and anything
+  // like "//evil.com" or ".evil.com" would turn this redirect into a phishing
+  // hop right after a successful password reset.
+  const nextRaw = url.searchParams.get("next") ?? "/send";
+  const next = nextRaw.startsWith("/") && !nextRaw.startsWith("//") && !nextRaw.startsWith("/\\")
+    ? nextRaw
+    : "/send";
   // Prefer the forwarded host so redirects land on the public domain, not an
   // internal Vercel URL.
   const proto = request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "");

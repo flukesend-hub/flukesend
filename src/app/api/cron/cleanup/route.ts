@@ -15,6 +15,7 @@
   (an empty reference set must mean genuinely empty, not a failed query), and
   ?dry=1 reports what would be deleted without deleting anything.
 */
+import { cronAuthorized } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 300;
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
   if (!secret) {
     return new Response("Cron secret not configured", { status: 503 });
   }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!cronAuthorized(request, secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
   const dry = new URL(request.url).searchParams.get("dry") === "1";
