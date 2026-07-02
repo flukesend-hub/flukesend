@@ -21,7 +21,7 @@ const OPERATORS: Op[] = [
   {
     name: "Enocean Tours",
     place: "Moss Landing, CA",
-    line: "Morning humpback and orca trips on Monterey Bay.",
+    line: "Premium 6 passenger vessel out of Moss Landing, CA.",
     color: "#0c1a21",
     logo: "/operators/enocean-tours.jpg",
     site: "https://www.enoceantours.com/",
@@ -40,7 +40,7 @@ export default function OperatorsPage() {
   return (
     <main>
       <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "56px 24px 20px", textAlign: "center" }}>
-        <h1 style={hero}>The crews on Flukesend</h1>
+        <h1 style={hero}>Operators who Flukesend</h1>
         <p style={lede}>
           These operators deliver their guests&apos; photos and grow their
           reviews with Flukesend, every trip.
@@ -67,9 +67,6 @@ export default function OperatorsPage() {
             </div>
           ))}
         </div>
-        <p style={{ textAlign: "center", fontSize: "13px", color: "#a3aba6", marginTop: "22px" }}>
-          Both crews sail Monterey Bay. Yours could be next.
-        </p>
       </section>
 
       <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "30px 24px 70px", textAlign: "center" }}>
