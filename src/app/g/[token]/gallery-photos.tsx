@@ -112,8 +112,21 @@ export function GalleryPhotos({
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-        {photos.map((p) => (
-          <div key={p.id} style={{ ...card, backgroundImage: `url(${p.url})` }}>
+        {photos.map((p, i) => (
+          <div key={p.id} style={card}>
+            {/* Real img tags so the grid can lazy load: only the first few
+                render up front, the rest as the guest scrolls, so a ten photo
+                gallery paints fast instead of pulling every full size photo at
+                once. The first row is eager so the top of the gallery is
+                instant. Download stays full resolution via the arrow. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={p.url}
+              alt=""
+              loading={i < 2 ? "eager" : "lazy"}
+              decoding="async"
+              style={tileImg}
+            />
             <a
               href={downloadUrl(p.id)}
               onClick={() => setDownloaded(true)}
@@ -195,8 +208,14 @@ const card: React.CSSProperties = {
   borderRadius: "11px",
   overflow: "hidden",
   background: "#e7e2d8",
-  backgroundSize: "cover",
-  backgroundPosition: "center",
+};
+const tileImg: React.CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+  display: "block",
 };
 const dlBtn: React.CSSProperties = {
   position: "absolute",
