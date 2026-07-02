@@ -15,6 +15,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin";
 import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
+import {
+  createSenderDomain,
+  checkSenderDomain,
+  removeSenderDomain,
+} from "@/lib/sender-domain";
 
 export type AdminState = { error?: string; ok?: string } | undefined;
 
@@ -96,4 +101,44 @@ export async function adminUpdateBranding(
   revalidatePath(`/admin/operators/${operatorId}`);
   revalidatePath("/admin");
   return { ok: "Branding saved." };
+}
+
+// ---- White label sender domain, concierge mode ----
+// Admin sets up any operator's domain regardless of tier: comping is a
+// support decision, same as setPlan. The operator-facing self serve flow is
+// deliberately not exposed; the first Fleet customers get walked through it.
+
+export async function adminCreateSenderDomain(
+  operatorId: string,
+  domain: string,
+): Promise<AdminState> {
+  await requireAdmin();
+  const res = await createSenderDomain(operatorId, domain);
+  if ("error" in res) {
+    return { error: res.error };
+  }
+  revalidatePath(`/admin/operators/${operatorId}`);
+  return { ok: "Domain created. Send the directions, then check verification." };
+}
+
+export async function adminCheckSenderDomain(operatorId: string): Promise<AdminState> {
+  await requireAdmin();
+  const res = await checkSenderDomain(operatorId);
+  if ("error" in res) {
+    return { error: res.error };
+  }
+  revalidatePath(`/admin/operators/${operatorId}`);
+  return res.status === "verified"
+    ? { ok: "Verified. Their guest email now sends from their domain." }
+    : { ok: "Not verified yet. DNS can take a while to spread." };
+}
+
+export async function adminRemoveSenderDomain(operatorId: string): Promise<AdminState> {
+  await requireAdmin();
+  const res = await removeSenderDomain(operatorId);
+  if ("error" in res) {
+    return { error: res.error };
+  }
+  revalidatePath(`/admin/operators/${operatorId}`);
+  return { ok: "Domain removed. Their email sends from flukesend.com again." };
 }

@@ -17,10 +17,6 @@ import { RosterList } from "./roster-list";
 import { CrewRoster } from "./crew-roster";
 import { CaptureQr } from "./qr-cards";
 import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
-import { SenderDomainForm } from "./sender-domain-form";
-import { getSenderDomain } from "@/lib/sender-domain";
-import { getPlan } from "@/lib/trial";
-import { PLANS } from "@/lib/plans";
 
 export default async function SettingsPage() {
   const { supabase, operatorId, operatorName } = await requireOperator();
@@ -28,7 +24,7 @@ export default async function SettingsPage() {
   // Independent reads all fire at once; the page waits for the slowest one,
   // not the sum. The capture link is the one lazy-creating call and is safe
   // to run alongside the reads.
-  const [{ data: branding }, { data: links }, { data: boats }, { data: crew }, captureToken, hdrs, senderDomain, planInfo] =
+  const [{ data: branding }, { data: links }, { data: boats }, { data: crew }, captureToken, hdrs] =
     await Promise.all([
       supabase
         .from("branding")
@@ -55,10 +51,7 @@ export default async function SettingsPage() {
       // One standing, operator wide capture link, rendered as a single QR.
       getOperatorCaptureToken(operatorId),
       headers(),
-      getSenderDomain(operatorId),
-      getPlan(supabase, operatorId),
     ]);
-  const whiteLabelAllowed = PLANS[planInfo.tier].whiteLabel;
   const host = hdrs.get("host");
   const proto = hdrs.get("x-forwarded-proto") ?? "https";
   const baseUrl = host ? `${proto}://${host}` : "";
@@ -163,23 +156,6 @@ export default async function SettingsPage() {
               <ReviewLinks links={links ?? []} />
             </SettingsSection>
 
-            <SettingsSection
-              title="Send from your own domain"
-              summary={
-                senderDomain?.status === "verified"
-                  ? `Guest email sends as photos@${senderDomain.domain}`
-                  : senderDomain
-                    ? `${senderDomain.domain}: DNS records pending`
-                    : "Guest email sends from flukesend.com"
-              }
-              chip={
-                senderDomain?.status === "verified"
-                  ? doneChip
-                  : { label: whiteLabelAllowed ? "Optional" : "Fleet", tone: "muted" }
-              }
-            >
-              <SenderDomainForm senderDomain={senderDomain} allowed={whiteLabelAllowed} />
-            </SettingsSection>
 
             <SettingsSection
               title="Boats and employees"

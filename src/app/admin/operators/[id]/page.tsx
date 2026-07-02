@@ -5,7 +5,9 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSenderDomain } from "@/lib/sender-domain";
 import { BrandingEditor } from "./branding-editor";
+import { SenderDomainPanel } from "./sender-domain-panel";
 
 export default async function AdminOperatorPage({
   params,
@@ -23,13 +25,16 @@ export default async function AdminOperatorPage({
     .maybeSingle();
   if (!operator) notFound();
 
-  const { data: b } = await admin
-    .from("branding")
-    .select(
-      "logo_url, brand_color, default_message, retention_days, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
-    )
-    .eq("operator_id", id)
-    .maybeSingle();
+  const [{ data: b }, senderDomain] = await Promise.all([
+    admin
+      .from("branding")
+      .select(
+        "logo_url, brand_color, default_message, retention_days, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      )
+      .eq("operator_id", id)
+      .maybeSingle(),
+    getSenderDomain(id),
+  ]);
 
   return (
     <main style={{ padding: "28px", maxWidth: "820px", margin: "0 auto" }}>
@@ -53,6 +58,11 @@ export default async function AdminOperatorPage({
           youtube_url: b?.youtube_url ?? null,
           x_url: b?.x_url ?? null,
         }}
+      />
+      <SenderDomainPanel
+        operatorId={operator.id}
+        operatorName={operator.name}
+        senderDomain={senderDomain}
       />
     </main>
   );
