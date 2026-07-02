@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Fraunces } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 // Inter for the interface, Fraunces for the warm display headings. These match
@@ -50,7 +51,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${fraunces.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Anonymous, cookieless page view counting (Vercel Web Analytics).
+            Only reports from production deployments. */}
+        <Analytics />
+      </body>
     </html>
   );
 }
