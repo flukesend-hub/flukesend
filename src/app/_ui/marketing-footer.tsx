@@ -13,6 +13,7 @@ export function MarketingFooter() {
         </div>
         <nav style={{ display: "flex", gap: "18px", flexWrap: "wrap", fontSize: "13.5px", color: "#5f6b68" }}>
           <Link href="/pricing">Pricing</Link>
+          <Link href="/operators">Operators</Link>
           <Link href="/login">Log in</Link>
         </nav>
         <div style={{ fontSize: "13px", color: "#8a938f", width: "100%", textAlign: "center", paddingTop: "8px" }}>
