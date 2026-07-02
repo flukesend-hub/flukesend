@@ -9,7 +9,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const MAX_LOGO_BYTES = 5 * 1024 * 1024;
-export const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+// No SVG: the branding bucket is public and an SVG can carry scripts, which
+// would be stored XSS on the storage origin. Raster formats only.
+export const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 export type LogoUploadResult =
   | { ok: true; logoUrl: string | null }
@@ -25,7 +27,7 @@ export async function uploadOperatorLogo(
     return { ok: true, logoUrl: null };
   }
   if (!LOGO_TYPES.includes(file.type)) {
-    return { ok: false, error: "Logo must be a PNG, JPG, WEBP, or SVG." };
+    return { ok: false, error: "Logo must be a PNG, JPG, or WEBP." };
   }
   if (file.size > MAX_LOGO_BYTES) {
     return { ok: false, error: "Logo must be under 5 MB." };
@@ -39,8 +41,7 @@ export async function uploadOperatorLogo(
       .remove(existing.map((f) => `${operatorId}/${f.name}`));
   }
 
-  const ext = file.type === "image/svg+xml" ? "svg" : file.type.split("/")[1];
-  const path = `${operatorId}/logo.${ext}`;
+  const path = `${operatorId}/logo.${file.type.split("/")[1]}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
   const { error: upErr } = await admin.storage
     .from("branding")

@@ -74,6 +74,22 @@ export async function signUploads(
 ): Promise<SignResult> {
   const { operatorId } = await resolveOperator();
 
+  // Gate storage the same way the send itself is gated. Without this, a
+  // canceled or exhausted account could mint signed URLs in a loop and park
+  // unlimited bytes in the bucket without ever creating a send. The orphan
+  // cleanup would eventually sweep them, but there is no reason to hold the
+  // door open. createSend re-checks the same limits with exact counts.
+  const usage = await getTrialUsage(await createClient(), operatorId);
+  if (usage.status === "canceled") {
+    return { error: "This account has no active plan. Choose a plan to keep sending." };
+  }
+  if (
+    usage.status !== "active" &&
+    (usage.transfers >= TRIAL_TRANSFERS || usage.emails >= TRIAL_EMAILS)
+  ) {
+    return { error: "Your free trial is used up. Upgrade to keep sending." };
+  }
+
   if (!files.length) {
     return { error: "Add at least one photo." };
   }

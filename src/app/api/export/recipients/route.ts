@@ -31,8 +31,12 @@ type Contact = {
 
 // Wrap a field for CSV: always quote, and double any embedded quotes. Quoting
 // every field keeps commas, line breaks, and stray quotes in names safe.
+// Fields starting with = + - @ get a leading apostrophe: guests type their
+// own emails on the public QR form, and Excel would otherwise execute a
+// crafted address as a formula when the operator opens the export.
 function csvField(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
 function isoDate(ts: string): string {

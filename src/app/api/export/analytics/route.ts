@@ -10,8 +10,11 @@ import { getDeliveryRows } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
+// Fields starting with = + - @ get a leading apostrophe so Excel never
+// executes a crafted value as a formula.
 function csvField(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
 function isoDate(ts: string): string {

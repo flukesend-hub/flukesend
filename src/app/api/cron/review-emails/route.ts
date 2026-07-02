@@ -11,6 +11,7 @@
   sending or mutating anything. Once a domain is verified those same recipients
   send for real.
 */
+import { cronAuthorized } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildReviewEmail,
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
   if (!secret) {
     return new Response("CRON_SECRET not set", { status: 503 });
   }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!cronAuthorized(request, secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
