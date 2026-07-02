@@ -47,6 +47,7 @@ const TIERS: Tier[] = [
     features: [
       "Up to 50 emails per send",
       "500 emails a month",
+      "Expiring-soon reminders recover missed downloads",
       "Unlimited boats",
       "Full analytics: trends, boats, photographers, CSV",
       `Everything in ${PLANS.single.displayName}`,
