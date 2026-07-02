@@ -27,6 +27,8 @@ export type Plan = {
   video: boolean;
   // Send guest email from the operator's own domain (photos@theirs.com).
   whiteLabel: boolean;
+  // Automatic expiring-soon nudge to guests who have not downloaded.
+  expiryReminder: boolean;
 };
 
 export const PLANS: Record<PlanKey, Plan> = {
@@ -39,6 +41,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     analytics: "basic",
     video: false,
     whiteLabel: false,
+    expiryReminder: false,
   },
   two: {
     key: "two",
@@ -49,6 +52,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     analytics: "full",
     video: false,
     whiteLabel: false,
+    expiryReminder: true,
   },
   fleet: {
     key: "fleet",
@@ -59,6 +63,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     analytics: "full",
     video: true,
     whiteLabel: true,
+    expiryReminder: true,
   },
 };
 
