@@ -625,7 +625,7 @@ export function SendForm({
               Send to {allValid.length} {allValid.length === 1 ? "guest" : "guests"}
             </button>
             <span style={{ fontSize: "12px", color: "var(--muted-2)" }}>
-              review asks schedule for this evening
+              review asks go out as guests download
             </span>
           </div>
         </div>

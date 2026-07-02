@@ -39,7 +39,7 @@ const FAQ: QA[] = [
   },
   {
     q: "When does the review email go out?",
-    a: "Automatically, a few hours after a guest downloads their photos. The download is the trigger, so the ask always lands warm.",
+    a: "The moment a guest downloads their photos. The download is the trigger, so the ask lands while the trip is still fresh in their mind.",
   },
   {
     q: "Can I pay yearly?",

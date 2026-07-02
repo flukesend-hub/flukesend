@@ -13,8 +13,10 @@
   Public, keyed by the recipient token like the per photo route. Writes the
   downloaded event once (the review ask trigger) unless preview=1.
 */
+import { after } from "next/server";
 import { getGalleryByToken, isExpired } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendReviewAskAfterDownload } from "@/lib/review-ask";
 
 export const maxDuration = 120;
 
@@ -213,6 +215,8 @@ export async function GET(
         `zip download event insert failed for recipient ${data.recipient.id}: ${evErr.message}`,
       );
     }
+    const origin = new URL(request.url).origin;
+    after(() => sendReviewAskAfterDownload(data.recipient.id, origin));
   }
 
   const names = entryNames(photos);

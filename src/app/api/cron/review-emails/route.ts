@@ -1,8 +1,10 @@
 /*
-  Nightly review email job. Vercel Cron calls this on an evening cadence. It
-  finds recipients who downloaded their photos, are still pending, and are past
-  the delay window, sends each the operator's branded review ask, and flips the
-  status to sent so nothing double fires.
+  Review email sweep. The ask now goes out instantly on download
+  (lib/review-ask.ts); this job is the safety net that retries failed sends
+  and picks up guests whose operator added review links after the download.
+  It finds recipients who downloaded, are still pending, and are past the
+  delay window, sends each the branded ask, and flips the status to sent so
+  nothing double fires.
 
   Until Resend is wired (no API key yet) the send is skipped and the recipient
   stays pending, so this is safe to schedule now: it reports who is due without
@@ -14,6 +16,7 @@ import {
   buildReviewEmail,
   reviewDelayCutoffISO,
   sendReviewEmail,
+  tripLine,
 } from "@/lib/review-email";
 import { type SocialLinks } from "@/lib/social";
 
@@ -26,23 +29,6 @@ type OperatorContext = {
   replyTo: string | null;
   social: SocialLinks;
 };
-
-function tripLine(d: {
-  trip_datetime: string | null;
-  species: string[] | null;
-  captain_name: string | null;
-}) {
-  const parts: string[] = [];
-  if (d.trip_datetime) {
-    parts.push(
-      new Date(d.trip_datetime).toLocaleDateString("en-US", { dateStyle: "long" }),
-    );
-  }
-  if (d.captain_name) parts.push(`with Captain ${d.captain_name}`);
-  let line = parts.join(" ");
-  if (d.species?.length) line += (line ? ". " : "") + d.species.join(", ");
-  return line;
-}
 
 export async function GET(request: Request) {
   // Vercel Cron sends Authorization: Bearer <CRON_SECRET> when the env var is

@@ -5,8 +5,10 @@
   the old Gmail script workaround. Public, keyed by the recipient token, served
   with the service role since guests have no session.
 */
+import { after } from "next/server";
 import { getGalleryByToken, isExpired } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendReviewAskAfterDownload } from "@/lib/review-ask";
 
 export async function GET(
   request: Request,
@@ -60,6 +62,10 @@ export async function GET(
         `download event insert failed for recipient ${data.recipient.id}: ${evErr.message}`,
       );
     }
+    // The instant review ask, after the file is served so the download is
+    // never slowed. Idempotent inside, so ten photo taps send one email.
+    const origin = new URL(request.url).origin;
+    after(() => sendReviewAskAfterDownload(data.recipient.id, origin));
   }
 
   const filename = (photo.filename ?? "photo").replace(/["\r\n]/g, "");
@@ -99,6 +105,8 @@ export async function POST(
         `share download event insert failed for recipient ${data.recipient.id}: ${error.message}`,
       );
     }
+    const origin = new URL(request.url).origin;
+    after(() => sendReviewAskAfterDownload(data.recipient.id, origin));
   }
   return new Response(null, { status: 204 });
 }

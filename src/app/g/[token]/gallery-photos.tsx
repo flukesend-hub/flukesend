@@ -180,8 +180,8 @@ export function GalleryPhotos({
         <div style={{ marginTop: "18px", borderTop: "1px solid #e7e0d4", paddingTop: "16px", display: "flex", alignItems: "center", gap: "11px" }}>
           <span style={{ ...clock, borderColor: brand, color: brand }}>⏳</span>
           <span style={{ fontSize: "13px", color: "#46555a" }}>
-            Saved. We will send you a quick note this evening in case you want to
-            share how the trip went.
+            Saved. We just sent you a quick note in case you want to share how
+            the trip went.
           </span>
         </div>
       ) : null}
