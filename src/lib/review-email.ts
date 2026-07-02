@@ -10,15 +10,33 @@ import { escapeHtml, sendEmail, operatorFromAddress } from "@/lib/email";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
 
-// How long after a download we wait before asking for a review. Set to 0 so the
-// job asks every guest who has downloaded since the last run, with no hold back.
-// The cron runs twice a day (14:00 and 03:00 UTC, which is 7 AM and 8 PM Pacific
-// in summer), so a guest gets their ask at the next 7 AM or 8 PM after they
-// download. Raise this if a gap after the download is wanted again.
+// How long after a download the nightly sweep waits before asking. The ask now
+// goes out immediately on download (lib/review-ask.ts); the cron is the safety
+// net that retries failed sends and catches operators who added review links
+// after their guests downloaded. Zero keeps the sweep immediate too.
 export const REVIEW_DELAY_HOURS = 0;
 
 export function reviewDelayCutoffISO(now: number = Date.now()) {
   return new Date(now - REVIEW_DELAY_HOURS * 60 * 60 * 1000).toISOString();
+}
+
+// The one line trip summary used in the review email, shared by the instant
+// ask and the nightly sweep.
+export function tripLine(d: {
+  trip_datetime: string | null;
+  species: string[] | null;
+  captain_name: string | null;
+}): string {
+  const parts: string[] = [];
+  if (d.trip_datetime) {
+    parts.push(
+      new Date(d.trip_datetime).toLocaleDateString("en-US", { dateStyle: "long" }),
+    );
+  }
+  if (d.captain_name) parts.push(`with Captain ${d.captain_name}`);
+  let line = parts.join(" ");
+  if (d.species?.length) line += (line ? ". " : "") + d.species.join(", ");
+  return line;
 }
 
 export type ReviewEmailInput = {

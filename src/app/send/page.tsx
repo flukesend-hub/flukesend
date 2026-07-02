@@ -86,7 +86,7 @@ export default async function SendPage() {
         </h1>
         <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "62ch", margin: 0 }}>
           Fill the trip, drop the photos, paste the guest emails. Each guest gets
-          their own gallery link and their own review ask later this evening.
+          their own gallery link and their own review ask when they download.
         </p>
 
         {!reviewLinkCount ? (

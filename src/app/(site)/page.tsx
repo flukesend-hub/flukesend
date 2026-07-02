@@ -71,7 +71,7 @@ export default async function LandingPage() {
           />
           <Feature
             title="The download is the trigger"
-            body="The evening after a guest saves their photos, they get a warm, branded ask to leave a review. Automatically, with one tap buttons straight to your review pages."
+            body="The moment a guest saves their photos, they get a warm, branded ask to leave a review. Automatically, with one tap buttons straight to your review pages."
           />
           <Feature
             title="Built for sharing"
@@ -127,7 +127,7 @@ export default async function LandingPage() {
             <Step n="1" title="Guests scan aboard" body="Your printed QR collects each guest's email on deck, tied to the boat and the trip time." />
             <Step n="2" title="Send from home" body="Pick the trip, drop the edited photos in, and the QR sign-ups load themselves. Ship it." />
             <Step n="3" title="Photos land in Photos" body="Guests open their branded gallery and save every shot straight to their camera roll in one tap." />
-            <Step n="4" title="Reviews roll in" body="The review ask goes out that evening, branded as you, one tap from Google." />
+            <Step n="4" title="Reviews roll in" body="The review ask arrives the moment they download, branded as you, one tap from Google." />
           </div>
         </div>
       </section>
