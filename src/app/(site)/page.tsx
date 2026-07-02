@@ -62,7 +62,7 @@ export default async function LandingPage() {
       <section style={{ background: "#fff", borderTop: "1px solid #ece7dd", borderBottom: "1px solid #ece7dd" }}>
         <div style={{ maxWidth: "1080px", margin: "0 auto", padding: "54px 24px" }}>
           <h2 style={h2}>How it works</h2>
-          <div style={grid3}>
+          <div style={grid4}>
             <Step n="1" title="Guests scan aboard" body="Your printed QR collects each guest's email on deck, tied to the boat and the trip time." />
             <Step n="2" title="Send from home" body="Pick the trip, drop the edited photos in, and the QR sign-ups load themselves. Ship it." />
             <Step n="3" title="Photos land in Photos" body="Guests open their branded gallery and save every shot straight to their camera roll in one tap." />
@@ -159,10 +159,14 @@ function PhoneMock() {
   return (
     <div style={phone} aria-hidden="true">
       <div style={{ padding: "18px 16px 4px", textAlign: "center" }}>
-        <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 600, fontSize: "16px", color: "#10221f" }}>
-          Enocean Tours
-        </div>
-        <div style={{ fontSize: "11px", color: "#6b7a7d", marginTop: "3px" }}>
+        {/* The operator's real logo, same as the real gallery header */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/operators/enocean-tours.jpg"
+          alt=""
+          style={{ height: "34px", width: "auto", margin: "0 auto", display: "block" }}
+        />
+        <div style={{ fontSize: "11px", color: "#6b7a7d", marginTop: "6px" }}>
           Your 6:54 AM trip with Captain Slater
         </div>
       </div>
@@ -265,6 +269,12 @@ const h2: React.CSSProperties = {
 const grid3: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: "18px",
+};
+// Tighter minimum so all four steps share one row on a desktop screen.
+const grid4: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: "18px",
 };
 const card: React.CSSProperties = {
