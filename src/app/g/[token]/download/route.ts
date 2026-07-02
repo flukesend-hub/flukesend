@@ -1,9 +1,14 @@
 /*
   Photo download. This is the moment the whole product hangs on: the click both
-  streams the file to the guest and writes a downloaded event. That event is the
-  trigger the nightly job reads to send the review ask, which is what deletes
-  the old Gmail script workaround. Public, keyed by the recipient token, served
+  writes a downloaded event and hands the guest their file. That event is the
+  trigger the review ask reads. Public, keyed by the recipient token, served
   with the service role since guests have no session.
+
+  The bytes do not pass through this function: we write the event, then 302 to
+  a short lived signed storage URL so the photo streams straight from Supabase
+  to the guest. That keeps download bandwidth off the serverless function
+  entirely (no double egress, no function time), which is what keeps the cost
+  flat as operator count grows.
 */
 import { after } from "next/server";
 import { getGalleryByToken, isExpired } from "@/lib/gallery";
@@ -43,16 +48,19 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const { data: blob, error } = await admin.storage
+  // Signed URL that makes the browser save the file under its real name. Short
+  // lived: the guest is redirected to it immediately.
+  const filename = (photo.filename ?? "photo").replace(/["\r\n\\]/g, "");
+  const { data: signed, error } = await admin.storage
     .from("photos")
-    .download(photo.storage_key);
-  if (error || !blob) {
+    .createSignedUrl(photo.storage_key, 120, { download: filename });
+  if (error || !signed?.signedUrl) {
     return new Response("Download failed", { status: 500 });
   }
 
-  // The trigger. Recorded after the file is in hand so we only log real
-  // downloads. The nightly job keys off review_email_status, so logging on
-  // every photo download is fine and never double sends.
+  // The trigger, written on the click. The review ask keys off
+  // review_email_status, so logging every photo download is fine and never
+  // double sends.
   if (!preview) {
     const { error: evErr } = await admin
       .from("events")
@@ -62,19 +70,17 @@ export async function GET(
         `download event insert failed for recipient ${data.recipient.id}: ${evErr.message}`,
       );
     }
-    // The instant review ask, after the file is served so the download is
-    // never slowed. Idempotent inside, so ten photo taps send one email.
+    // The instant review ask, after the response so the redirect is never
+    // slowed. Idempotent inside, so ten photo taps send one email.
     const origin = new URL(request.url).origin;
     after(() => sendReviewAskAfterDownload(data.recipient.id, origin));
   }
 
-  const filename = (photo.filename ?? "photo").replace(/["\r\n]/g, "");
-  return new Response(blob, {
-    headers: {
-      "content-type": blob.type || "application/octet-stream",
-      "content-disposition": `attachment; filename="${filename}"`,
-      "cache-control": "private, no-store",
-    },
+  // Straight to Supabase for the bytes. no-store so the redirect itself is
+  // never cached (the signed URL expires).
+  return new Response(null, {
+    status: 302,
+    headers: { location: signed.signedUrl, "cache-control": "private, no-store" },
   });
 }
 
