@@ -15,6 +15,9 @@ type Op = {
   color: string;
   logo: string;
   site: string;
+  // A real guest's Google review excerpt. Guests raving about the photos is
+  // the strongest proof this page can carry; keep excerpts faithful.
+  quote: string;
 };
 
 const OPERATORS: Op[] = [
@@ -25,6 +28,8 @@ const OPERATORS: Op[] = [
     color: "#0c1a21",
     logo: "/operators/enocean-tours.jpg",
     site: "https://www.enoceantours.com/",
+    quote:
+      "They included a photo package of everything we saw, which was such an unexpected and thoughtful bonus... having professional photos to look back on makes it even better.",
   },
   {
     name: "Princess Whale Watching",
@@ -33,6 +38,8 @@ const OPERATORS: Op[] = [
     color: "#2c2f6d",
     logo: "/operators/princess-whale-watching.png",
     site: "https://montereywhalewatching.com/",
+    quote:
+      "A professional photographer was on board taking photos of the whales and shared them with everyone on board for free!",
   },
 ];
 
@@ -63,6 +70,13 @@ export default function OperatorsPage() {
                 <a href={op.site} target="_blank" rel="noopener noreferrer" style={siteLink}>
                   {op.site.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, "")}
                 </a>
+                <figure style={quoteBox}>
+                  <div style={stars} aria-label="5 star review">
+                    {"★★★★★"}
+                  </div>
+                  <blockquote style={quoteText}>&ldquo;{op.quote}&rdquo;</blockquote>
+                  <figcaption style={quoteWho}>Guest review on Google</figcaption>
+                </figure>
               </div>
             </div>
           ))}
@@ -118,6 +132,32 @@ const logoImg: React.CSSProperties = {
   height: "84px",
   maxWidth: "100%",
   objectFit: "contain",
+};
+const quoteBox: React.CSSProperties = {
+  margin: "18px 0 0",
+  padding: "14px 16px",
+  borderRadius: "12px",
+  background: "#faf8f4",
+  border: "1px solid #ece7dd",
+  textAlign: "left",
+};
+const stars: React.CSSProperties = {
+  color: "#d7a831",
+  fontSize: "13px",
+  letterSpacing: "2px",
+  marginBottom: "6px",
+};
+const quoteText: React.CSSProperties = {
+  margin: 0,
+  fontSize: "13.5px",
+  lineHeight: 1.6,
+  color: "#3a4744",
+  fontStyle: "italic",
+};
+const quoteWho: React.CSSProperties = {
+  marginTop: "8px",
+  fontSize: "12px",
+  color: "#8a938f",
 };
 const siteLink: React.CSSProperties = {
   display: "inline-block",
