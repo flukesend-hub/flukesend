@@ -1,8 +1,9 @@
 /*
-  Public landing page. What Flukesend is: branded photo delivery for whale watch
-  operators with an automatic review engine baked in, and QR self capture so the
-  guest emails collect themselves on deck. The QR shown in the capture section
-  is real and points at the site, so a curious visitor can scan it.
+  Public landing page. Deliberately spare: one idea per section, said once.
+  What it is (hero plus a phone mock built from real demo gallery photos),
+  how it works (four steps), why it matters (three cards), the QR trick, one
+  real guest quote, go. The QR shown in the capture section is real and
+  points at the site, so a curious visitor can scan it.
 */
 import Link from "next/link";
 import QRCode from "qrcode";
@@ -19,42 +20,59 @@ export default async function LandingPage() {
   });
   return (
     <main>
-      {/* Hero */}
-      <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "60px 24px 40px", textAlign: "center" }}>
-        <div style={eyebrow}>For whale watch operators</div>
-        <h1 style={hero}>
-          Branded photo galleries
-          <br />
-          that turn into reviews
-        </h1>
-        <p style={lede}>
-          Flukesend delivers your guests their whale watch photos in a gallery
-          that looks like you, then quietly asks for a review the moment they
-          download. Even the guest emails collect themselves, scanned in by QR
-          on deck.
-        </p>
-        <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginTop: "26px" }}>
-          <Link href="/login" style={primaryBtn}>
-            Start free
-          </Link>
-          {/* A real gallery on a demo tenant: same code path guests use, so
-              the sample IS the product, not a mockup. */}
-          <a
-            href="/g/a87749e6e13e507e88e17e07f80e4782"
-            target="_blank"
-            rel="noreferrer"
-            style={secondaryBtn}
-          >
-            See a sample gallery
-          </a>
+      {/* Hero: pitch on the left, the guest's phone on the right */}
+      <section style={heroWrap}>
+        <div style={{ flex: "1 1 420px", minWidth: 0 }}>
+          <div style={eyebrow}>For whale watch operators</div>
+          <h1 style={hero}>
+            Branded photo galleries
+            <br />
+            that turn into reviews
+          </h1>
+          <p style={lede}>
+            Flukesend delivers your guests their whale watch photos in a
+            gallery that looks like you, then quietly asks for a review the
+            moment they download. No apps, no logins, nothing for a guest to
+            install.
+          </p>
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "26px" }}>
+            <Link href="/login" style={primaryBtn}>
+              Start free
+            </Link>
+            {/* A real gallery on a demo tenant: same code path guests use, so
+                the sample IS the product, not a mockup. */}
+            <a
+              href="/g/a87749e6e13e507e88e17e07f80e4782"
+              target="_blank"
+              rel="noreferrer"
+              style={secondaryBtn}
+            >
+              See a sample gallery
+            </a>
+          </div>
+          <p style={{ fontSize: "13px", color: "#8a938f", marginTop: "14px" }}>
+            Your first 3 transfers or 30 guest emails are free. No card required.
+          </p>
         </div>
-        <p style={{ fontSize: "13px", color: "#8a938f", marginTop: "14px" }}>
-          Your first 3 transfers or 30 guest emails are free. No card required.
-        </p>
+        <PhoneMock />
       </section>
 
-      {/* Value props */}
-      <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "30px 24px 50px" }}>
+      {/* How it works: for a skeptical captain, these four steps ARE the
+          explanation, so they come right after the hero. */}
+      <section style={{ background: "#fff", borderTop: "1px solid #ece7dd", borderBottom: "1px solid #ece7dd" }}>
+        <div style={{ maxWidth: "1080px", margin: "0 auto", padding: "54px 24px" }}>
+          <h2 style={h2}>How it works</h2>
+          <div style={grid3}>
+            <Step n="1" title="Guests scan aboard" body="Your printed QR collects each guest's email on deck, tied to the boat and the trip time." />
+            <Step n="2" title="Send from home" body="Pick the trip, drop the edited photos in, and the QR sign-ups load themselves. Ship it." />
+            <Step n="3" title="Photos land in Photos" body="Guests open their branded gallery and save every shot straight to their camera roll in one tap." />
+            <Step n="4" title="Reviews roll in" body="The review ask arrives the moment they download, branded as you, one tap from Google." />
+          </div>
+        </div>
+      </section>
+
+      {/* Why it matters, once each */}
+      <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "54px 24px 50px" }}>
         <h2 style={{ ...h2, marginBottom: "8px" }}>More than delivery</h2>
         <p style={{ textAlign: "center", color: "#5f6b68", fontSize: "15.5px", margin: "0 auto 26px", maxWidth: "52ch" }}>
           The photos make the trip better. The trip makes the reviews. The
@@ -63,33 +81,21 @@ export default async function LandingPage() {
         <div style={grid3}>
           <Feature
             title="Part of the trip you sell"
-            body="Guests go home with professional shots of their own whale, waiting in their inbox that evening. The trip does not end at the dock, and a better ending is a better memory."
+            body="Guests go home with professional shots of their own whale, in a gallery in your colors and your logo. Easy to save, easy to text the whole family, easy to remember you by."
           />
           <Feature
-            title="Branded, not a file dump"
-            body="Every guest opens a gallery in your colors and your logo, with the trip written as warm copy. It looks like your operation, not a generic link."
-          />
-          <Feature
-            title="The download is the trigger"
-            body="The moment a guest saves their photos, they get a warm, branded ask to leave a review. Automatically, with one tap buttons straight to your review pages."
-          />
-          <Feature
-            title="Built for sharing"
-            body="A gallery link is easy to text to the whole family. Friends who were not aboard see your brand wrapped around photos worth booking a trip for."
+            title="Downloads become reviews"
+            body="The moment a guest saves their photos, they get a warm, branded ask with one tap buttons to your review pages. Analytics show every step, from guest reached to review clicked."
           />
           <Feature
             title="Repeat customers, built in"
-            body="Every send grows a clean list of past guests, yours to keep and export. Drop it into your newsletter and next season's announcement reaches everyone who sailed with you this year."
-          />
-          <Feature
-            title="Proof it is working"
-            body="Analytics show the whole funnel for every send: guests reached, galleries opened, photos saved, review links clicked. By boat and by photographer."
+            body="Every send grows a clean list of past guests, yours to keep and export. Next season's announcement reaches everyone who sailed with you this year."
           />
         </div>
       </section>
 
       {/* QR capture */}
-      <section style={{ background: "#fff", borderTop: "1px solid #ece7dd", borderBottom: "1px solid #ece7dd" }}>
+      <section>
         <div style={qrSection}>
           <div style={{ flex: "1 1 380px" }}>
             <div style={eyebrow}>On the boat</div>
@@ -119,22 +125,22 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* How it works */}
-      <section>
-        <div style={{ maxWidth: "1080px", margin: "0 auto", padding: "54px 24px" }}>
-          <h2 style={h2}>How it works</h2>
-          <div style={grid3}>
-            <Step n="1" title="Guests scan aboard" body="Your printed QR collects each guest's email on deck, tied to the boat and the trip time." />
-            <Step n="2" title="Send from home" body="Pick the trip, drop the edited photos in, and the QR sign-ups load themselves. Ship it." />
-            <Step n="3" title="Photos land in Photos" body="Guests open their branded gallery and save every shot straight to their camera roll in one tap." />
-            <Step n="4" title="Reviews roll in" body="The review ask arrives the moment they download, branded as you, one tap from Google." />
+      {/* One real quote, then go */}
+      <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "10px 24px 64px", textAlign: "center" }}>
+        <figure style={quoteBox}>
+          <div style={stars} aria-label="5 star review">
+            {"★★★★★"}
           </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "60px 24px", textAlign: "center" }}>
-        <h2 style={{ ...h2, marginBottom: "10px" }}>Turn this season&apos;s trips into reviews</h2>
+          <blockquote style={quoteText}>
+            &ldquo;They included a photo package of everything we saw, which
+            was such an unexpected and thoughtful bonus... having professional
+            photos to look back on makes it even better.&rdquo;
+          </blockquote>
+          <figcaption style={quoteWho}>
+            Guest review on Google, the day after a Flukesend send
+          </figcaption>
+        </figure>
+        <h2 style={{ ...h2, margin: "42px 0 10px" }}>Turn this season&apos;s trips into reviews</h2>
         <p style={{ color: "#5f6b68", fontSize: "16px", margin: "0 auto 22px", maxWidth: "44ch" }}>
           Set up your branding once. Every send after that looks like you and
           builds your reputation.
@@ -144,6 +150,37 @@ export default async function LandingPage() {
         </Link>
       </section>
     </main>
+  );
+}
+
+// The guest's phone, drawn with the demo gallery's real photos and the real
+// gallery layout language (light theme, serif operator name, save button).
+function PhoneMock() {
+  return (
+    <div style={phone} aria-hidden="true">
+      <div style={{ padding: "18px 16px 4px", textAlign: "center" }}>
+        <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 600, fontSize: "16px", color: "#10221f" }}>
+          Enocean Tours
+        </div>
+        <div style={{ fontSize: "11px", color: "#6b7a7d", marginTop: "3px" }}>
+          Your 6:54 AM trip with Captain Slater
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", padding: "12px 14px 8px" }}>
+        {[1, 2, 3, 4].map((i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={`/marketing/gallery-${i}.jpg`}
+            alt=""
+            style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: "9px", display: "block" }}
+          />
+        ))}
+      </div>
+      <div style={{ padding: "4px 14px 18px" }}>
+        <div style={mockSave}>Save all to Photos</div>
+      </div>
+    </div>
   );
 }
 
@@ -166,6 +203,33 @@ function Step({ n, title, body }: { n: string; title: string; body: string }) {
   );
 }
 
+const heroWrap: React.CSSProperties = {
+  maxWidth: "1080px",
+  margin: "0 auto",
+  padding: "56px 24px 50px",
+  display: "flex",
+  alignItems: "center",
+  gap: "48px",
+  flexWrap: "wrap",
+  justifyContent: "center",
+};
+const phone: React.CSSProperties = {
+  flex: "0 0 auto",
+  width: "252px",
+  borderRadius: "30px",
+  border: "1px solid #e3ddd0",
+  background: "#faf8f4",
+  boxShadow: "0 18px 44px rgba(16,34,31,.12)",
+};
+const mockSave: React.CSSProperties = {
+  background: "#0c1a21",
+  color: "#fff",
+  fontSize: "12.5px",
+  fontWeight: 600,
+  textAlign: "center",
+  padding: "10px",
+  borderRadius: "11px",
+};
 const eyebrow: React.CSSProperties = {
   fontSize: "12px",
   letterSpacing: "0.16em",
@@ -176,7 +240,7 @@ const eyebrow: React.CSSProperties = {
 const hero: React.CSSProperties = {
   fontFamily: "var(--font-fraunces), serif",
   fontWeight: 600,
-  fontSize: "clamp(34px, 6vw, 60px)",
+  fontSize: "clamp(34px, 5vw, 54px)",
   lineHeight: 1.05,
   letterSpacing: "-0.02em",
   margin: "14px 0 0",
@@ -186,8 +250,8 @@ const lede: React.CSSProperties = {
   fontSize: "17px",
   lineHeight: 1.6,
   color: "#3a4744",
-  maxWidth: "56ch",
-  margin: "18px auto 0",
+  maxWidth: "52ch",
+  margin: "18px 0 0",
 };
 const h2: React.CSSProperties = {
   fontFamily: "var(--font-fraunces), serif",
@@ -234,7 +298,7 @@ const primaryBtn: React.CSSProperties = {
 const qrSection: React.CSSProperties = {
   maxWidth: "1080px",
   margin: "0 auto",
-  padding: "54px 24px",
+  padding: "10px 24px 54px",
   display: "flex",
   gap: "44px",
   alignItems: "center",
@@ -265,6 +329,34 @@ const qrImg: React.CSSProperties = {
   borderRadius: "18px",
   border: "1px solid #ece7dd",
   boxShadow: "0 10px 30px rgba(16,34,31,.08)",
+};
+const quoteBox: React.CSSProperties = {
+  display: "inline-block",
+  maxWidth: "560px",
+  margin: "0 auto",
+  padding: "20px 24px",
+  borderRadius: "14px",
+  background: "#fff",
+  border: "1px solid #ece7dd",
+  textAlign: "left",
+};
+const stars: React.CSSProperties = {
+  color: "#d7a831",
+  fontSize: "13px",
+  letterSpacing: "2px",
+  marginBottom: "8px",
+};
+const quoteText: React.CSSProperties = {
+  margin: 0,
+  fontSize: "14.5px",
+  lineHeight: 1.65,
+  color: "#3a4744",
+  fontStyle: "italic",
+};
+const quoteWho: React.CSSProperties = {
+  marginTop: "10px",
+  fontSize: "12px",
+  color: "#8a938f",
 };
 const secondaryBtn: React.CSSProperties = {
   fontSize: "15px",
