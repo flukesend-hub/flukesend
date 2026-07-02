@@ -86,13 +86,16 @@ export default async function GalleryPage({
           </div>
         ) : null}
         <div style={{ background: brand, color: "#fff", padding: "32px 26px 28px" }}>
-          <div className="fl-display" style={{ fontSize: "20px", letterSpacing: ".02em", opacity: 0.96 }}>
-            {operator.name}
-          </div>
+          {/* The logo already carries the operator name, so show one or the
+              other: the logo when set, the name in type as the fallback. */}
           {branding?.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logo_url} alt={operator.name} style={{ height: "40px", marginTop: "10px" }} />
-          ) : null}
+            <img src={branding.logo_url} alt={operator.name} style={{ height: "40px" }} />
+          ) : (
+            <div className="fl-display" style={{ fontSize: "20px", letterSpacing: ".02em", opacity: 0.96 }}>
+              {operator.name}
+            </div>
+          )}
           <div className="fl-display" style={{ fontWeight: 500, fontSize: "26px", lineHeight: 1.2, margin: "16px 0 8px", maxWidth: "18ch" }}>
             {title}
           </div>
