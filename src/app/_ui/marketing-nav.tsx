@@ -6,9 +6,13 @@ import Link from "next/link";
 export function MarketingNav() {
   return (
     <header style={wrap}>
-      <Link href="/" style={brand}>
-        <span style={dot} />
-        Flukesend
+      <Link href="/" style={brand} aria-label="Flukesend home">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/flukesend-wordmark-black.png"
+          alt="Flukesend"
+          style={{ height: "30px", width: "auto", display: "block" }}
+        />
       </Link>
       <nav style={links}>
         <Link href="/pricing" style={link}>
@@ -41,18 +45,6 @@ const wrap: React.CSSProperties = {
 const brand: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: "9px",
-  fontFamily: "var(--font-fraunces), serif",
-  fontWeight: 600,
-  fontSize: "19px",
-  color: "#10221f",
-};
-const dot: React.CSSProperties = {
-  width: 9,
-  height: 9,
-  borderRadius: "50%",
-  background: "#3f7a4d",
-  boxShadow: "0 0 10px rgba(63,122,77,.6)",
 };
 const links: React.CSSProperties = { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" };
 const link: React.CSSProperties = {
