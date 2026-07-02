@@ -1,54 +1,83 @@
 /*
-  Public operators showcase: the real crews running Flukesend, with their real
-  logos (snapshotted into public/operators so this page never depends on live
-  branding files). Linked from the nav and footer and sent in outreach emails,
-  so keep it honest: no fictional operators, no invented numbers.
+  Public operators showcase. The mock is meant to look like the real product,
+  so each card pulls the operator's live branding straight from their settings:
+  their name, brand color (the panel behind the logo, exactly the color that
+  fills their real gallery header), logo, and website. The only curated copy is
+  the one line tagline and a real guest review excerpt.
+
+  Adding a future operator: drop their id and a tagline into SHOWCASE, gather a
+  five star guest review to quote, and the branding renders itself. Read
+  through the service role admin client (server only) because this public page
+  has no operator session; only public fields (name, brand color, public logo
+  url, website) are exposed.
 */
 import Link from "next/link";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Operators - Flukesend" };
+// Re-read branding at most hourly so a logo or color change shows up without
+// a redeploy, while keeping this off the database on every visit.
+export const revalidate = 3600;
 
-type Op = {
-  name: string;
+type Showcase = {
+  operatorId: string;
   place: string;
   line: string;
-  color: string;
-  logo: string;
-  // Backing the logo sits on. Enocean's mark is white so it needs a dark
-  // panel; Princess's is dark on light so it needs a light one.
-  logoBg: string;
-  site: string;
   // A real guest's Google review excerpt. Guests raving about the photos is
   // the strongest proof this page can carry; keep excerpts faithful.
   quote: string;
 };
 
-const OPERATORS: Op[] = [
+const SHOWCASE: Showcase[] = [
   {
-    name: "Enocean Tours",
+    operatorId: "0d2fb4e9-32e9-45e7-97e9-dba4f4ef90b9",
     place: "Moss Landing, CA",
     line: "Premium 6 passenger vessel out of Moss Landing, CA.",
-    color: "#0c1a21",
-    logo: "/operators/enocean-tours-white.png",
-    logoBg: "#0c1a21",
-    site: "https://www.enoceantours.com/",
     quote:
       "They included a photo package of everything we saw, which was such an unexpected and thoughtful bonus... having professional photos to look back on makes it even better.",
   },
   {
-    name: "Princess Whale Watching",
+    operatorId: "dbb9e0a2-594c-483b-b8f4-f84952f87581",
     place: "Monterey, CA",
     line: "Year-round whale watching out of Monterey's Old Fisherman's Wharf.",
-    color: "#2c2f6d",
-    logo: "/operators/princess-whale-watching.png",
-    logoBg: "#ffffff",
-    site: "https://montereywhalewatching.com/",
     quote:
       "A professional photographer was on board taking photos of the whales and shared them with everyone on board for free!",
   },
 ];
 
-export default function OperatorsPage() {
+type Card = Showcase & {
+  name: string;
+  brandColor: string;
+  logo: string;
+  site: string | null;
+};
+
+async function loadCards(): Promise<Card[]> {
+  const admin = createAdminClient();
+  const ids = SHOWCASE.map((s) => s.operatorId);
+  const [{ data: ops }, { data: brands }] = await Promise.all([
+    admin.from("operators").select("id, name").in("id", ids),
+    admin.from("branding").select("operator_id, brand_color, logo_url, website_url").in("operator_id", ids),
+  ]);
+  const opById = new Map((ops ?? []).map((o) => [o.id as string, o]));
+  const brandById = new Map((brands ?? []).map((b) => [b.operator_id as string, b]));
+
+  return SHOWCASE.map((s) => {
+    const op = opById.get(s.operatorId);
+    const b = brandById.get(s.operatorId);
+    return {
+      ...s,
+      name: (op?.name as string) ?? "",
+      brandColor: (b?.brand_color as string) ?? "#0c1a21",
+      logo: (b?.logo_url as string) ?? "",
+      site: (b?.website_url as string) ?? null,
+    };
+  }).filter((c) => c.name && c.logo);
+}
+
+export default async function OperatorsPage() {
+  const cards = await loadCards();
+
   return (
     <main>
       <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "56px 24px 20px", textAlign: "center" }}>
@@ -61,19 +90,23 @@ export default function OperatorsPage() {
 
       <section style={{ maxWidth: "760px", margin: "0 auto", padding: "20px 24px 30px" }}>
         <div style={grid}>
-          {OPERATORS.map((op) => (
-            <div key={op.name} style={card}>
-              <div style={{ ...logoPanel, background: op.logoBg }}>
+          {cards.map((op) => (
+            <div key={op.operatorId} style={card}>
+              {/* The operator's real brand color, the same fill as their live
+                  gallery header, with their real logo on it. */}
+              <div style={{ ...logoPanel, background: op.brandColor }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={op.logo} alt={`${op.name} logo`} style={logoImg} />
               </div>
-              <div style={{ padding: "0 22px 24px", textAlign: "center" }}>
+              <div style={{ padding: "20px 22px 24px", textAlign: "center" }}>
                 <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#10221f" }}>{op.name}</h3>
                 <div style={{ fontSize: "13px", color: "#8a938f", margin: "3px 0 10px" }}>{op.place}</div>
                 <p style={{ margin: 0, fontSize: "14.5px", lineHeight: 1.6, color: "#5f6b68" }}>{op.line}</p>
-                <a href={op.site} target="_blank" rel="noopener noreferrer" style={siteLink}>
-                  {op.site.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, "")}
-                </a>
+                {op.site ? (
+                  <a href={op.site} target="_blank" rel="noopener noreferrer" style={siteLink}>
+                    {op.site.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                  </a>
+                ) : null}
                 <figure style={quoteBox}>
                   <div style={stars} aria-label="5 star review">
                     {"★★★★★"}
@@ -131,12 +164,20 @@ const logoPanel: React.CSSProperties = {
   display: "grid",
   placeItems: "center",
   padding: "22px",
-  borderBottom: "1px solid #ece7dd",
 };
 const logoImg: React.CSSProperties = {
-  maxHeight: "64px",
-  maxWidth: "82%",
+  maxHeight: "72px",
+  maxWidth: "84%",
   objectFit: "contain",
+};
+const siteLink: React.CSSProperties = {
+  display: "inline-block",
+  marginTop: "12px",
+  fontSize: "13px",
+  fontWeight: 600,
+  color: "#35662f",
+  textDecoration: "underline",
+  textUnderlineOffset: "3px",
 };
 const quoteBox: React.CSSProperties = {
   margin: "18px 0 0",
@@ -163,15 +204,6 @@ const quoteWho: React.CSSProperties = {
   marginTop: "8px",
   fontSize: "12px",
   color: "#8a938f",
-};
-const siteLink: React.CSSProperties = {
-  display: "inline-block",
-  marginTop: "12px",
-  fontSize: "13px",
-  fontWeight: 600,
-  color: "#35662f",
-  textDecoration: "underline",
-  textUnderlineOffset: "3px",
 };
 const primaryBtn: React.CSSProperties = {
   fontSize: "15px",
