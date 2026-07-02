@@ -9,6 +9,7 @@
 */
 import { useEffect, useState } from "react";
 import { formatTripTime } from "@/lib/trip-times";
+import { SOCIAL_PLATFORMS, type SocialLinks } from "@/lib/social";
 import { captureGuest } from "./actions";
 
 export function CaptureForm({
@@ -17,6 +18,7 @@ export function CaptureForm({
   operatorName,
   boats,
   tripTimes,
+  social,
   defaultBoatId,
 }: {
   token: string;
@@ -24,6 +26,7 @@ export function CaptureForm({
   operatorName: string;
   boats: { id: string; name: string }[];
   tripTimes: string[];
+  social: SocialLinks;
   defaultBoatId: string;
 }) {
   const [boatId, setBoatId] = useState(defaultBoatId || (boats.length === 1 ? boats[0].id : ""));
@@ -68,6 +71,8 @@ export function CaptureForm({
   }
 
   if (done) {
+    const socialLinks = SOCIAL_PLATFORMS.map((p) => ({ p, url: social[p.column] }))
+      .filter((x): x is { p: (typeof SOCIAL_PLATFORMS)[number]; url: string } => Boolean(x.url));
     return (
       <div style={{ background: "#fff", border: "1px solid #e7e0d4", borderRadius: "14px", padding: "26px 22px", textAlign: "center" }}>
         <div style={{ fontSize: "34px", lineHeight: 1 }} aria-hidden="true">
@@ -78,6 +83,21 @@ export function CaptureForm({
           {operatorName} will email your photos after the trip. If you do not
           see them, check your spam or junk folder. You can close this page.
         </p>
+        {socialLinks.length ? (
+          <div style={{ marginTop: "20px", paddingTop: "18px", borderTop: "1px solid #eee5d8" }}>
+            <div style={{ fontSize: "12.5px", color: "#8a938f", marginBottom: "12px" }}>
+              Follow {operatorName}
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: "16px", flexWrap: "wrap" }}>
+              {socialLinks.map(({ p, url }) => (
+                <a key={p.key} href={url} target="_blank" rel="noopener noreferrer" aria-label={p.label}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/email/social/${p.key}.png`} alt={p.label} width={26} height={26} style={{ display: "block", opacity: 0.8 }} />
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }

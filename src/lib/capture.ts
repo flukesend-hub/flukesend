@@ -10,6 +10,7 @@ import "server-only";
 import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tripTimesFor } from "@/lib/trip-times";
+import { type SocialLinks } from "@/lib/social";
 
 export type CaptureContext = {
   link: { id: string; operator_id: string; boat_id: string | null };
@@ -18,6 +19,9 @@ export type CaptureContext = {
   // The operator's chosen departure times, so the guest only sees trips that
   // really sail. Empty means show every slot (not yet configured).
   tripTimes: string[];
+  // The operator's website and social links, shown after the guest signs up so
+  // the QR scan becomes a follow.
+  social: SocialLinks;
   boatName: string | null;
   // The operator's boats, so the guest can pick which one they were on. The
   // scanned link's boat, if any, is the default.
@@ -46,7 +50,9 @@ export async function getCaptureByToken(token: string): Promise<CaptureContext |
 
   const { data: branding } = await admin
     .from("branding")
-    .select("logo_url, brand_color, default_message, trip_times")
+    .select(
+      "logo_url, brand_color, default_message, trip_times, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+    )
     .eq("operator_id", link.operator_id)
     .maybeSingle();
 
@@ -65,6 +71,14 @@ export async function getCaptureByToken(token: string): Promise<CaptureContext |
     operator: operator ?? { id: link.operator_id, name: "Operator" },
     branding: branding ?? null,
     tripTimes: tripTimesFor((branding?.trip_times as string[] | null) ?? null),
+    social: {
+      website_url: branding?.website_url ?? null,
+      facebook_url: branding?.facebook_url ?? null,
+      instagram_url: branding?.instagram_url ?? null,
+      tiktok_url: branding?.tiktok_url ?? null,
+      youtube_url: branding?.youtube_url ?? null,
+      x_url: branding?.x_url ?? null,
+    },
     boatName,
     boats: boatList,
   };
