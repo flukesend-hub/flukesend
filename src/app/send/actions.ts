@@ -15,7 +15,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEmail, sendEmailBatch, operatorFromAddress, type BatchEmail } from "@/lib/email";
+import { sendEmail, sendEmailBatch, type BatchEmail } from "@/lib/email";
+import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { getTrialUsage, getPlan, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
@@ -361,7 +362,7 @@ export async function createSend(
   let emailed = 0;
   const failed: string[] = [];
   if (baseUrl) {
-    const deliveryFrom = operatorFromAddress(operator?.name ?? "your crew");
+    const deliveryFrom = await resolveFromAddress(operatorId, operator?.name ?? "your crew");
     const deliveryReplyTo = branding?.reply_to_email ?? null;
     const messages: BatchEmail[] = recipients.map((r) => {
       const { subject, html } = buildDeliveryEmail({

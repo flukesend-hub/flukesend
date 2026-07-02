@@ -6,7 +6,7 @@
   on and is deliberately not in this email yet.
 */
 import "server-only";
-import { escapeHtml, sendEmail, operatorFromAddress } from "@/lib/email";
+import { escapeHtml, sendEmail } from "@/lib/email";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
 
@@ -93,12 +93,14 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   return { subject, html };
 }
 
+// from is the full From header, resolved by the caller (white label domain
+// when the operator has one verified, shared flukesend.com sender otherwise).
 export async function sendReviewEmail(
   to: string,
   subject: string,
   html: string,
-  operatorName: string,
+  from: string,
   replyTo?: string | null,
 ) {
-  return sendEmail(to, subject, html, operatorFromAddress(operatorName), replyTo);
+  return sendEmail(to, subject, html, from, replyTo);
 }

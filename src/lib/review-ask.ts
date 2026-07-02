@@ -12,6 +12,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildReviewEmail, sendReviewEmail, tripLine } from "@/lib/review-email";
+import { resolveFromAddress } from "@/lib/sender-domain";
 
 export async function sendReviewAskAfterDownload(
   recipientId: string,
@@ -91,11 +92,15 @@ export async function sendReviewAskAfterDownload(
     },
   });
 
+  const from = await resolveFromAddress(
+    delivery.operator_id as string,
+    operator?.name ?? "your crew",
+  );
   const result = await sendReviewEmail(
     r.email as string,
     subject,
     html,
-    operator?.name ?? "your crew",
+    from,
     branding?.reply_to_email ?? null,
   );
   if (result.status === "sent" && result.ids[0]) {

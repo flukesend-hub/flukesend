@@ -16,6 +16,13 @@ import { isCrewRole } from "@/lib/roles";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
 import { normalizeSpecies } from "@/lib/species";
 import { TRIP_TIME_SLOTS } from "@/lib/trip-times";
+import { getPlan } from "@/lib/trial";
+import { PLANS } from "@/lib/plans";
+import {
+  createSenderDomain,
+  checkSenderDomain,
+  removeSenderDomain,
+} from "@/lib/sender-domain";
 
 export type SettingsState =
   | { error?: string; ok?: string; upgrade?: boolean }
@@ -311,4 +318,55 @@ export async function addCrew(_prev: SettingsState, formData: FormData) {
 }
 export async function deleteCrew(formData: FormData) {
   return deleteNamed("crew_members", formData);
+}
+
+// ---- White label sending domain (Fleet) ----
+// All three call the Resend API through lib/sender-domain. Gated on the plan
+// flag so PLANS stays the single source of truth for who gets this.
+
+async function whiteLabelOperator(): Promise<string | null> {
+  const { supabase, operatorId } = await resolveOperator();
+  const plan = PLANS[(await getPlan(supabase, operatorId)).tier];
+  return plan.whiteLabel ? operatorId : null;
+}
+
+export async function setupSenderDomain(domain: string): Promise<SettingsState> {
+  const operatorId = await whiteLabelOperator();
+  if (!operatorId) {
+    return { error: "Sending from your own domain is a Fleet plan feature." };
+  }
+  const res = await createSenderDomain(operatorId, domain);
+  if ("error" in res) {
+    return { error: res.error };
+  }
+  revalidatePath("/settings");
+  return { ok: "Domain added. Put the DNS records below into your DNS host, then check verification." };
+}
+
+export async function refreshSenderDomain(): Promise<SettingsState> {
+  const operatorId = await whiteLabelOperator();
+  if (!operatorId) {
+    return { error: "Sending from your own domain is a Fleet plan feature." };
+  }
+  const res = await checkSenderDomain(operatorId);
+  if ("error" in res) {
+    return { error: res.error };
+  }
+  revalidatePath("/settings");
+  return res.status === "verified"
+    ? { ok: "Verified. Your guest email now sends from your domain." }
+    : { ok: "Not verified yet. DNS changes can take a little while to spread." };
+}
+
+export async function removeSenderDomainAction(): Promise<SettingsState> {
+  const operatorId = await whiteLabelOperator();
+  if (!operatorId) {
+    return { error: "Sending from your own domain is a Fleet plan feature." };
+  }
+  const res = await removeSenderDomain(operatorId);
+  if ("error" in res) {
+    return { error: res.error };
+  }
+  revalidatePath("/settings");
+  return { ok: "Domain removed. Guest email sends from flukesend.com again." };
 }

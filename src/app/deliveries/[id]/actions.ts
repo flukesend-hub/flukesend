@@ -9,7 +9,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEmail, operatorFromAddress } from "@/lib/email";
+import { sendEmail } from "@/lib/email";
+import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { getTrialUsage, getPlan, TRIAL_EMAILS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
@@ -244,7 +245,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     r.email,
     subject,
     html,
-    operatorFromAddress(operator?.name ?? "your crew"),
+    await resolveFromAddress(d.operator_id as string, operator?.name ?? "your crew"),
     branding?.reply_to_email ?? null,
   );
   if (result.status === "sent") {
