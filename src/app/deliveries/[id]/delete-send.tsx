@@ -2,18 +2,26 @@
 
 /*
   The delete control on the send detail page. Two step: the quiet link arms a
-  confirm row that spells out what deleting means before anything happens. On
+  confirm row that spells out what deleting means before anything happens, and
+  the delete button stays disabled until the operator types DELETE. That typed
+  word is the safety net against a stray tap doing something permanent. On
   success the server action redirects to /send.
 */
 import { useState } from "react";
 import { deleteDelivery } from "./actions";
 
+const CONFIRM_WORD = "delete";
+
 export function DeleteSend({ deliveryId }: { deliveryId: string }) {
   const [confirming, setConfirming] = useState(false);
+  const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const matches = typed.trim().toLowerCase() === CONFIRM_WORD;
+
   async function run() {
+    if (!matches) return;
     setBusy(true);
     setError(null);
     const res = await deleteDelivery(deliveryId);
@@ -33,13 +41,31 @@ export function DeleteSend({ deliveryId }: { deliveryId: string }) {
             working, the photos are removed from storage, and it disappears
             from your analytics. This cannot be undone.
           </p>
+          <label style={{ display: "block", marginTop: "12px" }}>
+            <span className="fl-label-text" style={{ display: "block", marginBottom: "6px" }}>
+              Type DELETE to confirm
+            </span>
+            <input
+              autoFocus
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && matches) run();
+              }}
+              placeholder="DELETE"
+              autoComplete="off"
+              className="fl-input"
+              style={{ maxWidth: "180px", fontSize: "13.5px", padding: "7px 10px" }}
+            />
+          </label>
           <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
-            <button onClick={run} disabled={busy} style={dangerBtn}>
+            <button onClick={run} disabled={busy || !matches} style={dangerBtn(matches)}>
               {busy ? "Deleting..." : "Yes, delete it"}
             </button>
             <button
               onClick={() => {
                 setConfirming(false);
+                setTyped("");
                 setError(null);
               }}
               disabled={busy}
@@ -79,7 +105,7 @@ const confirmBox: React.CSSProperties = {
   borderRadius: "12px",
   padding: "12px 14px",
 };
-const dangerBtn: React.CSSProperties = {
+const dangerBtn = (enabled: boolean): React.CSSProperties => ({
   font: "inherit",
   fontSize: "13px",
   fontWeight: 600,
@@ -88,5 +114,6 @@ const dangerBtn: React.CSSProperties = {
   border: "none",
   borderRadius: "9px",
   padding: "8px 14px",
-  cursor: "pointer",
-};
+  cursor: enabled ? "pointer" : "not-allowed",
+  opacity: enabled ? 1 : 0.45,
+});
