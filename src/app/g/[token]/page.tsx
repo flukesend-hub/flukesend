@@ -56,7 +56,12 @@ export default async function GalleryPage({
           keys.map((k) =>
             admin.storage
               .from("photos")
-              .createSignedUrl(k, 3600, { transform: { width: 800, quality: 70 } }),
+              // contain with both dimensions scales proportionally to fit an
+              // 800 box. Width only leaves the height at the original and
+              // squishes the image, so both are required.
+              .createSignedUrl(k, 3600, {
+                transform: { width: 800, height: 800, resize: "contain", quality: 70 },
+              }),
           ),
         ),
       ]);
