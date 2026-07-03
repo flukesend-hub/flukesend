@@ -143,7 +143,7 @@ export function CaptureForm({
         />
       </label>
       <label style={{ ...label, marginBottom: "18px" }}>
-        <span style={labelText}>Your name (optional)</span>
+        <span style={labelText}>Your first name</span>
         <input
           type="text"
           value={name}
