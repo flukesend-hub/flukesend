@@ -375,6 +375,7 @@ export async function createSend(
         operatorName: operator?.name ?? "your crew",
         brandColor: branding?.brand_color ?? "#0b5563",
         logoUrl: branding?.logo_url ?? null,
+        retentionDays,
         recipientName: null,
         tripDate: formatTripDate(input.tripDatetime),
         captainName: input.captainName,

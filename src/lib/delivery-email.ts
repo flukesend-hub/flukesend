@@ -25,6 +25,8 @@ export type DeliveryEmailInput = {
   species: string[];
   message: string;
   galleryUrl: string;
+  // How long the gallery stays up, so the email can set the expectation.
+  retentionDays: number;
   social: SocialLinks;
 };
 
@@ -119,6 +121,11 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
                     </td>
                   </tr>
                 </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px 28px 0;text-align:center">
+                <p style="font-size:12.5px;line-height:1.5;color:#8ba4ac;margin:0">Your gallery is up for ${input.retentionDays} days. Save your photos to your phone while they are there.</p>
               </td>
             </tr>
             <tr>
