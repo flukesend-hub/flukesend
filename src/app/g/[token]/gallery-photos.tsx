@@ -94,7 +94,7 @@ export function GalleryPhotos({
       setSave({ phase: "ready", files });
     } catch {
       setSave(null);
-      setNote("Could not fetch the photos here. Try the zip download below, or reload the page.");
+      setNote("Could not get the photos ready here.");
     }
   }
 
@@ -116,7 +116,7 @@ export function GalleryPhotos({
         return;
       }
       setSave(null);
-      setNote("Sharing did not work here. Use the zip download below instead.");
+      setNote("Sharing did not work here.");
     }
   }
 
@@ -186,18 +186,16 @@ export function GalleryPhotos({
         )}
       </div>
 
-      {shareable ? (
-        <div style={{ marginTop: "8px", textAlign: "right" }}>
+      {/* Zip is a fallback, not a standing option: it only appears if the
+          Save to Photos flow actually fails, so the normal case is one button.
+          It still logs the download event through the zip route. */}
+      {note ? (
+        <div style={{ marginTop: "10px", textAlign: "right" }}>
+          <p style={{ fontSize: "12.5px", color: "#a04435", margin: "0 0 5px" }}>{note}</p>
           <a href={zipUrl} onClick={() => setDownloaded(true)} style={zipLink}>
-            or download everything as a zip
+            Download everything as a zip instead
           </a>
         </div>
-      ) : null}
-
-      {note ? (
-        <p style={{ fontSize: "12.5px", color: "#a04435", margin: "10px 0 0", textAlign: "right" }}>
-          {note}
-        </p>
       ) : null}
 
       {downloaded ? (
