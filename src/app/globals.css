@@ -373,3 +373,11 @@ input[type="color"]::-webkit-color-swatch {
     animation: none !important;
   }
 }
+
+/* Gentle reveal for the save confirmation and its review buttons in the
+   guest gallery: fades and slides down when the guest saves their photos. */
+@keyframes fl-reveal {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fl-reveal { animation: fl-reveal 0.45s ease both; }

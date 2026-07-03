@@ -35,9 +35,24 @@ export default async function GalleryPage({
   const message = delivery.custom_message || branding?.default_message || "";
   const expired = isExpired(delivery.expires_at);
 
+  const admin = createAdminClient();
+
+  // The operator's review links, as tracked hrefs through /review so a tap
+  // from the gallery logs a review_clicked event just like the email buttons.
+  // Rendered in the save confirmation, so guests can review at the peak moment
+  // right after they save their photos.
+  const { data: reviewRows } = await admin
+    .from("review_destinations")
+    .select("id, label, sort_order")
+    .eq("operator_id", delivery.operator_id)
+    .order("sort_order", { ascending: true });
+  const reviewLinks = (reviewRows ?? []).map((l) => ({
+    label: l.label as string,
+    href: `/g/${token}/review?d=${l.id}`,
+  }));
+
   let photos: { id: string; name: string; url: string; thumbUrl: string; size: number }[] = [];
   if (!expired) {
-    const admin = createAdminClient();
     const { data: rows } = await admin
       .from("photos")
       .select("id, storage_key, filename, size, sort_order")
@@ -146,6 +161,7 @@ export default async function GalleryPage({
               brand={brand}
               retentionDays={retentionDaysLeft(delivery.expires_at)}
               photos={photos}
+              reviewLinks={reviewLinks}
               preview={preview}
             />
           ) : (
