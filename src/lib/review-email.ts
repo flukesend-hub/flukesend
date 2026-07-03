@@ -55,7 +55,10 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   subject: string;
   html: string;
 } {
-  const subject = `How was your trip with ${input.operatorName}?`;
+  // Gratitude first, no operator name (the sender already shows it) and no
+  // survey framing, so it reads as a warm note rather than a review demand.
+  // That lifts opens, which is where the funnel leaks most.
+  const subject = "Thanks for spending the day on the water with us";
   const brand = escapeHtml(input.brandColor);
   const name = escapeHtml(input.operatorName);
 
