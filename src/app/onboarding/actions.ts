@@ -47,10 +47,10 @@ export async function createOperator(
   const retentionDays = Number.isFinite(retentionRaw)
     ? Math.trunc(retentionRaw)
     : NaN;
-  // The setup form offers 1, 3, or 7 days. The DB enforces a 1 to 10 floor/ceiling
+  // The setup form offers 3, 5, or 7 days. The DB enforces a 3 to 10 floor/ceiling
   // on the base plan too; we check here for a friendly message.
-  if (![1, 3, 7].includes(retentionDays)) {
-    return { error: "Pick 1, 3, or 7 days of retention." };
+  if (![3, 5, 7].includes(retentionDays)) {
+    return { error: "Pick 3, 5, or 7 days of retention." };
   }
 
   const admin = createAdminClient();

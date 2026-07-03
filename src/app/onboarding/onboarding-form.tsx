@@ -17,7 +17,7 @@ export function OnboardingForm() {
     undefined,
   );
   const [brand, setBrand] = useState("#0b5563");
-  const [retention, setRetention] = useState(3);
+  const [retention, setRetention] = useState(7);
   const [extended, setExtended] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
@@ -104,7 +104,7 @@ export function OnboardingForm() {
           </p>
           <input type="hidden" name="retention_days" value={retention} />
           <div style={{ display: "flex", gap: "8px" }}>
-            {[1, 3, 7].map((d) => (
+            {[3, 5, 7].map((d) => (
               <button
                 key={d}
                 type="button"
