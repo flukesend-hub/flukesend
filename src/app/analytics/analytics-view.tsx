@@ -77,11 +77,13 @@ export function AnalyticsView({
 // shrinking bars. Each stage shows its count and its share of the stage above,
 // so the leak between any two steps reads without any mental math.
 function FunnelBars({ month }: { month: Funnel }) {
+  // No "Review asks sent" step: the ask fires automatically on download, so it
+  // just echoes the downloaded number and adds no signal. The real guest
+  // journey is four steps across three systems (email, gallery, review).
   const stages = [
     { label: "Guests reached", short: "reached", value: month.reached },
     { label: "Opened the gallery", short: "opened", value: month.opened },
     { label: "Downloaded photos", short: "downloaded", value: month.downloaded },
-    { label: "Review asks sent", short: "asks", value: month.reviewAsks },
     { label: "Clicked a review link", short: "clicks", value: month.reviewClicks },
   ];
   const max = Math.max(1, month.reached);
