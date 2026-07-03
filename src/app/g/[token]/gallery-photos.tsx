@@ -35,12 +35,14 @@ export function GalleryPhotos({
   brand,
   retentionDays,
   photos,
+  reviewLinks,
   preview = false,
 }: {
   token: string;
   brand: string;
   retentionDays: number;
   photos: Photo[];
+  reviewLinks: { label: string; href: string }[];
   preview?: boolean;
 }) {
   const [downloaded, setDownloaded] = useState(false);
@@ -190,12 +192,39 @@ export function GalleryPhotos({
       ) : null}
 
       {downloaded ? (
-        <div style={{ marginTop: "18px", borderTop: "1px solid #e7e0d4", paddingTop: "16px", display: "flex", alignItems: "center", gap: "11px" }}>
-          <span style={{ ...clock, borderColor: brand, color: brand }}>⏳</span>
-          <span style={{ fontSize: "13px", color: "#46555a" }}>
-            Saved. We just sent you a quick note in case you want to share how
-            the trip went.
-          </span>
+        <div className="fl-reveal" style={{ marginTop: "18px", borderTop: "1px solid #e7e0d4", paddingTop: "18px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: reviewLinks.length ? "12px" : "0" }}>
+            <span style={{ ...check, background: brand }}>✓</span>
+            <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#1c2b2e" }}>Saved to your phone.</span>
+          </div>
+          {reviewLinks.length ? (
+            <>
+              <p style={{ fontSize: "13.5px", lineHeight: 1.55, color: "#46555a", margin: "0 0 12px" }}>
+                Loved the trip? A quick review means a lot to a small crew like ours.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {reviewLinks.map((l, i) => (
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={
+                      i === 0
+                        ? { ...reviewBtn, background: brand, color: "#fff" }
+                        : { ...reviewBtn, background: "transparent", color: brand, border: `1px solid ${brand}` }
+                    }
+                  >
+                    {l.label}
+                  </a>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p style={{ fontSize: "13px", color: "#46555a", margin: "0" }}>
+              Thanks for spending the day on the water with us.
+            </p>
+          )}
         </div>
       ) : null}
     </>
@@ -250,13 +279,22 @@ const zipLink: React.CSSProperties = {
   textDecoration: "underline",
   textUnderlineOffset: "3px",
 };
-const clock: React.CSSProperties = {
-  width: "30px",
-  height: "30px",
+const check: React.CSSProperties = {
+  width: "22px",
+  height: "22px",
   borderRadius: "50%",
-  border: "2px solid",
+  color: "#fff",
   display: "grid",
   placeItems: "center",
-  fontSize: "14px",
+  fontSize: "12px",
   flex: "0 0 auto",
+};
+const reviewBtn: React.CSSProperties = {
+  display: "block",
+  textAlign: "center",
+  textDecoration: "none",
+  fontWeight: 600,
+  fontSize: "14px",
+  padding: "13px",
+  borderRadius: "11px",
 };
