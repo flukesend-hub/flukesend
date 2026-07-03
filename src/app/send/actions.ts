@@ -29,7 +29,7 @@ const PHOTO_TYPES = [
   "image/heic",
   "image/heif",
 ];
-const MAX_PHOTO_BYTES = 50 * 1024 * 1024;
+const MAX_PHOTO_BYTES = 100 * 1024 * 1024;
 const MAX_PHOTOS = 200;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -102,7 +102,7 @@ export async function signUploads(
       return { error: `"${f.name}" is not a supported image type.` };
     }
     if (f.size > MAX_PHOTO_BYTES) {
-      return { error: `"${f.name}" is over the 50 MB limit.` };
+      return { error: `"${f.name}" is over the 100 MB limit.` };
     }
   }
 
