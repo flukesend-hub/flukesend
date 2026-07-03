@@ -55,10 +55,10 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   subject: string;
   html: string;
 } {
-  // Gratitude first, no operator name (the sender already shows it) and no
-  // survey framing, so it reads as a warm note rather than a review demand.
-  // That lifts opens, which is where the funnel leaks most.
-  const subject = "Thanks for spending the day on the water with us";
+  // Casual and evocative, like a text from the crew who took them out. Names
+  // the thing they came for, carries a curiosity hook, and does not telegraph
+  // a review request, so it gets opened. Opens are the funnel's biggest leak.
+  const subject = "How about those whales?";
   const brand = escapeHtml(input.brandColor);
   const name = escapeHtml(input.operatorName);
 
