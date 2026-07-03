@@ -35,7 +35,7 @@ export default async function GalleryPage({
   const message = delivery.custom_message || branding?.default_message || "";
   const expired = isExpired(delivery.expires_at);
 
-  let photos: { id: string; name: string; url: string; size: number }[] = [];
+  let photos: { id: string; name: string; url: string; thumbUrl: string; size: number }[] = [];
   if (!expired) {
     const admin = createAdminClient();
     const { data: rows } = await admin
@@ -44,15 +44,32 @@ export default async function GalleryPage({
       .eq("delivery_id", delivery.id)
       .order("sort_order", { ascending: true });
     if (rows?.length) {
-      const { data: signed } = await admin.storage
-        .from("photos")
-        .createSignedUrls(rows.map((r) => r.storage_key), 3600);
-      photos = rows.map((r, i) => ({
-        id: r.id,
-        name: r.filename ?? "photo",
-        url: signed?.[i]?.signedUrl ?? "",
-        size: Number(r.size) || 0,
-      }));
+      const keys = rows.map((r) => r.storage_key);
+      // Full res signed URLs power the actual save and download (guests keep
+      // the originals). The grid renders resized thumbnails instead, so a ten
+      // photo gallery loads a few hundred KB rather than tens of MB. The
+      // transform is a Supabase Pro feature; if it ever fails the grid falls
+      // back to the full image so nothing breaks.
+      const [{ data: full }, thumbs] = await Promise.all([
+        admin.storage.from("photos").createSignedUrls(keys, 3600),
+        Promise.all(
+          keys.map((k) =>
+            admin.storage
+              .from("photos")
+              .createSignedUrl(k, 3600, { transform: { width: 800, quality: 70 } }),
+          ),
+        ),
+      ]);
+      photos = rows.map((r, i) => {
+        const fullUrl = full?.[i]?.signedUrl ?? "";
+        return {
+          id: r.id,
+          name: r.filename ?? "photo",
+          url: fullUrl,
+          thumbUrl: thumbs[i]?.data?.signedUrl ?? fullUrl,
+          size: Number(r.size) || 0,
+        };
+      });
     }
   }
 

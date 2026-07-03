@@ -18,7 +18,7 @@
 */
 import { useEffect, useState } from "react";
 
-type Photo = { id: string; name: string; url: string; size: number };
+type Photo = { id: string; name: string; url: string; thumbUrl: string; size: number };
 
 type SaveState =
   | null
@@ -121,7 +121,7 @@ export function GalleryPhotos({
                 instant. Download stays full resolution via the arrow. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={p.url}
+              src={p.thumbUrl}
               alt=""
               loading={i < 2 ? "eager" : "lazy"}
               decoding="async"
