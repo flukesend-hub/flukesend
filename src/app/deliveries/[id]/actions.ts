@@ -209,7 +209,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
   const { data: branding } = await supabase
     .from("branding")
     .select(
-      "brand_color, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      "retention_days, brand_color, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
     )
     .eq("operator_id", d.operator_id)
     .maybeSingle();
@@ -223,6 +223,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     operatorName: operator?.name ?? "your crew",
     brandColor: branding?.brand_color ?? "#0b5563",
     logoUrl: branding?.logo_url ?? null,
+    retentionDays: (branding?.retention_days as number | null) ?? 7,
     recipientName: null,
     tripDate: formatTripDate(d.trip_datetime),
     captainName: d.captain_name,

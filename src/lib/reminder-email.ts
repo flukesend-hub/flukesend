@@ -27,7 +27,7 @@ export function buildReminderEmail(input: ReminderEmailInput): {
   subject: string;
   html: string;
 } {
-  const subject = `Your photos expire ${input.expiresWhen}`;
+  const subject = "Don't let the whale slip away";
   const brand = escapeHtml(input.brandColor);
   const name = escapeHtml(input.operatorName);
   const url = escapeHtml(input.galleryUrl);
@@ -60,9 +60,9 @@ export function buildReminderEmail(input: ReminderEmailInput): {
             </tr>
             <tr>
               <td style="padding:30px 28px 6px">
-                <h1 style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:#16241f">Your photos expire ${when}</h1>
+                <h1 style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:#16241f">Don't let the whale slip away</h1>
                 <p style="font-size:15px;line-height:1.55;margin:0 0 6px;color:#33464a">${hi}</p>
-                <p style="font-size:15px;line-height:1.55;margin:0 0 8px;color:#33464a">The photos from your trip are still waiting for you. The gallery closes ${when}, so save them to your phone while they are up.</p>
+                <p style="font-size:15px;line-height:1.55;margin:0 0 8px;color:#33464a">The photos from your trip are still waiting, but not for much longer. Your gallery closes ${when}. Make sure to download your photos to your phone before it does.</p>
               </td>
             </tr>
             <tr>
