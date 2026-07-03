@@ -52,9 +52,18 @@ export function GalleryPhotos({
 
   useEffect(() => {
     try {
+      // The share-to-Photos flow (fetch, then tap the share sheet) only makes
+      // sense on a touch-first device saving to its camera roll. Desktops,
+      // including macOS Safari which supports the share API, should get the
+      // one-click zip instead. Gate on a coarse pointer so a Mac trackpad or a
+      // mouse is treated as a desktop and never sees the phone flow.
+      const touchFirst =
+        typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
       const probe = new File([new Uint8Array(1)], "probe.jpg", { type: "image/jpeg" });
       setCanShareFiles(
-        typeof navigator.canShare === "function" && navigator.canShare({ files: [probe] }),
+        touchFirst &&
+          typeof navigator.canShare === "function" &&
+          navigator.canShare({ files: [probe] }),
       );
     } catch {
       setCanShareFiles(false);
