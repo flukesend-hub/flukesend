@@ -55,7 +55,7 @@ export function AnalyticsView({
           </div>
         </>
       ) : (
-        <div className="fl-card" style={{ borderColor: "rgba(63,122,77,.45)", background: "rgba(63,122,77,.10)" }}>
+        <div className="fl-card" style={{ borderColor: "rgba(31,111,156,.45)", background: "rgba(31,111,156,.10)" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: 600 }}>
             See trends and breakdowns
           </h3>

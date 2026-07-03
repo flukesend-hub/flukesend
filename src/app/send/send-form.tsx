@@ -657,8 +657,8 @@ const captureBox: React.CSSProperties = {
   gap: "12px",
   padding: "11px 13px",
   borderRadius: "11px",
-  border: "1px solid rgba(63,122,77,.45)",
-  background: "rgba(63,122,77,.12)",
+  border: "1px solid rgba(31,111,156,.45)",
+  background: "rgba(31,111,156,.12)",
   marginBottom: "12px",
 };
 const dropzone: React.CSSProperties = {
@@ -760,7 +760,7 @@ const crewRow = (on: boolean): React.CSSProperties => ({
   padding: "9px 11px",
   borderRadius: "10px",
   border: `1px solid ${on ? "var(--signal)" : "var(--line)"}`,
-  background: on ? "rgba(63,122,77,.10)" : "var(--ink)",
+  background: on ? "rgba(31,111,156,.10)" : "var(--ink)",
   cursor: "pointer",
 });
 // Species pills are small: the list can be long.
@@ -813,8 +813,8 @@ const chipCaptured: React.CSSProperties = {
   alignItems: "center",
   gap: "6px",
   fontSize: "12.5px",
-  background: "rgba(63,122,77,.14)",
-  border: "1px solid rgba(63,122,77,.45)",
+  background: "rgba(31,111,156,.14)",
+  border: "1px solid rgba(31,111,156,.45)",
   borderRadius: "999px",
   padding: "4px 6px 4px 11px",
   color: "var(--text)",

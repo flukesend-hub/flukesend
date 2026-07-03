@@ -175,7 +175,7 @@ const siteLink: React.CSSProperties = {
   marginTop: "12px",
   fontSize: "13px",
   fontWeight: 600,
-  color: "#35662f",
+  color: "#1c5578",
   textDecoration: "underline",
   textUnderlineOffset: "3px",
 };

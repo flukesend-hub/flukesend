@@ -59,7 +59,7 @@ export default async function LandingPage() {
               href="/g/a87749e6e13e507e88e17e07f80e4782"
               target="_blank"
               rel="noreferrer"
-              style={{ fontSize: "13px", color: "#35662f", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "3px" }}
+              style={{ fontSize: "13px", color: "#1c5578", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "3px" }}
             >
               or see a sample gallery
             </a>
@@ -257,7 +257,7 @@ const eyebrow: React.CSSProperties = {
   fontSize: "12px",
   letterSpacing: "0.16em",
   textTransform: "uppercase",
-  color: "#35662f",
+  color: "#1c5578",
   fontWeight: 600,
 };
 const hero: React.CSSProperties = {
@@ -309,7 +309,7 @@ const stepNum: React.CSSProperties = {
   height: "34px",
   borderRadius: "50%",
   background: "#0c1a21",
-  color: "#3f7a4d",
+  color: "#1f6f9c",
   display: "grid",
   placeItems: "center",
   fontFamily: "var(--font-fraunces), serif",
@@ -348,7 +348,7 @@ const qrItem: React.CSSProperties = {
   color: "#3a4744",
   paddingLeft: "24px",
   backgroundImage:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%233f7a4d' stroke-width='3'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E\")",
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231f6f9c' stroke-width='3'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E\")",
   backgroundRepeat: "no-repeat",
   backgroundPosition: "0 4px",
 };
