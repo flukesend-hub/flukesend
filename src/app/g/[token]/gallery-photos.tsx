@@ -204,7 +204,9 @@ export function GalleryPhotos({
 
 const card: React.CSSProperties = {
   position: "relative",
-  aspectRatio: "1",
+  // Landscape tiles: wildlife photos are wide, so 4:3 shows much more of the
+  // frame than a square would crop away.
+  aspectRatio: "4 / 3",
   borderRadius: "11px",
   overflow: "hidden",
   background: "#e7e2d8",
