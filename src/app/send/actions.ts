@@ -327,16 +327,22 @@ export async function createSend(
   // ask that fires later is downstream and is never metered.
   await incrementRecipientsUsed(operatorId, emails.length);
 
-  // Consume the captured guests that rode along on this trip, scoped to this
-  // operator so a crafted id cannot touch another tenant's rows. Best effort:
-  // the send already exists, so a failure here just means they might reappear.
-  if (input.capturedIds?.length) {
+  // Consume the QR sign-ups this send served. Keyed on the recipient EMAILS,
+  // not just the chips that were auto loaded, so a guest is marked used no
+  // matter how their email got onto the send (auto loaded, pasted by hand, or
+  // a send under a slightly different trip time than they signed up for).
+  // Otherwise a delivered guest keeps reappearing in the QR slot. Both sides
+  // store email lowercased, so the match is exact. Scoped to this operator.
+  // Best effort: the send already exists, so a failure just means they might
+  // reappear until the next send or a manual cleanup.
+  {
     const admin = createAdminClient();
     const { error: cgErr } = await admin
       .from("captured_guests")
       .update({ consumed_at: new Date().toISOString() })
       .eq("operator_id", operatorId)
-      .in("id", input.capturedIds);
+      .is("consumed_at", null)
+      .in("email", emails);
     if (cgErr) {
       console.error(
         `captured guest consume failed for delivery ${delivery.id}: ${cgErr.message}`,
