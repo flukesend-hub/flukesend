@@ -56,7 +56,7 @@ const trigger: React.CSSProperties = {
 const qStyle: React.CSSProperties = { fontSize: "15.5px", fontWeight: 600, color: "#10221f" };
 const icon: React.CSSProperties = {
   fontSize: "22px",
-  color: "#35662f",
+  color: "#1c5578",
   flex: "0 0 auto",
   transition: "transform .2s ease",
   lineHeight: 1,
