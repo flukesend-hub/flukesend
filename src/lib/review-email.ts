@@ -20,8 +20,9 @@ export function reviewDelayCutoffISO(now: number = Date.now()) {
   return new Date(now - REVIEW_DELAY_HOURS * 60 * 60 * 1000).toISOString();
 }
 
-// The one line trip summary used in the review email, shared by the instant
-// ask and the nightly sweep.
+// Date and captain reference, shared by the instant ask and the nightly
+// sweep. Rendered as a small quiet line at the bottom of the email, not in
+// the body copy, where a mid sentence date breaks the flow.
 export function tripLine(d: {
   trip_datetime: string | null;
   species: string[] | null;
@@ -34,9 +35,27 @@ export function tripLine(d: {
     );
   }
   if (d.captain_name) parts.push(`with Captain ${d.captain_name}`);
-  let line = parts.join(" ");
-  if (d.species?.length) line += (line ? ". " : "") + d.species.join(", ");
-  return line;
+  return parts.join(" ");
+}
+
+// Species always read plural in the body ("Orcas and Humpback whales"), with
+// an and-join so it reads as a sentence rather than a list.
+function pluralize(name: string): string {
+  const n = name.trim();
+  if (!n || /s$/i.test(n)) return n;
+  return `${n}s`;
+}
+
+export function speciesSentence(species: string[] | null): string {
+  const plurals = (species ?? []).map(pluralize).filter(Boolean);
+  if (!plurals.length) return "";
+  const joined =
+    plurals.length === 1
+      ? plurals[0]
+      : plurals.length === 2
+        ? `${plurals[0]} and ${plurals[1]}`
+        : `${plurals.slice(0, -1).join(", ")}, and ${plurals[plurals.length - 1]}`;
+  return ` It was a good one out there. ${joined}!`;
 }
 
 export type ReviewEmailInput = {
@@ -44,7 +63,10 @@ export type ReviewEmailInput = {
   brandColor: string;
   logoUrl: string | null;
   recipientName: string | null;
+  // Small date and captain reference for the bottom of the email.
   tripLine: string;
+  // The trip's species, pluralized into the body sentence.
+  species: string[];
   // href is the tracked redirect through /g/[token]/review, not the raw
   // destination, so a tap is logged before the guest lands on Google.
   reviewLinks: { label: string; href: string }[];
@@ -63,9 +85,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   const name = escapeHtml(input.operatorName);
 
   const hi = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi there,";
-  const tripSentence = input.tripLine
-    ? ` It was a good one out there, ${escapeHtml(input.tripLine)}.`
-    : "";
+  const seen = escapeHtml(speciesSentence(input.species));
 
   const socialRow = socialFooterHtml(input.social);
 
@@ -85,13 +105,13 @@ export function buildReviewEmail(input: ReviewEmailInput): {
       <div style="padding:28px 26px 30px">
         <div style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:17px;color:${brand}">${name}</div>
         <div style="font-family:'Fraunces',Georgia,serif;font-size:22px;margin:16px 0 14px;line-height:1.25">So glad you got your photos</div>
-        <p style="font-size:14px;color:#46555a;margin:0 0 14px;line-height:1.6">${hi} We hope you had an amazing time out on the water with us.${tripSentence}</p>
+        <p style="font-size:14px;color:#46555a;margin:0 0 14px;line-height:1.6">${hi} We hope you had an amazing time out on the water with us.${seen}</p>
         <p style="font-size:14px;color:#46555a;margin:0 0 18px;line-height:1.6">If you have a moment, we would love to hear about your experience. A quick review helps us, and helps others find the whales.</p>
         <div style="display:flex;flex-direction:column;gap:9px">${buttons}</div>
         ${socialRow ? `<div style="margin:20px 0 0">${socialRow}</div>` : ""}
         <p style="font-size:14px;color:#46555a;margin:20px 0 2px;line-height:1.6">Thanks for joining us. Hope to see you on the water again soon.</p>
         <p style="font-size:13px;color:#6b7a7d;margin:0">The crew at ${name}</p>
-        <p style="font-size:11.5px;color:#9aa6a8;margin:18px 0 0;text-align:center">You got this because you downloaded photos from your trip. One note only, we will not chase you.</p>
+        ${input.tripLine ? `<p style="font-size:11.5px;color:#9aa6a8;margin:14px 0 0">${escapeHtml(input.tripLine)}</p>` : ""}
       </div>
     </div>
   </body>
