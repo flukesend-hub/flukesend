@@ -62,8 +62,8 @@ export async function updateBranding(
   const retentionDays = Number.isFinite(retentionRaw)
     ? Math.trunc(retentionRaw)
     : NaN;
-  if (![1, 3, 7].includes(retentionDays)) {
-    return { error: "Pick 1, 3, or 7 days of retention." };
+  if (![3, 5, 7].includes(retentionDays)) {
+    return { error: "Pick 3, 5, or 7 days of retention." };
   }
 
   // Logo is optional on save. When present, replace whatever is in the

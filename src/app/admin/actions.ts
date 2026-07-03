@@ -77,7 +77,7 @@ export async function adminUpdateBranding(
   const retentionRaw = Number(formData.get("retention_days"));
   if (!HEX.test(brandColor)) return { error: "Pick a valid brand color." };
   const retentionDays = Number.isFinite(retentionRaw) ? Math.trunc(retentionRaw) : NaN;
-  if (![1, 3, 7].includes(retentionDays)) return { error: "Pick 1, 3, or 7 days of retention." };
+  if (![3, 5, 7].includes(retentionDays)) return { error: "Pick 3, 5, or 7 days of retention." };
 
   const upload = await uploadOperatorLogo(operatorId, formData.get("logo"));
   if (!upload.ok) return { error: upload.error };

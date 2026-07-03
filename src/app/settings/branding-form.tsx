@@ -100,7 +100,7 @@ export function BrandingForm({
         <span className="fl-label-text">How long should we keep the photos?</span>
         <input type="hidden" name="retention_days" value={retention} />
         <div style={{ display: "flex", gap: "8px" }}>
-          {[1, 3, 7].map((d) => (
+          {[3, 5, 7].map((d) => (
             <button
               key={d}
               type="button"
