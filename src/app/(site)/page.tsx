@@ -12,6 +12,10 @@ export const metadata = {
   title: "Flukesend - branded photo galleries that turn into reviews",
 };
 
+// A 30 minute intro call with the founder. Base link (no pinned date) so it
+// always opens on current availability.
+const CALL_URL = "https://calendly.com/flukesend/30min";
+
 export default async function LandingPage() {
   const demoQr = await QRCode.toDataURL("https://www.flukesend.com", {
     margin: 1,
@@ -39,20 +43,27 @@ export default async function LandingPage() {
             <Link href="/login" style={primaryBtn}>
               Start free
             </Link>
+            {/* For the many operators who want to talk to a person before
+                signing up. A real photographer, not a faceless SaaS. */}
+            <a href={CALL_URL} target="_blank" rel="noreferrer" style={secondaryBtn}>
+              Book a call
+            </a>
+          </div>
+          <div style={{ display: "flex", gap: "14px", alignItems: "center", marginTop: "14px", flexWrap: "wrap" }}>
+            <p style={{ fontSize: "13px", color: "#8a938f", margin: 0 }}>
+              Your first 3 transfers or 30 guest emails are free. No card required.
+            </p>
             {/* A real gallery on a demo tenant: same code path guests use, so
                 the sample IS the product, not a mockup. */}
             <a
               href="/g/a87749e6e13e507e88e17e07f80e4782"
               target="_blank"
               rel="noreferrer"
-              style={secondaryBtn}
+              style={{ fontSize: "13px", color: "#35662f", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "3px" }}
             >
-              See a sample gallery
+              or see a sample gallery
             </a>
           </div>
-          <p style={{ fontSize: "13px", color: "#8a938f", marginTop: "14px" }}>
-            Your first 3 transfers or 30 guest emails are free. No card required.
-          </p>
         </div>
         <PhoneMock />
       </section>
@@ -145,9 +156,14 @@ export default async function LandingPage() {
           Set up your branding once. Every send after that looks like you and
           builds your reputation.
         </p>
-        <Link href="/login" style={primaryBtn}>
-          Start free
-        </Link>
+        <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+          <Link href="/login" style={primaryBtn}>
+            Start free
+          </Link>
+          <a href={CALL_URL} target="_blank" rel="noreferrer" style={secondaryBtn}>
+            Book a call
+          </a>
+        </div>
       </section>
     </main>
   );
