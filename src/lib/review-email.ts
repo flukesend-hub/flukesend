@@ -62,8 +62,9 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   const brand = escapeHtml(input.brandColor);
   const name = escapeHtml(input.operatorName);
 
-  const intro = input.tripLine
-    ? `It was a good one out there, ${escapeHtml(input.tripLine)}. `
+  const hi = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi there,";
+  const tripSentence = input.tripLine
+    ? ` It was a good one out there, ${escapeHtml(input.tripLine)}.`
     : "";
 
   const socialRow = socialFooterHtml(input.social);
@@ -83,10 +84,13 @@ export function buildReviewEmail(input: ReviewEmailInput): {
       <div style="height:7px;background:${brand}"></div>
       <div style="padding:28px 26px 30px">
         <div style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:17px;color:${brand}">${name}</div>
-        <div style="font-family:'Fraunces',Georgia,serif;font-size:22px;margin:16px 0 12px;line-height:1.25">Hope the trip made your day</div>
-        <p style="font-size:14px;color:#46555a;margin:0 0 16px">${intro}If you have a minute, a short review helps a small crew like ours more than you would guess.</p>
+        <div style="font-family:'Fraunces',Georgia,serif;font-size:22px;margin:16px 0 14px;line-height:1.25">So glad you got your photos</div>
+        <p style="font-size:14px;color:#46555a;margin:0 0 14px;line-height:1.6">${hi} We hope you had an amazing time out on the water with us.${tripSentence}</p>
+        <p style="font-size:14px;color:#46555a;margin:0 0 18px;line-height:1.6">If you have a moment, we would love to hear about your experience. A quick review helps us, and helps others find the whales.</p>
         <div style="display:flex;flex-direction:column;gap:9px">${buttons}</div>
         ${socialRow ? `<div style="margin:20px 0 0">${socialRow}</div>` : ""}
+        <p style="font-size:14px;color:#46555a;margin:20px 0 2px;line-height:1.6">Thanks for joining us. Hope to see you on the water again soon.</p>
+        <p style="font-size:13px;color:#6b7a7d;margin:0">The crew at ${name}</p>
         <p style="font-size:11.5px;color:#9aa6a8;margin:18px 0 0;text-align:center">You got this because you downloaded photos from your trip. One note only, we will not chase you.</p>
       </div>
     </div>
