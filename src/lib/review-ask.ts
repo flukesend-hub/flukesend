@@ -81,6 +81,7 @@ export async function sendReviewAskAfterDownload(
     logoUrl: branding?.logo_url ?? null,
     recipientName: (r.name as string | null) ?? null,
     tripLine: tripLine(delivery),
+    species: (delivery.species ?? []) as string[],
     reviewLinks: trackedLinks,
     social: {
       website_url: branding?.website_url ?? null,

@@ -28,6 +28,7 @@ type OperatorContext = {
   brandColor: string;
   logoUrl: string | null;
   tripLine: string;
+  species: string[];
   reviewLinks: { id: string; label: string; url: string }[];
   replyTo: string | null;
   social: SocialLinks;
@@ -116,6 +117,7 @@ export async function GET(request: Request) {
       brandColor: branding?.brand_color ?? "#0b5563",
       logoUrl: branding?.logo_url ?? null,
       tripLine: tripLine(delivery),
+      species: (delivery.species ?? []) as string[],
       reviewLinks: (links ?? []).map((l) => ({ id: l.id, label: l.label, url: l.url })),
       replyTo: branding?.reply_to_email ?? null,
       social: {
@@ -161,6 +163,7 @@ export async function GET(request: Request) {
       logoUrl: ctx.logoUrl,
       recipientName: r.name,
       tripLine: ctx.tripLine,
+      species: ctx.species,
       reviewLinks: trackedLinks,
       social: ctx.social,
     });
