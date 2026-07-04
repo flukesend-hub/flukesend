@@ -33,7 +33,7 @@ export default function HowItWorksPage() {
       <Step
         n="1"
         title="Guests scan aboard"
-        body="Print your sign-up QR once and post it on deck. Guests scan it on their own phones, pick their trip time, and type their own email. No clipboards, no wet handwriting, no missed guests."
+        body="Print your sign-up QR and post it on deck, or keep it on your phone and show it around as you talk with guests. They scan it, pick their trip time, and type their own email. No clipboards, no wet handwriting, no missed guests."
       >
         <div style={pairRow}>
           <figure style={figWide}>
