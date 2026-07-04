@@ -22,7 +22,7 @@ export function OperatorNav({ operatorName }: { operatorName: string }) {
         <div className="fl-nav-inner">
           <div className="fl-nav-pill fl-nav-brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/flukesend-wordmark.png" alt="Flukesend" style={{ height: "20px", width: "auto", display: "block" }} />
+            <img src="/brand/flukesend-wordmark-black.png" alt="Flukesend" style={{ height: "26px", width: "auto", display: "block" }} />
           </div>
 
           <nav className="fl-nav-pill fl-nav-links">
