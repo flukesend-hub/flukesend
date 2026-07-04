@@ -38,7 +38,11 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
   const brand = escapeHtml(input.brandColor);
   const name = escapeHtml(input.operatorName);
   const url = escapeHtml(input.galleryUrl);
-  const hi = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi there,";
+  // Greeting line only when we know the guest's name; no filler "Hi there,"
+  // otherwise. The email opens straight with the operator's message instead.
+  const hiRow = input.recipientName
+    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 14px;color:#33464a">Hi ${escapeHtml(input.recipientName)},</p>`
+    : "";
 
   const header = input.logoUrl
     ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:block" />`
@@ -107,7 +111,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
             <tr>
               <td style="padding:30px 28px 6px">
                 <h1 style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:#16241f">Your photos are ready</h1>
-                <p style="font-size:15px;line-height:1.55;margin:0 0 14px;color:#33464a">${hi}</p>
+                ${hiRow}
                 ${message}
               </td>
             </tr>

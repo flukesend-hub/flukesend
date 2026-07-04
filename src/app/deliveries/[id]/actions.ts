@@ -185,7 +185,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
 
   const { data: r } = await supabase
     .from("recipients")
-    .select("email, token, delivery_id")
+    .select("email, name, token, delivery_id")
     .eq("id", recipientId)
     .maybeSingle();
   if (!r) {
@@ -224,7 +224,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     brandColor: branding?.brand_color ?? "#0b5563",
     logoUrl: branding?.logo_url ?? null,
     retentionDays: (branding?.retention_days as number | null) ?? 7,
-    recipientName: null,
+    recipientName: (r.name as string | null) ?? null,
     tripDate: formatTripDate(d.trip_datetime),
     captainName: d.captain_name,
     naturalistName: d.naturalist_name,
