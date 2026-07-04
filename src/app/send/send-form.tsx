@@ -383,7 +383,7 @@ export function SendForm({
 
         <div style={{ marginBottom: "16px" }}>
           <button type="button" onClick={() => setCrewOpen((o) => !o)} aria-expanded={crewOpen} style={crewToggle}>
-            <span className="fl-label-text" style={{ margin: 0 }}>Crew mentions (optional)</span>
+            <span className="fl-label-text" style={{ margin: 0 }}>Crew mentions (recommended)</span>
             <svg
               width="15"
               height="15"
