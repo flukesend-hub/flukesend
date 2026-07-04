@@ -46,7 +46,7 @@ const TIERS: Tier[] = [
     annualMonthly: 208,
     annualTotal: 2500,
     blurb: "More room to send as you grow.",
-    whoFor: "Recommended for boats carrying 50 passengers or more.",
+    whoFor: "Recommended for boats carrying 50 passengers or less.",
     popular: true,
     features: [
       "Up to 50 emails per send",
