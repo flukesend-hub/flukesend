@@ -123,13 +123,14 @@ export default async function LandingPage() {
             </h2>
             <p style={{ fontSize: "15.5px", lineHeight: 1.65, color: "#3a4744", margin: 0 }}>
               The hard part of photo delivery was never the photos. It was
-              collecting emails legibly on a moving boat. Print your Flukesend
-              QR code once and post it aboard: guests scan it, type their own
-              email, and pick their trip time. By the time you sit down to
-              send, the guest list is already loaded.
+              collecting emails legibly on a moving boat. Post your Flukesend
+              QR code aboard, or pull it up on your phone as you make the
+              rounds: guests scan it, type their own email, and pick their
+              trip time. By the time you sit down to send, the guest list is
+              already loaded.
             </p>
             <ul style={qrList}>
-              <li style={qrItem}>One code for your whole operation. Print it and forget it.</li>
+              <li style={qrItem}>One code for your whole operation. Print it, or share it from any phone.</li>
               <li style={qrItem}>Sign-ups tie to the boat and trip time, so the right guests load into the right send.</li>
               <li style={qrItem}>No typos, no deciphering wet handwriting, no missed guests.</li>
             </ul>
