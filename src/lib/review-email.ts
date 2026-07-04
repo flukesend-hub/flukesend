@@ -84,7 +84,9 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   const brand = escapeHtml(input.brandColor);
   const name = escapeHtml(input.operatorName);
 
-  const hi = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi there,";
+  // Greet by name when we have one; otherwise skip the greeting entirely
+  // rather than a filler "Hi there," and open straight with the sentence.
+  const hi = input.recipientName ? `Hi ${escapeHtml(input.recipientName)}, we` : "We";
   const seen = escapeHtml(speciesSentence(input.species));
 
   const socialRow = socialFooterHtml(input.social);
@@ -105,7 +107,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
       <div style="padding:28px 26px 30px">
         <div style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:17px;color:${brand}">${name}</div>
         <div style="font-family:'Fraunces',Georgia,serif;font-size:22px;margin:16px 0 14px;line-height:1.25">So glad you got your photos</div>
-        <p style="font-size:14px;color:#46555a;margin:0 0 14px;line-height:1.6">${hi} We hope you had an amazing time out on the water with us.${seen}</p>
+        <p style="font-size:14px;color:#46555a;margin:0 0 14px;line-height:1.6">${hi} hope you had an amazing time out on the water with us.${seen}</p>
         <p style="font-size:14px;color:#46555a;margin:0 0 18px;line-height:1.6">If you have a moment, we would love to hear about your experience. A quick review helps us, and helps others find the whales.</p>
         <div style="display:flex;flex-direction:column;gap:9px">${buttons}</div>
         ${socialRow ? `<div style="margin:20px 0 0">${socialRow}</div>` : ""}
