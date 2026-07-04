@@ -15,11 +15,16 @@ export function MarketingNav() {
         />
       </Link>
       <nav style={links}>
-        <Link href="/pricing" style={link}>
-          Pricing
+        {/* Ordered by the buyer's journey: learn the product, see the crews
+            already on it, then check the price. */}
+        <Link href="/how-it-works" style={link}>
+          How it works
         </Link>
         <Link href="/operators" style={link}>
           Operators
+        </Link>
+        <Link href="/pricing" style={link}>
+          Pricing
         </Link>
         <Link href="/login" style={link}>
           Log in

@@ -79,6 +79,14 @@ export default async function LandingPage() {
             <Step n="3" title="Photos land in Photos" body="Guests open their branded gallery and save every shot straight to their camera roll in one tap." />
             <Step n="4" title="Reviews roll in" body="The review ask arrives the moment they download, branded as you, one tap from Google." />
           </div>
+          <p style={{ textAlign: "center", margin: "22px 0 0" }}>
+            <Link
+              href="/how-it-works"
+              style={{ fontSize: "14px", color: "#1c5578", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "3px" }}
+            >
+              See the full walkthrough, every screen for real
+            </Link>
+          </p>
         </div>
       </section>
 
