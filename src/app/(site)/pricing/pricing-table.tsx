@@ -15,6 +15,8 @@ type Tier = {
   annualMonthly: number;
   annualTotal: number;
   blurb: string;
+  // One line of sizing guidance so a captain can self-select at a glance.
+  whoFor: string;
   features: string[];
   popular?: boolean;
 };
@@ -26,6 +28,7 @@ const TIERS: Tier[] = [
     annualMonthly: 125,
     annualTotal: 1500,
     blurb: "One crew, the full review engine.",
+    whoFor: "Recommended for operations running one or two six-passenger boats.",
     features: [
       "Up to 25 emails per send",
       "250 emails a month",
@@ -43,6 +46,7 @@ const TIERS: Tier[] = [
     annualMonthly: 208,
     annualTotal: 2500,
     blurb: "More room to send as you grow.",
+    whoFor: "Recommended for boats carrying 50 passengers or more.",
     popular: true,
     features: [
       "Up to 50 emails per send",
@@ -59,6 +63,7 @@ const TIERS: Tier[] = [
     annualMonthly: 250,
     annualTotal: 3000,
     blurb: "Unlimited sending for a busy operation.",
+    whoFor: "For operations running two or more vessels of 100 passengers or more, multiple trips a day.",
     features: [
       "Up to 100 emails per send",
       "Unlimited emails a month",
@@ -106,6 +111,7 @@ export function PricingTable() {
               <Link href="/login" style={t.popular ? tierCtaPrimary : tierCta}>
                 Start free
               </Link>
+              <p style={whoForLine}>{t.whoFor}</p>
               <ul style={featureList}>
                 {t.features.map((f) => (
                   <li key={f} style={featureItem}>
@@ -198,6 +204,14 @@ const tierCtaPrimary: React.CSSProperties = {
   color: "#fff",
   background: "#0c1a21",
   border: "1px solid #0c1a21",
+};
+// Sizing guidance under the CTA: quiet, centered, and clearly not a feature.
+const whoForLine: React.CSSProperties = {
+  margin: "12px 0 0",
+  fontSize: "12.5px",
+  lineHeight: 1.5,
+  color: "#8a938f",
+  textAlign: "center",
 };
 const featureList: React.CSSProperties = { listStyle: "none", margin: "20px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "10px" };
 const featureItem: React.CSSProperties = { display: "flex", gap: "9px", fontSize: "14px", color: "#3a4744" };
