@@ -138,6 +138,13 @@ function FunnelBars({ month }: { month: Funnel }) {
             );
           })}
         </div>
+        {month.bounced > 0 ? (
+          <p style={{ margin: "14px 0 0", fontSize: "12.5px", color: "var(--bad)", lineHeight: 1.5 }}>
+            {month.bounced} {month.bounced === 1 ? "email" : "emails"} bounced this
+            month and never reached anyone. Open that send to see who and fix the
+            address.
+          </p>
+        ) : null}
       </div>
     </div>
   );
