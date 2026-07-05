@@ -8,13 +8,15 @@
 
   The funnel steps come straight from existing tables and events:
     sends       deliveries created in the period
-    reached     recipients on those deliveries (the guests emailed)
+    reached     recipients whose email did not bounce (it landed somewhere)
     opened      recipients with an 'opened' gallery event
     downloaded  recipients with a 'downloaded' event
     reviewAsks  recipients whose review email has been sent
     captured    guests self captured by QR in the period
-  There is no bounce or true delivered signal yet; that arrives with the email
-  provider webhook, so "reached" is the count of guests emailed.
+  The Resend webhook now reports delivered/bounced per recipient, so "reached"
+  is guests emailed minus known bounces, and "bounced" surfaces the addresses
+  that never arrived. Legacy rows from before the webhook have a null status,
+  so they count as reached (no bounce was reported) and history stays intact.
 */
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -27,6 +29,10 @@ export type Funnel = {
   reviewAsks: number;
   reviewClicks: number;
   captured: number;
+  // Recipients whose email hard bounced this period. Not part of the funnel
+  // bars (they never reached anyone); shown as a callout so bad addresses get
+  // fixed. Zero when the webhook has nothing to report.
+  bounced: number;
 };
 
 export type TrendPoint = {
@@ -58,6 +64,7 @@ type RecipientRow = {
   id: string;
   delivery_id: string;
   review_email_status: string;
+  email_status: string | null;
   deliveries: {
     operator_id: string;
     created_at: string;
@@ -149,7 +156,7 @@ export async function getAnalytics(
     supabase
       .from("recipients")
       .select(
-        "id, delivery_id, review_email_status, deliveries!inner(operator_id, created_at, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
+        "id, delivery_id, review_email_status, email_status, deliveries!inner(operator_id, created_at, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
       )
       .eq("deliveries.operator_id", operatorId)
       .gte("deliveries.created_at", windowStart)
@@ -200,14 +207,18 @@ export async function getAnalytics(
   let sends = 0;
   for (const d of delById.values()) if (d.key === currentKey) sends++;
   const monthRecs = recipients.filter((r) => delById.get(r.delivery_id)!.key === currentKey);
+  // Bounced emails never reached anyone, so they come out of "reached". A null
+  // status (legacy or not yet reported) is not a bounce, so it stays counted.
+  const monthBounced = monthRecs.filter((r) => r.email_status === "bounced").length;
   const month: Funnel = {
     sends,
-    reached: monthRecs.length,
+    reached: monthRecs.length - monthBounced,
     opened: monthRecs.filter((r) => opened.has(r.id)).length,
     downloaded: monthRecs.filter((r) => downloaded.has(r.id)).length,
     reviewAsks: monthRecs.filter((r) => r.review_email_status === "sent").length,
     reviewClicks: monthRecs.filter((r) => reviewClicked.has(r.id)).length,
     captured: capturedByMonth.get(currentKey) ?? 0,
+    bounced: monthBounced,
   };
 
   // Trend by month across the window.
