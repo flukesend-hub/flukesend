@@ -1,6 +1,8 @@
 /*
-  Support view of one operator: edit their branding on their behalf. Admin only,
-  reads and writes with the service role.
+  Support view of one operator: edit their branding, review links, sender
+  domain, and fix bounced guest emails on their behalf. Admin only, reads and
+  writes with the service role. The admin triage cards deep link to the
+  #review-links and #bounced sections here.
 */
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin";
@@ -8,6 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSenderDomain } from "@/lib/sender-domain";
 import { BrandingEditor } from "./branding-editor";
 import { SenderDomainPanel } from "./sender-domain-panel";
+import { ReviewLinksPanel, type ReviewLink } from "./review-links-panel";
+import { BouncedGuests, type BouncedGuest } from "./bounced-guests";
 
 export default async function AdminOperatorPage({
   params,
@@ -25,24 +29,64 @@ export default async function AdminOperatorPage({
     .maybeSingle();
   if (!operator) notFound();
 
-  const [{ data: b }, senderDomain] = await Promise.all([
-    admin
-      .from("branding")
-      .select(
-        "logo_url, brand_color, default_message, retention_days, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
-      )
-      .eq("operator_id", id)
-      .maybeSingle(),
-    getSenderDomain(id),
-  ]);
+  const [{ data: b }, senderDomain, { data: linkRows }, { data: bouncedRows }] =
+    await Promise.all([
+      admin
+        .from("branding")
+        .select(
+          "logo_url, brand_color, default_message, retention_days, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        )
+        .eq("operator_id", id)
+        .maybeSingle(),
+      getSenderDomain(id),
+      admin
+        .from("review_destinations")
+        .select("id, label, url")
+        .eq("operator_id", id)
+        .order("sort_order", { ascending: true }),
+      // Bounced guests across this operator's sends, newest first. Bounces are
+      // rare per operator, so no paging needed here.
+      admin
+        .from("recipients")
+        .select("id, email, deliveries!inner(operator_id, trip_datetime, created_at, expires_at)")
+        .eq("deliveries.operator_id", id)
+        .eq("email_status", "bounced")
+        .order("created_at", { ascending: false })
+        .limit(100),
+    ]);
+
+  const links = (linkRows ?? []) as unknown as ReviewLink[];
+  const now = Date.now();
+  const bounced: BouncedGuest[] = (
+    (bouncedRows ?? []) as unknown as {
+      id: string;
+      email: string;
+      deliveries: { trip_datetime: string | null; created_at: string; expires_at: string | null };
+    }[]
+  ).map((r) => {
+    const d = r.deliveries;
+    const tripTs = d.trip_datetime ?? d.created_at;
+    return {
+      recipientId: r.id,
+      email: r.email,
+      tripLabel: `Trip ${new Date(tripTs).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      })}`,
+      expired: !!d.expires_at && new Date(d.expires_at).getTime() < now,
+    };
+  });
 
   return (
     <main style={{ padding: "28px", maxWidth: "820px", margin: "0 auto" }}>
       <a href="/admin" className="fl-link">&larr; Back to admin</a>
       <h1 className="fl-h1" style={{ marginTop: "8px" }}>{operator.name}</h1>
       <p className="fl-muted" style={{ fontSize: "14px", margin: "0 0 20px" }}>
-        Support: edit this operator&apos;s branding.
+        Support: branding, review links, bounced guests, sender domain.
       </p>
+      <BouncedGuests guests={bounced} />
+      <ReviewLinksPanel operatorId={operator.id} links={links} />
       <BrandingEditor
         operatorId={operator.id}
         operatorName={operator.name}

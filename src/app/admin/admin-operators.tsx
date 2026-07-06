@@ -51,7 +51,7 @@ function pct(part: number, whole: number): number {
 // A red flag puts the operator in the triage section; quiet gaps just show as
 // chips on their card. "Review engine off" only fires when they are actually
 // sending: photos going out with no review link means no ask can ever fire.
-type Triage = { title: string; fix: string };
+type Triage = { title: string; fix: string; action: string; anchor: string };
 
 function triageFor(r: OperatorRow): Triage[] {
   const h = r.health;
@@ -59,13 +59,17 @@ function triageFor(r: OperatorRow): Triage[] {
   if (h.totalSends > 0 && !h.hasReviewLinks) {
     out.push({
       title: `${r.name} · Review engine off`,
-      fix: "Sending photos but no review links are set, so no review ask can ever fire. Add their Google review link in their settings.",
+      fix: "Sending photos but no review links are set, so no review ask can ever fire. Add their Google review link.",
+      action: "Add review links",
+      anchor: "review-links",
     });
   }
   if (h.bounced > 0) {
     out.push({
       title: `${r.name} · ${h.bounced} ${h.bounced === 1 ? "email" : "emails"} bounced`,
-      fix: `Never delivered: ${h.bouncedEmails.join(", ")}. Correct the ${h.bounced === 1 ? "address" : "addresses"} on the send and resend.`,
+      fix: `Never delivered: ${h.bouncedEmails.join(", ")}. Correct and resend in one step.`,
+      action: "Fix and resend",
+      anchor: "bounced",
     });
   }
   return out;
@@ -136,8 +140,8 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
                     {t.fix}
                   </div>
                 </div>
-                <a href={`/admin/operators/${t.row.operatorId}`} style={triageBtn}>
-                  Open settings
+                <a href={`/admin/operators/${t.row.operatorId}#${t.anchor}`} style={triageBtn}>
+                  {t.action}
                 </a>
               </div>
             ))}
