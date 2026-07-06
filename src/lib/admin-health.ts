@@ -22,9 +22,14 @@ export type OperatorHealth = {
   downloaded: number;
   reviewClicks: number;
   bounced: number;
+  // The actual addresses that bounced this month (capped), so the triage card
+  // can show who to fix without a single click.
+  bouncedEmails: string[];
   hasReviewLinks: boolean;
   hasLogo: boolean;
   hasCrew: boolean;
+  // The operator's brand color, for the card accent band and avatar.
+  brandColor: string | null;
 };
 
 export function emptyHealth(): OperatorHealth {
@@ -36,20 +41,25 @@ export function emptyHealth(): OperatorHealth {
     downloaded: 0,
     reviewClicks: 0,
     bounced: 0,
+    bouncedEmails: [],
     hasReviewLinks: false,
     hasLogo: false,
     hasCrew: false,
+    brandColor: null,
   };
 }
+
+const BOUNCED_EMAILS_CAP = 5;
 
 type DeliveryRow = { id: string; operator_id: string; created_at: string };
 type RecipientRow = {
   id: string;
+  email: string;
   email_status: string | null;
   deliveries: { operator_id: string };
 };
 type OpIdRow = { operator_id: string };
-type BrandRow = { operator_id: string; logo_url: string | null };
+type BrandRow = { operator_id: string; logo_url: string | null; brand_color: string | null };
 
 export async function getOperatorHealth(
   admin: SupabaseClient,
@@ -66,7 +76,7 @@ export async function getOperatorHealth(
     fetchAllRows<RecipientRow>((from, to) =>
       admin
         .from("recipients")
-        .select("id, email_status, deliveries!inner(operator_id, created_at)")
+        .select("id, email, email_status, deliveries!inner(operator_id, created_at)")
         .gte("deliveries.created_at", monthStart)
         .order("id")
         .range(from, to),
@@ -75,7 +85,11 @@ export async function getOperatorHealth(
       admin.from("review_destinations").select("operator_id").order("operator_id").range(from, to),
     ),
     fetchAllRows<BrandRow>((from, to) =>
-      admin.from("branding").select("operator_id, logo_url").order("operator_id").range(from, to),
+      admin
+        .from("branding")
+        .select("operator_id, logo_url, brand_color")
+        .order("operator_id")
+        .range(from, to),
     ),
     fetchAllRows<OpIdRow>((from, to) =>
       admin.from("crew_members").select("operator_id").order("operator_id").range(from, to),
@@ -108,8 +122,12 @@ export async function getOperatorHealth(
     const opId = r.deliveries.operator_id;
     recipientOperator.set(r.id, opId);
     const h = ensure(opId);
-    if (r.email_status === "bounced") h.bounced++;
-    else h.reached++;
+    if (r.email_status === "bounced") {
+      h.bounced++;
+      if (h.bouncedEmails.length < BOUNCED_EMAILS_CAP) h.bouncedEmails.push(r.email);
+    } else {
+      h.reached++;
+    }
   }
 
   // Distinct downloaders and review clickers per operator this month.
@@ -132,9 +150,13 @@ export async function getOperatorHealth(
   for (const [opId, set] of downloadedByOp) ensure(opId).downloaded = set.size;
   for (const [opId, set] of reviewByOp) ensure(opId).reviewClicks = set.size;
 
-  // Onboarding gap signals.
+  // Onboarding gap signals and branding accents.
   for (const d of dests) ensure(d.operator_id).hasReviewLinks = true;
-  for (const b of brandings) if (b.logo_url?.trim()) ensure(b.operator_id).hasLogo = true;
+  for (const b of brandings) {
+    const h = ensure(b.operator_id);
+    if (b.logo_url?.trim()) h.hasLogo = true;
+    if (b.brand_color?.trim()) h.brandColor = b.brand_color.trim();
+  }
   for (const c of crews) ensure(c.operator_id).hasCrew = true;
 
   return health;

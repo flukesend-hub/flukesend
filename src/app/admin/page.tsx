@@ -44,12 +44,12 @@ export default async function AdminPage() {
   });
 
   return (
-    <main style={{ padding: "28px", maxWidth: "820px", margin: "0 auto" }}>
+    <main style={{ padding: "28px 24px", maxWidth: "1060px", margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
         <div>
           <h1 className="fl-h1">Admin</h1>
           <p className="fl-muted" style={{ fontSize: "14px", margin: "0 0 20px" }}>
-            Set each operator&apos;s plan, or edit their branding for support.
+            Your fleet at a glance. Anything that needs you rises to the top.
           </p>
         </div>
         <form action={signout}>
