@@ -5,6 +5,7 @@
 */
 import { requireAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getOperatorHealth, emptyHealth } from "@/lib/admin-health";
 import { signout } from "@/app/auth/actions";
 import { AdminOperators, type OperatorRow } from "./admin-operators";
 
@@ -12,11 +13,12 @@ export default async function AdminPage() {
   await requireAdmin();
   const admin = createAdminClient();
 
-  const [operatorsRes, membersRes, subsRes, usersRes] = await Promise.all([
+  const [operatorsRes, membersRes, subsRes, usersRes, health] = await Promise.all([
     admin.from("operators").select("id, name, created_at").order("created_at", { ascending: true }),
     admin.from("operator_members").select("operator_id, user_id"),
     admin.from("subscriptions").select("operator_id, status, tier, stripe_customer_id"),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    getOperatorHealth(admin),
   ]);
 
   const emailById = new Map((usersRes.data?.users ?? []).map((u) => [u.id, u.email ?? ""]));
@@ -37,6 +39,7 @@ export default async function AdminPage() {
       paid,
       tier: (s?.tier as string) ?? null,
       value,
+      health: health.get(o.id) ?? emptyHealth(),
     };
   });
 
