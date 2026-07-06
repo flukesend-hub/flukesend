@@ -1,10 +1,18 @@
 "use client";
 
 /*
-  Admin operators table. Each row has a plan dropdown to set the operator's plan
-  directly (free trial, or comp at a tier). Operators paying through Stripe show
-  a read only "Paid" label so their subscription is never touched here. An Edit
-  branding link opens the support editor for that operator. No em dashes.
+  Admin support console. Three layers, top to bottom:
+
+  1. A fleet KPI strip: this month's totals across every operator, so the
+     admin's own scoreboard is the first thing on the page.
+  2. A "Needs attention" triage section that only renders when an operator has
+     a red flag (review engine off while sending, or bounced emails). Each card
+     says what is wrong and what to do in plain words.
+  3. One card per operator, accented with their brand color: health stats,
+     plan control, and the support links.
+
+  Plan changes keep the same setPlan wiring as before; paid (Stripe) operators
+  show a read only label so their subscription is never touched here.
 */
 import { useState, useTransition } from "react";
 import { setPlan, type AdminState } from "./actions";
@@ -20,6 +28,14 @@ export type OperatorRow = {
   health: OperatorHealth;
 };
 
+const OPTIONS = [
+  { value: "trial", label: "Free trial" },
+  { value: "canceled", label: "No plan (must buy)" },
+  { value: "single", label: "Comp: Single boat" },
+  { value: "two", label: "Comp: Two boats" },
+  { value: "fleet", label: "Comp: Fleet" },
+];
+
 function fmtDay(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
@@ -28,26 +44,32 @@ function fmtDay(iso: string): string {
   });
 }
 
-// Onboarding gaps, most alarming first. "Review engine off" only counts as loud
-// when the operator is actually sending: photos going out with no review link
-// means no review can ever fire, and they never see it.
-function gapsFor(h: OperatorHealth): { label: string; bad: boolean }[] {
-  const gaps: { label: string; bad: boolean }[] = [];
-  if (h.totalSends > 0 && !h.hasReviewLinks) gaps.push({ label: "Review engine off", bad: true });
-  if (h.bounced > 0) gaps.push({ label: `${h.bounced} bounced`, bad: true });
-  if (h.totalSends === 0) gaps.push({ label: "No sends yet", bad: false });
-  if (h.totalSends === 0 && !h.hasReviewLinks) gaps.push({ label: "No review links", bad: false });
-  if (!h.hasLogo) gaps.push({ label: "No logo", bad: false });
-  return gaps;
+function pct(part: number, whole: number): number {
+  return whole > 0 ? Math.round((part / whole) * 100) : 0;
 }
 
-const OPTIONS = [
-  { value: "trial", label: "Free trial" },
-  { value: "canceled", label: "No plan (must buy)" },
-  { value: "single", label: "Comp: Single boat" },
-  { value: "two", label: "Comp: Two boats" },
-  { value: "fleet", label: "Comp: Fleet" },
-];
+// A red flag puts the operator in the triage section; quiet gaps just show as
+// chips on their card. "Review engine off" only fires when they are actually
+// sending: photos going out with no review link means no ask can ever fire.
+type Triage = { title: string; fix: string };
+
+function triageFor(r: OperatorRow): Triage[] {
+  const h = r.health;
+  const out: Triage[] = [];
+  if (h.totalSends > 0 && !h.hasReviewLinks) {
+    out.push({
+      title: `${r.name} · Review engine off`,
+      fix: "Sending photos but no review links are set, so no review ask can ever fire. Add their Google review link in their settings.",
+    });
+  }
+  if (h.bounced > 0) {
+    out.push({
+      title: `${r.name} · ${h.bounced} ${h.bounced === 1 ? "email" : "emails"} bounced`,
+      fix: `Never delivered: ${h.bouncedEmails.join(", ")}. Correct the ${h.bounced === 1 ? "address" : "addresses"} on the send and resend.`,
+    });
+  }
+  return out;
+}
 
 export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
   const [state, setState] = useState<AdminState>(undefined);
@@ -64,95 +86,283 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
     });
   }
 
-  return (
-    <div className="fl-card" style={{ maxWidth: "760px" }}>
-      <h3 style={{ margin: "0 0 12px", fontSize: "15px", fontWeight: 600 }}>
-        Operators ({rows.length})
-      </h3>
+  // Fleet totals for the KPI strip, this month.
+  const fleet = rows.reduce(
+    (t, r) => {
+      t.sends += r.health.sendsThisMonth;
+      t.reached += r.health.reached;
+      t.downloaded += r.health.downloaded;
+      t.clicks += r.health.reviewClicks;
+      t.bounced += r.health.bounced;
+      return t;
+    },
+    { sends: 0, reached: 0, downloaded: 0, clicks: 0, bounced: 0 },
+  );
+  const triage = rows.flatMap((r) => triageFor(r).map((t) => ({ ...t, row: r })));
 
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
       {state?.error ? (
-        <p style={{ color: "var(--bad)", fontSize: "13px", margin: "0 0 12px" }}>{state.error}</p>
+        <p style={{ color: "var(--bad)", fontSize: "13px", margin: 0 }}>{state.error}</p>
       ) : null}
       {state?.ok ? (
-        <p style={{ color: "var(--good)", fontSize: "13px", margin: "0 0 12px" }}>{state.ok}</p>
+        <p style={{ color: "var(--good)", fontSize: "13px", margin: 0 }}>{state.ok}</p>
       ) : null}
 
-      {/* Stacked rows, not a table: the owner email is long and a fixed four
-          column table overflows a phone. Each row reflows, name and controls
-          side by side on desktop, controls wrapping under the name on mobile. */}
-      <div>
-        {rows.map((r) => (
-          <div key={r.operatorId} style={rowWrap}>
-            <div style={{ minWidth: 0, flex: "1 1 240px" }}>
-              <div style={{ fontWeight: 600, fontSize: "14px" }}>{r.name}</div>
-              <div style={{ color: "var(--muted)", fontSize: "12.5px", overflowWrap: "anywhere", marginTop: "2px" }}>
-                {r.email || "No sign-in owner (demo)"}
+      {/* Fleet KPI strip */}
+      <div style={kpiGrid}>
+        <Kpi n={String(rows.length)} label="Operators" />
+        <Kpi n={String(fleet.sends)} label="Sends this month" />
+        <Kpi n={String(fleet.reached)} label="Guests reached" />
+        <Kpi n={`${pct(fleet.downloaded, fleet.reached)}%`} label="Downloaded" />
+        <Kpi n={String(fleet.clicks)} label="Review clicks" />
+        <Kpi n={String(fleet.bounced)} label="Bounced" alert={fleet.bounced > 0} />
+      </div>
+
+      {/* Triage: only exists when something is wrong */}
+      {triage.length ? (
+        <div>
+          <h3 style={sectionH}>
+            Needs attention
+            <span style={countBadge}>{triage.length}</span>
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {triage.map((t) => (
+              <div key={t.title} style={triageCard}>
+                <Avatar name={t.row.name} color={t.row.health.brandColor} />
+                <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "13.5px" }}>{t.title}</div>
+                  <div style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "2px", lineHeight: 1.5, overflowWrap: "anywhere" }}>
+                    {t.fix}
+                  </div>
+                </div>
+                <a href={`/admin/operators/${t.row.operatorId}`} style={triageBtn}>
+                  Open settings
+                </a>
               </div>
-              <HealthLine health={r.health} />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
-              {r.paid ? (
-                <span style={{ color: "var(--muted)", fontSize: "13.5px" }}>Paid ({r.tier})</span>
-              ) : (
-                <select
-                  className="fl-input"
-                  style={{ fontSize: "13px", padding: "7px 9px", minWidth: "160px" }}
-                  value={r.value}
-                  disabled={savingId === r.operatorId}
-                  onChange={(e) => change(r.operatorId, e.target.value)}
-                >
-                  {OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <a href={`/admin/operators/${r.operatorId}`} className="fl-link" style={{ fontSize: "13.5px" }}>
-                Edit branding
-              </a>
-            </div>
+            ))}
           </div>
-        ))}
+        </div>
+      ) : null}
+
+      {/* Operator cards */}
+      <div>
+        <h3 style={sectionH}>Operators</h3>
+        <div style={cardGrid}>
+          {rows.map((r) => (
+            <OperatorCard
+              key={r.operatorId}
+              row={r}
+              saving={savingId === r.operatorId}
+              onPlan={(plan) => change(r.operatorId, plan)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-// A quiet one line health readout plus any onboarding-gap chips. Silent when an
-// operator has never sent and has nothing wrong beyond that.
-function HealthLine({ health }: { health: OperatorHealth }) {
-  const gaps = gapsFor(health);
-  const rate = health.reached > 0 ? Math.round((health.downloaded / health.reached) * 100) : 0;
-  const parts: string[] = [];
-  if (health.lastSendAt) parts.push(`Last send ${fmtDay(health.lastSendAt)}`);
-  if (health.sendsThisMonth > 0) {
-    parts.push(`${health.sendsThisMonth} ${health.sendsThisMonth === 1 ? "send" : "sends"} this month`);
-    parts.push(`${health.reached} reached`);
-    parts.push(`${rate}% downloaded`);
-    parts.push(`${health.reviewClicks} review ${health.reviewClicks === 1 ? "click" : "clicks"}`);
-  }
-  if (!gaps.length && !parts.length) return null;
+function OperatorCard({
+  row: r,
+  saving,
+  onPlan,
+}: {
+  row: OperatorRow;
+  saving: boolean;
+  onPlan: (plan: string) => void;
+}) {
+  const h = r.health;
+  const band = h.brandColor ?? "var(--line-strong)";
+  const quietGaps: string[] = [];
+  if (h.totalSends === 0) quietGaps.push("No sends yet");
+  if (h.totalSends === 0 && !h.hasReviewLinks) quietGaps.push("No review links");
+  if (!h.hasLogo) quietGaps.push("No logo");
+
   return (
-    <div style={{ marginTop: "7px", display: "flex", flexDirection: "column", gap: "6px" }}>
-      {gaps.length ? (
-        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-          {gaps.map((g) => (
-            <span key={g.label} style={g.bad ? chipBad : chipMuted}>
-              {g.label}
-            </span>
-          ))}
+    <div className="fl-card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ height: "5px", background: band }} />
+      <div style={{ padding: "15px 17px 14px", flex: 1 }}>
+        <div style={{ display: "flex", gap: "11px", alignItems: "center" }}>
+          <Avatar name={r.name} color={h.brandColor} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: "14.5px" }}>{r.name}</div>
+            <div style={{ fontSize: "11.5px", color: "var(--muted-2)", overflowWrap: "anywhere" }}>
+              {r.email || "No sign-in owner (demo)"}
+            </div>
+          </div>
         </div>
-      ) : null}
-      {parts.length ? (
-        <div style={{ fontSize: "12px", color: "var(--muted-2)", lineHeight: 1.45 }}>
-          {parts.join("  ·  ")}
+
+        <div style={statGrid}>
+          <Stat n={String(h.sendsThisMonth)} label={h.sendsThisMonth === 1 ? "Send" : "Sends"} />
+          <Stat n={String(h.reached)} label="Reached" />
+          <Stat
+            n={`${pct(h.downloaded, h.reached)}%`}
+            label="Downloaded"
+            tone={pct(h.downloaded, h.reached) >= 50 ? "good" : undefined}
+          />
+          <Stat n={String(h.reviewClicks)} label="Review clicks" />
         </div>
-      ) : null}
+
+        {h.bounced > 0 || (h.totalSends > 0 && !h.hasReviewLinks) || quietGaps.length ? (
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "12px" }}>
+            {h.totalSends > 0 && !h.hasReviewLinks ? <span style={chipBad}>Review engine off</span> : null}
+            {h.bounced > 0 ? <span style={chipBad}>{h.bounced} bounced</span> : null}
+            {quietGaps.map((g) => (
+              <span key={g} style={chipMuted}>
+                {g}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div style={cardFoot}>
+        <span style={{ fontSize: "11.5px", color: "var(--muted-2)", flex: "0 0 auto" }}>
+          {h.lastSendAt ? `Last send ${fmtDay(h.lastSendAt)}` : "Never sent"}
+        </span>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <a href={`/admin/operators/${r.operatorId}`} className="fl-link" style={{ fontSize: "12.5px" }}>
+            Branding
+          </a>
+          {r.paid ? (
+            <span style={{ color: "var(--muted)", fontSize: "12.5px" }}>Paid ({r.tier})</span>
+          ) : (
+            <select
+              className="fl-input"
+              style={{ fontSize: "12.5px", padding: "6px 8px", maxWidth: "150px" }}
+              value={r.value}
+              disabled={saving}
+              onChange={(e) => onPlan(e.target.value)}
+            >
+              {OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
+function Kpi({ n, label, alert }: { n: string; label: string; alert?: boolean }) {
+  return (
+    <div className="fl-card" style={{ padding: "11px 14px" }}>
+      <div className="fl-display" style={{ fontSize: "22px", lineHeight: 1.1, color: alert ? "var(--bad)" : undefined }}>
+        {n}
+      </div>
+      <div style={kpiLabel}>{label}</div>
+    </div>
+  );
+}
+
+function Stat({ n, label, tone }: { n: string; label: string; tone?: "good" }) {
+  return (
+    <div>
+      <div style={{ fontWeight: 700, fontSize: "15.5px", color: tone === "good" ? "var(--good)" : "var(--text)" }}>{n}</div>
+      <div style={kpiLabel}>{label}</div>
+    </div>
+  );
+}
+
+// Brand colored square with the operator's initial. Falls back to a neutral
+// tone when no brand color is set (a quiet onboarding nudge in itself).
+function Avatar({ name, color }: { name: string; color: string | null }) {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: "38px",
+        height: "38px",
+        borderRadius: "11px",
+        background: color ?? "#8a938f",
+        color: "#fff",
+        display: "grid",
+        placeItems: "center",
+        fontWeight: 700,
+        fontSize: "15px",
+        flex: "0 0 auto",
+      }}
+    >
+      {(name.trim()[0] ?? "?").toUpperCase()}
+    </div>
+  );
+}
+
+const kpiGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))",
+  gap: "10px",
+};
+const kpiLabel: React.CSSProperties = {
+  fontSize: "10.5px",
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "var(--muted-2)",
+  fontWeight: 600,
+  marginTop: "3px",
+};
+const sectionH: React.CSSProperties = {
+  margin: "0 0 10px",
+  fontSize: "13px",
+  letterSpacing: "0.1em",
+  textTransform: "uppercase",
+  color: "var(--muted)",
+  fontWeight: 700,
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+};
+const countBadge: React.CSSProperties = {
+  background: "var(--bad)",
+  color: "#fff",
+  fontSize: "11px",
+  borderRadius: "999px",
+  padding: "1px 8px",
+};
+const triageCard: React.CSSProperties = {
+  background: "var(--panel)",
+  border: "1px solid rgba(194,83,63,.26)",
+  borderLeft: "4px solid var(--bad)",
+  borderRadius: "14px",
+  padding: "13px 16px",
+  display: "flex",
+  gap: "13px",
+  alignItems: "center",
+  flexWrap: "wrap",
+};
+const triageBtn: React.CSSProperties = {
+  fontSize: "12.5px",
+  fontWeight: 600,
+  color: "#fff",
+  background: "#0c1a21",
+  padding: "8px 14px",
+  borderRadius: "9px",
+  flex: "0 0 auto",
+};
+const cardGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
+  gap: "13px",
+};
+const statGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "9px 14px",
+  marginTop: "13px",
+};
+const cardFoot: React.CSSProperties = {
+  borderTop: "1px solid var(--line)",
+  padding: "10px 17px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "8px",
+  flexWrap: "wrap",
+};
 const chipBad: React.CSSProperties = {
   fontSize: "11.5px",
   fontWeight: 600,
@@ -170,14 +380,4 @@ const chipMuted: React.CSSProperties = {
   border: "1px solid var(--line-strong)",
   borderRadius: "999px",
   padding: "2px 9px",
-};
-
-const rowWrap: React.CSSProperties = {
-  borderTop: "1px solid var(--line)",
-  padding: "13px 4px",
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "10px 16px",
-  alignItems: "center",
-  justifyContent: "space-between",
 };
