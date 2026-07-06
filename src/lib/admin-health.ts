@@ -17,6 +17,8 @@ import { fetchAllRows, loadEventsForRecipients } from "@/lib/db-page";
 export type OperatorHealth = {
   totalSends: number;
   sendsThisMonth: number;
+  // Last calendar month's sends, so the KPI strip can show a delta.
+  sendsLastMonth: number;
   lastSendAt: string | null;
   reached: number;
   downloaded: number;
@@ -36,6 +38,7 @@ export function emptyHealth(): OperatorHealth {
   return {
     totalSends: 0,
     sendsThisMonth: 0,
+    sendsLastMonth: 0,
     lastSendAt: null,
     reached: 0,
     downloaded: 0,
@@ -67,6 +70,9 @@ export async function getOperatorHealth(
   const now = new Date();
   const monthStart = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  ).toISOString();
+  const lastMonthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
   ).toISOString();
 
   const [deliveries, recipients, dests, brandings, crews] = await Promise.all([
@@ -106,12 +112,13 @@ export async function getOperatorHealth(
     return h;
   };
 
-  // Deliveries: lifetime count, this month count, most recent send.
+  // Deliveries: lifetime count, this and last month counts, most recent send.
   for (const d of deliveries) {
     const h = ensure(d.operator_id);
     h.totalSends++;
     if (!h.lastSendAt || d.created_at > h.lastSendAt) h.lastSendAt = d.created_at;
     if (d.created_at >= monthStart) h.sendsThisMonth++;
+    else if (d.created_at >= lastMonthStart) h.sendsLastMonth++;
   }
 
   // This month recipients: reached is everyone emailed minus known bounces, so
