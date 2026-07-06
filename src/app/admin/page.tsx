@@ -1,13 +1,15 @@
 /*
-  Admin screen for the Flukesend owner. Gated by requireAdmin (email allowlist).
-  Set any operator's plan inline and open the support branding editor. Reads use
-  the service role since this spans all operators.
+  Admin console for the Flukesend owner. Gated by requireAdmin (email
+  allowlist). A slim tool shell, not a marketing page: wordmark, section name,
+  actions, then straight into the numbers. Reads use the service role since
+  this spans all operators.
 */
 import { requireAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOperatorHealth, emptyHealth } from "@/lib/admin-health";
 import { signout } from "@/app/auth/actions";
 import { AdminOperators, type OperatorRow } from "./admin-operators";
+import { InviteOperator } from "./invite-operator";
 
 export default async function AdminPage() {
   await requireAdmin();
@@ -44,21 +46,58 @@ export default async function AdminPage() {
   });
 
   return (
-    <main style={{ padding: "28px 24px", maxWidth: "1060px", margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
-        <div>
-          <h1 className="fl-h1">Admin</h1>
-          <p className="fl-muted" style={{ fontSize: "14px", margin: "0 0 20px" }}>
-            Your fleet at a glance. Anything that needs you rises to the top.
-          </p>
+    <main style={{ padding: "0 24px 40px", maxWidth: "1060px", margin: "0 auto" }}>
+      <header style={topBar}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/flukesend-wordmark-black.png"
+            alt="Flukesend"
+            style={{ height: "20px", width: "auto", display: "block" }}
+          />
+          <span style={sectionTag}>Admin</span>
         </div>
-        <form action={signout}>
-          <button type="submit" className="fl-btn-ghost" style={{ flex: "0 0 auto" }}>
-            Sign out
-          </button>
-        </form>
-      </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <InviteOperator />
+          <form action={signout}>
+            <button type="submit" style={signoutBtn} title="Sign out">
+              Sign out
+            </button>
+          </form>
+        </div>
+      </header>
       <AdminOperators rows={rows} />
     </main>
   );
 }
+
+const topBar: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "12px",
+  flexWrap: "wrap",
+  padding: "16px 0 18px",
+};
+const sectionTag: React.CSSProperties = {
+  fontSize: "11px",
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  fontWeight: 700,
+  color: "var(--muted)",
+  background: "var(--ink)",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "999px",
+  padding: "3px 10px",
+};
+const signoutBtn: React.CSSProperties = {
+  font: "inherit",
+  fontSize: "12.5px",
+  fontWeight: 500,
+  color: "var(--muted)",
+  background: "transparent",
+  border: 0,
+  cursor: "pointer",
+  padding: "6px 8px",
+  whiteSpace: "nowrap",
+};

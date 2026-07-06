@@ -29,6 +29,14 @@ export default async function AdminOperatorPage({
     .maybeSingle();
   if (!operator) notFound();
 
+  // A memberless operator is a demo tenant; its page carries the warning so
+  // the operators list does not have to.
+  const { count: memberCount } = await admin
+    .from("operator_members")
+    .select("user_id", { count: "exact", head: true })
+    .eq("operator_id", id);
+  const isDemo = (memberCount ?? 0) === 0;
+
   const [{ data: b }, senderDomain, { data: linkRows }, { data: bouncedRows }] =
     await Promise.all([
       admin
@@ -85,6 +93,23 @@ export default async function AdminOperatorPage({
       <p className="fl-muted" style={{ fontSize: "14px", margin: "0 0 20px" }}>
         Support: branding, review links, bounced guests, sender domain.
       </p>
+      {isDemo ? (
+        <div
+          style={{
+            border: "1px solid rgba(215,168,49,.4)",
+            background: "rgba(215,168,49,.1)",
+            borderRadius: "12px",
+            padding: "12px 16px",
+            fontSize: "13px",
+            color: "var(--text)",
+            lineHeight: 1.5,
+          }}
+        >
+          <b>Demo tenant.</b> This operator powers the homepage sample gallery.
+          It has no login and is not a customer. Do not delete it, and keep its
+          review links empty so the demo never emails anyone.
+        </div>
+      ) : null}
       <BouncedGuests guests={bounced} />
       <ReviewLinksPanel operatorId={operator.id} links={links} />
       <BrandingEditor

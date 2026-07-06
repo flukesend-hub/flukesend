@@ -107,18 +107,23 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
   const fleet = real.reduce(
     (t, r) => {
       t.sends += r.health.sendsThisMonth;
+      t.sendsPrev += r.health.sendsLastMonth;
       t.reached += r.health.reached;
       t.downloaded += r.health.downloaded;
       t.clicks += r.health.reviewClicks;
       t.bounced += r.health.bounced;
       return t;
     },
-    { sends: 0, reached: 0, downloaded: 0, clicks: 0, bounced: 0 },
+    { sends: 0, sendsPrev: 0, reached: 0, downloaded: 0, clicks: 0, bounced: 0 },
   );
   const triage = real.flatMap((r) => triageFor(r).map((t) => ({ ...t, row: r })));
+  const delta = fleet.sends - fleet.sendsPrev;
+  const prevMonth = new Date(Date.now() - 31 * 24 * 3600 * 1000).toLocaleDateString("en-US", {
+    month: "short",
+  });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {state?.error ? (
         <p style={{ color: "var(--bad)", fontSize: "13px", margin: 0 }}>{state.error}</p>
       ) : null}
@@ -126,17 +131,24 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
         <p style={{ color: "var(--good)", fontSize: "13px", margin: 0 }}>{state.ok}</p>
       ) : null}
 
-      {/* Fleet KPI strip */}
-      <div style={kpiGrid}>
-        <Kpi n={String(real.length)} label="Operators" />
-        <Kpi n={String(fleet.sends)} label="Sends this month" />
-        <Kpi n={String(fleet.reached)} label="Guests reached" />
-        <Kpi n={`${pct(fleet.downloaded, fleet.reached)}%`} label="Downloaded" />
-        <Kpi n={String(fleet.clicks)} label="Review clicks" />
-        <Kpi n={String(fleet.bounced)} label="Bounced" alert={fleet.bounced > 0} />
+      {/* This month across the fleet. Zeros render muted: a healthy nothing
+          should not compete with real numbers for attention. */}
+      <div>
+        <h3 style={sectionH}>This month</h3>
+        <div style={kpiGrid}>
+          <Kpi
+            n={String(fleet.sends)}
+            label="Sends"
+            sub={delta === 0 ? `same as ${prevMonth}` : `${delta > 0 ? "+" : ""}${delta} vs ${prevMonth}`}
+          />
+          <Kpi n={String(fleet.reached)} label="Reached" />
+          <Kpi n={`${pct(fleet.downloaded, fleet.reached)}%`} label="Downloaded" />
+          <Kpi n={String(fleet.clicks)} label="Review clicks" />
+          <Kpi n={String(fleet.bounced)} label="Bounced" alert={fleet.bounced > 0} />
+        </div>
       </div>
 
-      {/* Triage: only exists when something is wrong */}
+      {/* Triage when something is wrong; a quiet all-clear when nothing is. */}
       {triage.length ? (
         <div>
           <h3 style={sectionH}>
@@ -160,11 +172,19 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
             ))}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <p style={allClear}>
+          <span style={{ color: "var(--good)", fontWeight: 700 }}>{"✓"}</span> All clear.
+          Nothing needs you.
+        </p>
+      )}
 
       {/* Operator cards, real customers only */}
       <div>
-        <h3 style={sectionH}>Operators</h3>
+        <h3 style={sectionH}>
+          Operators
+          <span style={{ color: "var(--muted-2)", fontWeight: 600 }}>{real.length}</span>
+        </h3>
         <div style={cardGrid}>
           {real.map((r) => (
             <OperatorCard
@@ -175,24 +195,21 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
             />
           ))}
         </div>
+        {/* Demo tenants stay reachable through one quiet link; the full
+            do-not-delete story lives on their own support page. */}
+        {demos.length ? (
+          <p style={{ fontSize: "12px", color: "var(--muted-2)", margin: "12px 0 0" }}>
+            {demos.map((d, i) => (
+              <span key={d.operatorId}>
+                {i > 0 ? " · " : ""}
+                <a href={`/admin/operators/${d.operatorId}`} className="fl-link">
+                  {demos.length === 1 ? "1 demo tenant hidden" : d.name}
+                </a>
+              </span>
+            ))}
+          </p>
+        ) : null}
       </div>
-
-      {/* Demo tenants, tucked away but reachable so nobody rediscovers them in
-          the database and mistakes them for stray duplicates. */}
-      {demos.length ? (
-        <p style={{ fontSize: "12px", color: "var(--muted-2)", margin: "2px 0 0" }}>
-          Hidden: {demos.map((d, i) => (
-            <span key={d.operatorId}>
-              {i > 0 ? ", " : ""}
-              <a href={`/admin/operators/${d.operatorId}`} className="fl-link">
-                {d.name}
-              </a>
-            </span>
-          ))}{" "}
-          {demos.length === 1 ? "is a demo tenant" : "are demo tenants"} powering the
-          homepage sample gallery. No login, not a customer, do not delete.
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -242,7 +259,9 @@ function OperatorCard({
           <Stat
             n={`${pct(h.downloaded, h.reached)}%`}
             label="Downloaded"
-            tone={pct(h.downloaded, h.reached) >= 50 ? "good" : undefined}
+            // Amber only when guests were reached and few are downloading;
+            // a normal rate stays plain, nothing is green for existing.
+            warn={h.reached > 0 && pct(h.downloaded, h.reached) < 30}
           />
           <Stat n={String(h.reviewClicks)} label="Review clicks" />
         </div>
@@ -260,52 +279,76 @@ function OperatorCard({
         ) : null}
       </div>
 
+      {/* Footer reads left to right as fact, rare control, frequent action:
+          last send, then the quiet plan select, then Settings. */}
       <div style={cardFoot}>
-        <span style={{ fontSize: "11.5px", color: "var(--muted-2)", flex: "0 0 auto" }}>
+        <span style={{ fontSize: "11.5px", color: "var(--muted-2)", flex: "1 1 auto" }}>
           {h.lastSendAt ? `Last send ${fmtDay(h.lastSendAt)}` : "Never sent"}
         </span>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <a href={`/admin/operators/${r.operatorId}`} className="fl-link" style={{ fontSize: "12.5px" }}>
-            Branding
-          </a>
-          {r.paid ? (
-            <span style={{ color: "var(--muted)", fontSize: "12.5px" }}>Paid ({r.tier})</span>
-          ) : (
-            <select
-              className="fl-input"
-              style={{ fontSize: "12.5px", padding: "6px 8px", maxWidth: "150px" }}
-              value={r.value}
-              disabled={saving}
-              onChange={(e) => onPlan(e.target.value)}
-            >
-              {OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+        {r.paid ? (
+          <span style={{ color: "var(--muted)", fontSize: "12px", flex: "0 0 auto" }}>Paid ({r.tier})</span>
+        ) : (
+          <select
+            aria-label="Plan"
+            value={r.value}
+            disabled={saving}
+            onChange={(e) => onPlan(e.target.value)}
+            style={planSelect}
+          >
+            {OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        )}
+        <a href={`/admin/operators/${r.operatorId}`} style={settingsLink}>
+          Settings
+        </a>
       </div>
     </div>
   );
 }
 
-function Kpi({ n, label, alert }: { n: string; label: string; alert?: boolean }) {
+// Color is for exceptions only: alerts go red, healthy zeros recede to gray,
+// everything else stays plain ink.
+function Kpi({ n, label, sub, alert }: { n: string; label: string; sub?: string; alert?: boolean }) {
+  const zero = n === "0" || n === "0%";
   return (
     <div className="fl-card" style={{ padding: "11px 14px" }}>
-      <div className="fl-display" style={{ fontSize: "22px", lineHeight: 1.1, color: alert ? "var(--bad)" : undefined }}>
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: "20px",
+          lineHeight: 1.15,
+          fontVariantNumeric: "tabular-nums",
+          color: alert ? "var(--bad)" : zero ? "var(--muted-2)" : "var(--text)",
+        }}
+      >
         {n}
       </div>
       <div style={kpiLabel}>{label}</div>
+      {sub ? (
+        <div style={{ fontSize: "11px", color: "var(--muted-2)", marginTop: "2px" }}>{sub}</div>
+      ) : null}
     </div>
   );
 }
 
-function Stat({ n, label, tone }: { n: string; label: string; tone?: "good" }) {
+function Stat({ n, label, warn }: { n: string; label: string; warn?: boolean }) {
+  const zero = n === "0" || n === "0%";
   return (
     <div>
-      <div style={{ fontWeight: 700, fontSize: "15.5px", color: tone === "good" ? "var(--good)" : "var(--text)" }}>{n}</div>
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: "15.5px",
+          fontVariantNumeric: "tabular-nums",
+          color: warn ? "#8a6d1f" : zero ? "var(--muted-2)" : "var(--text)",
+        }}
+      >
+        {n}
+      </div>
       <div style={kpiLabel}>{label}</div>
     </div>
   );
@@ -401,10 +444,40 @@ const cardFoot: React.CSSProperties = {
   borderTop: "1px solid var(--line)",
   padding: "10px 17px",
   display: "flex",
-  justifyContent: "space-between",
   alignItems: "center",
-  gap: "8px",
+  gap: "10px",
   flexWrap: "wrap",
+};
+// The plan changes maybe once per operator ever, so the control whispers: a
+// borderless select that reads as text until you need it.
+const planSelect: React.CSSProperties = {
+  font: "inherit",
+  fontSize: "12px",
+  color: "var(--muted)",
+  background: "transparent",
+  border: "1px solid transparent",
+  borderRadius: "7px",
+  padding: "4px 2px",
+  cursor: "pointer",
+  maxWidth: "140px",
+  flex: "0 0 auto",
+};
+const settingsLink: React.CSSProperties = {
+  fontSize: "12.5px",
+  fontWeight: 600,
+  color: "var(--signal-2)",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "8px",
+  padding: "5px 12px",
+  flex: "0 0 auto",
+};
+const allClear: React.CSSProperties = {
+  margin: 0,
+  fontSize: "13px",
+  color: "var(--muted)",
+  display: "flex",
+  alignItems: "center",
+  gap: "7px",
 };
 const chipBad: React.CSSProperties = {
   fontSize: "11.5px",
