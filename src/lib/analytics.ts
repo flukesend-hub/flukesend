@@ -20,6 +20,7 @@
 */
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows, loadEventsForRecipients } from "@/lib/db-page";
 
 export type Funnel = {
   sends: number;
@@ -92,10 +93,6 @@ function monthLabel(key: string): string {
   });
 }
 
-function* chunks<T>(arr: T[], size: number): Generator<T[]> {
-  for (let i = 0; i < arr.length; i += size) yield arr.slice(i, i + size);
-}
-
 // Photographer attribution for a delivery. The email credits each person once
 // by their top role (captain outranks photographer), so a captain who also
 // shoots lands on the delivery as captain with photographer_name empty. The
@@ -151,20 +148,30 @@ export async function getAnalytics(
 
   // Recipients with their delivery joined, and the QR captures, fetched
   // together. RLS scopes both to this operator; the explicit operator filter
-  // and the window keep the join tight.
-  const [{ data: recRaw }, { data: capRaw }, photographerNames] = await Promise.all([
-    supabase
-      .from("recipients")
-      .select(
-        "id, delivery_id, review_email_status, email_status, deliveries!inner(operator_id, created_at, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
-      )
-      .eq("deliveries.operator_id", operatorId)
-      .gte("deliveries.created_at", windowStart)
-      .limit(100000),
-    supabase.from("captured_guests").select("captured_at").gte("captured_at", windowStart).limit(100000),
+  // and the window keep the join tight. Both page past the 1000 row cap: a busy
+  // operator clears 1000 recipients or captures inside the six month window.
+  const [recipients, capRows, photographerNames] = await Promise.all([
+    fetchAllRows<RecipientRow>((from, to) =>
+      supabase
+        .from("recipients")
+        .select(
+          "id, delivery_id, review_email_status, email_status, deliveries!inner(operator_id, created_at, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
+        )
+        .eq("deliveries.operator_id", operatorId)
+        .gte("deliveries.created_at", windowStart)
+        .order("id")
+        .range(from, to),
+    ),
+    fetchAllRows<{ captured_at: string }>((from, to) =>
+      supabase
+        .from("captured_guests")
+        .select("captured_at")
+        .gte("captured_at", windowStart)
+        .order("captured_at")
+        .range(from, to),
+    ),
     rosterPhotographers(supabase, operatorId),
   ]);
-  const recipients = (recRaw ?? []) as unknown as RecipientRow[];
 
   // Which recipients opened and downloaded. Fetched by id in chunks so a busy
   // operator's list never blows the query length.
@@ -172,21 +179,15 @@ export async function getAnalytics(
   const downloaded = new Set<string>();
   const reviewClicked = new Set<string>();
   const recipientIds = recipients.map((r) => r.id);
-  for (const chunk of chunks(recipientIds, 500)) {
-    const { data: evs } = await supabase
-      .from("events")
-      .select("recipient_id, type")
-      .in("recipient_id", chunk);
-    for (const e of evs ?? []) {
-      if (e.type === "opened") opened.add(e.recipient_id as string);
-      else if (e.type === "downloaded") downloaded.add(e.recipient_id as string);
-      else if (e.type === "review_clicked") reviewClicked.add(e.recipient_id as string);
-    }
+  for (const e of await loadEventsForRecipients(supabase, recipientIds)) {
+    if (e.type === "opened") opened.add(e.recipient_id);
+    else if (e.type === "downloaded") downloaded.add(e.recipient_id);
+    else if (e.type === "review_clicked") reviewClicked.add(e.recipient_id);
   }
 
   const capturedByMonth = new Map<string, number>();
-  for (const c of capRaw ?? []) {
-    const k = monthKey(c.captured_at as string);
+  for (const c of capRows) {
+    const k = monthKey(c.captured_at);
     capturedByMonth.set(k, (capturedByMonth.get(k) ?? 0) + 1);
   }
 
@@ -304,35 +305,34 @@ export async function getDeliveryRows(
   supabase: SupabaseClient,
   operatorId: string,
 ): Promise<DeliveryRow[]> {
-  const [{ data: recRaw }, photographerNames] = await Promise.all([
-    supabase
-      .from("recipients")
-      .select(
-        "id, delivery_id, review_email_status, deliveries!inner(operator_id, created_at, trip_datetime, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
-      )
-      .eq("deliveries.operator_id", operatorId)
-      .order("delivery_id", { ascending: false })
-      .limit(100000),
+  type DeliveryRecipient = RecipientRow & {
+    deliveries: RecipientRow["deliveries"] & { trip_datetime: string | null };
+  };
+  // Page by the unique id (not delivery_id, which repeats per recipient and
+  // would split a delivery across pages) past the 1000 row cap; the aggregate
+  // below groups by delivery so row order does not matter.
+  const [recipients, photographerNames] = await Promise.all([
+    fetchAllRows<DeliveryRecipient>((from, to) =>
+      supabase
+        .from("recipients")
+        .select(
+          "id, delivery_id, review_email_status, deliveries!inner(operator_id, created_at, trip_datetime, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
+        )
+        .eq("deliveries.operator_id", operatorId)
+        .order("id")
+        .range(from, to),
+    ),
     rosterPhotographers(supabase, operatorId),
   ]);
-  const recipients = (recRaw ?? []) as unknown as (RecipientRow & {
-    deliveries: RecipientRow["deliveries"] & { trip_datetime: string | null };
-  })[];
 
   const opened = new Set<string>();
   const downloaded = new Set<string>();
   const reviewClicked = new Set<string>();
   const recipientIds = recipients.map((r) => r.id);
-  for (const chunk of chunks(recipientIds, 500)) {
-    const { data: evs } = await supabase
-      .from("events")
-      .select("recipient_id, type")
-      .in("recipient_id", chunk);
-    for (const e of evs ?? []) {
-      if (e.type === "opened") opened.add(e.recipient_id as string);
-      else if (e.type === "downloaded") downloaded.add(e.recipient_id as string);
-      else if (e.type === "review_clicked") reviewClicked.add(e.recipient_id as string);
-    }
+  for (const e of await loadEventsForRecipients(supabase, recipientIds)) {
+    if (e.type === "opened") opened.add(e.recipient_id);
+    else if (e.type === "downloaded") downloaded.add(e.recipient_id);
+    else if (e.type === "review_clicked") reviewClicked.add(e.recipient_id);
   }
 
   type Agg = {

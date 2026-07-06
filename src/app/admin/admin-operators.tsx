@@ -8,6 +8,7 @@
 */
 import { useState, useTransition } from "react";
 import { setPlan, type AdminState } from "./actions";
+import type { OperatorHealth } from "@/lib/admin-health";
 
 export type OperatorRow = {
   operatorId: string;
@@ -16,7 +17,29 @@ export type OperatorRow = {
   paid: boolean;
   tier: string | null;
   value: string;
+  health: OperatorHealth;
 };
+
+function fmtDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+// Onboarding gaps, most alarming first. "Review engine off" only counts as loud
+// when the operator is actually sending: photos going out with no review link
+// means no review can ever fire, and they never see it.
+function gapsFor(h: OperatorHealth): { label: string; bad: boolean }[] {
+  const gaps: { label: string; bad: boolean }[] = [];
+  if (h.totalSends > 0 && !h.hasReviewLinks) gaps.push({ label: "Review engine off", bad: true });
+  if (h.bounced > 0) gaps.push({ label: `${h.bounced} bounced`, bad: true });
+  if (h.totalSends === 0) gaps.push({ label: "No sends yet", bad: false });
+  if (h.totalSends === 0 && !h.hasReviewLinks) gaps.push({ label: "No review links", bad: false });
+  if (!h.hasLogo) gaps.push({ label: "No logo", bad: false });
+  return gaps;
+}
 
 const OPTIONS = [
   { value: "trial", label: "Free trial" },
@@ -60,11 +83,12 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
       <div>
         {rows.map((r) => (
           <div key={r.operatorId} style={rowWrap}>
-            <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+            <div style={{ minWidth: 0, flex: "1 1 240px" }}>
               <div style={{ fontWeight: 600, fontSize: "14px" }}>{r.name}</div>
               <div style={{ color: "var(--muted)", fontSize: "12.5px", overflowWrap: "anywhere", marginTop: "2px" }}>
                 {r.email || "No sign-in owner (demo)"}
               </div>
+              <HealthLine health={r.health} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
               {r.paid ? (
@@ -94,6 +118,59 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
     </div>
   );
 }
+
+// A quiet one line health readout plus any onboarding-gap chips. Silent when an
+// operator has never sent and has nothing wrong beyond that.
+function HealthLine({ health }: { health: OperatorHealth }) {
+  const gaps = gapsFor(health);
+  const rate = health.reached > 0 ? Math.round((health.downloaded / health.reached) * 100) : 0;
+  const parts: string[] = [];
+  if (health.lastSendAt) parts.push(`Last send ${fmtDay(health.lastSendAt)}`);
+  if (health.sendsThisMonth > 0) {
+    parts.push(`${health.sendsThisMonth} ${health.sendsThisMonth === 1 ? "send" : "sends"} this month`);
+    parts.push(`${health.reached} reached`);
+    parts.push(`${rate}% downloaded`);
+    parts.push(`${health.reviewClicks} review ${health.reviewClicks === 1 ? "click" : "clicks"}`);
+  }
+  if (!gaps.length && !parts.length) return null;
+  return (
+    <div style={{ marginTop: "7px", display: "flex", flexDirection: "column", gap: "6px" }}>
+      {gaps.length ? (
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          {gaps.map((g) => (
+            <span key={g.label} style={g.bad ? chipBad : chipMuted}>
+              {g.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {parts.length ? (
+        <div style={{ fontSize: "12px", color: "var(--muted-2)", lineHeight: 1.45 }}>
+          {parts.join("  ·  ")}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const chipBad: React.CSSProperties = {
+  fontSize: "11.5px",
+  fontWeight: 600,
+  color: "var(--bad)",
+  background: "rgba(194,83,63,.10)",
+  border: "1px solid rgba(194,83,63,.28)",
+  borderRadius: "999px",
+  padding: "2px 9px",
+};
+const chipMuted: React.CSSProperties = {
+  fontSize: "11.5px",
+  fontWeight: 600,
+  color: "var(--muted)",
+  background: "var(--ink)",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "999px",
+  padding: "2px 9px",
+};
 
 const rowWrap: React.CSSProperties = {
   borderTop: "1px solid var(--line)",
