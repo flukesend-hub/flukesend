@@ -11,14 +11,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin";
+import { buildDeliveryEmail } from "@/lib/delivery-email";
+import { sendEmail } from "@/lib/email";
 import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
 import {
   createSenderDomain,
   checkSenderDomain,
   removeSenderDomain,
+  resolveFromAddress,
 } from "@/lib/sender-domain";
 
 export type AdminState = { error?: string; ok?: string } | undefined;
@@ -141,4 +145,187 @@ export async function adminRemoveSenderDomain(operatorId: string): Promise<Admin
   }
   revalidatePath(`/admin/operators/${operatorId}`);
   return { ok: "Domain removed. Their email sends from flukesend.com again." };
+}
+
+// ---- Review links, support mode ----
+// Same validation as the operator's own settings, but scoped to any operator
+// and written with the service role. This is how the admin turns the review
+// engine on for an operator who never set their links up.
+
+export async function adminAddReviewLink(
+  operatorId: string,
+  formData: FormData,
+): Promise<AdminState> {
+  await requireAdmin();
+  if (!operatorId) return { error: "Missing operator." };
+
+  const label = String(formData.get("label") ?? "").trim();
+  let url = String(formData.get("url") ?? "").trim();
+  if (!label) return { error: "Enter a label for the link." };
+  if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+  try {
+    new URL(url);
+  } catch {
+    return { error: "Enter a valid URL." };
+  }
+
+  const admin = createAdminClient();
+  const { data: last } = await admin
+    .from("review_destinations")
+    .select("sort_order")
+    .eq("operator_id", operatorId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const { error } = await admin.from("review_destinations").insert({
+    operator_id: operatorId,
+    label,
+    url,
+    sort_order: ((last?.sort_order as number | null) ?? -1) + 1,
+  });
+  if (error) return { error: "Could not add the link. Try again." };
+
+  revalidatePath(`/admin/operators/${operatorId}`);
+  revalidatePath("/admin");
+  return { ok: "Link added. Their review engine is on." };
+}
+
+export async function adminDeleteReviewLink(
+  operatorId: string,
+  id: string,
+): Promise<AdminState> {
+  await requireAdmin();
+  if (!operatorId || !id) return { error: "Missing link." };
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("review_destinations")
+    .delete()
+    .eq("id", id)
+    .eq("operator_id", operatorId);
+  if (error) return { error: "Could not remove the link. Try again." };
+  revalidatePath(`/admin/operators/${operatorId}`);
+  revalidatePath("/admin");
+  return { ok: "Link removed." };
+}
+
+// ---- Bounced guests, support mode ----
+// Correct a bounced address on the operator's behalf and resend their gallery
+// email in one move. Resend only happens while the gallery is still live; on
+// an expired send the corrected address is saved for the export list but no
+// dead link goes out.
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function adminFixBouncedEmail(
+  recipientId: string,
+  emailRaw: string,
+): Promise<AdminState> {
+  await requireAdmin();
+  const email = emailRaw.trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) return { error: "Enter a valid email." };
+
+  const admin = createAdminClient();
+  const { data: r } = await admin
+    .from("recipients")
+    .select("id, name, token, delivery_id")
+    .eq("id", recipientId)
+    .maybeSingle();
+  if (!r) return { error: "Guest not found." };
+
+  const { data: d } = await admin
+    .from("deliveries")
+    .select(
+      "operator_id, trip_datetime, species, captain_name, naturalist_name, photographer_name, custom_message, expires_at",
+    )
+    .eq("id", r.delivery_id)
+    .maybeSingle();
+  if (!d) return { error: "Send not found." };
+
+  // Save the corrected address first; even if the resend fails the export
+  // list is fixed. The bounce mark stays until a send actually succeeds.
+  const { error: upErr } = await admin
+    .from("recipients")
+    .update({ email })
+    .eq("id", recipientId);
+  if (upErr) return { error: "Could not update the email. Try again." };
+
+  const operatorId = d.operator_id as string;
+  const expired = !!d.expires_at && new Date(d.expires_at as string) < new Date();
+  if (expired) {
+    revalidatePath(`/admin/operators/${operatorId}`);
+    revalidatePath("/admin");
+    return { ok: "Address saved. The gallery has expired, so no email was sent." };
+  }
+
+  const [{ data: operator }, { data: branding }] = await Promise.all([
+    admin.from("operators").select("name").eq("id", operatorId).maybeSingle(),
+    admin
+      .from("branding")
+      .select(
+        "retention_days, brand_color, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      )
+      .eq("operator_id", operatorId)
+      .maybeSingle(),
+  ]);
+
+  const hdrs = await headers();
+  const host = hdrs.get("host");
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const baseUrl = host ? `${proto}://${host}` : "";
+
+  const { subject, html } = buildDeliveryEmail({
+    operatorName: operator?.name ?? "your crew",
+    brandColor: branding?.brand_color ?? "#0b5563",
+    logoUrl: branding?.logo_url ?? null,
+    retentionDays: (branding?.retention_days as number | null) ?? 7,
+    recipientName: (r.name as string | null) ?? null,
+    tripDate: d.trip_datetime
+      ? new Date(d.trip_datetime as string).toLocaleDateString("en-US", { dateStyle: "long" })
+      : null,
+    captainName: d.captain_name,
+    naturalistName: d.naturalist_name,
+    photographerName: d.photographer_name,
+    species: (d.species ?? []) as string[],
+    message: (d.custom_message as string | null) || branding?.default_message || "",
+    galleryUrl: `${baseUrl}/g/${r.token}`,
+    social: {
+      website_url: branding?.website_url ?? null,
+      facebook_url: branding?.facebook_url ?? null,
+      instagram_url: branding?.instagram_url ?? null,
+      tiktok_url: branding?.tiktok_url ?? null,
+      youtube_url: branding?.youtube_url ?? null,
+      x_url: branding?.x_url ?? null,
+    },
+  });
+
+  const result = await sendEmail(
+    email,
+    subject,
+    html,
+    await resolveFromAddress(operatorId, operator?.name ?? "your crew"),
+    branding?.reply_to_email ?? null,
+  );
+  if (result.status === "sent") {
+    // Fresh attempt: new email id, bounce cleared so the guest row starts over.
+    const { error: idErr } = await admin
+      .from("recipients")
+      .update({
+        resend_email_id: result.ids[0] ?? null,
+        email_status: null,
+        email_status_at: null,
+      })
+      .eq("id", recipientId);
+    if (idErr) {
+      console.error(
+        `adminFixBouncedEmail: storing resend id for ${recipientId} failed: ${idErr.message}`,
+      );
+    }
+    revalidatePath(`/admin/operators/${operatorId}`);
+    revalidatePath("/admin");
+    return { ok: `Saved and resent to ${email}.` };
+  }
+  if (result.status === "skipped") {
+    return { error: "Address saved, but the email service is not configured." };
+  }
+  return { error: "Address saved, but the resend failed. Try again." };
 }
