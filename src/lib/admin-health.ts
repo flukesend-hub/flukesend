@@ -30,8 +30,10 @@ export type OperatorHealth = {
   hasReviewLinks: boolean;
   hasLogo: boolean;
   hasCrew: boolean;
-  // The operator's brand color, for the card accent band and avatar.
+  // The operator's brand color and logo, for the card header band. Logos are
+  // built for the brand color band (many are white), never a white card.
   brandColor: string | null;
+  logoUrl: string | null;
 };
 
 export function emptyHealth(): OperatorHealth {
@@ -49,6 +51,7 @@ export function emptyHealth(): OperatorHealth {
     hasLogo: false,
     hasCrew: false,
     brandColor: null,
+    logoUrl: null,
   };
 }
 
@@ -161,7 +164,10 @@ export async function getOperatorHealth(
   for (const d of dests) ensure(d.operator_id).hasReviewLinks = true;
   for (const b of brandings) {
     const h = ensure(b.operator_id);
-    if (b.logo_url?.trim()) h.hasLogo = true;
+    if (b.logo_url?.trim()) {
+      h.hasLogo = true;
+      h.logoUrl = b.logo_url.trim();
+    }
     if (b.brand_color?.trim()) h.brandColor = b.brand_color.trim();
   }
   for (const c of crews) ensure(c.operator_id).hasCrew = true;
