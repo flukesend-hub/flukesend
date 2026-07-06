@@ -98,8 +98,13 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
     });
   }
 
-  // Fleet totals for the KPI strip, this month.
-  const fleet = rows.reduce(
+  // Demo tenants are not customers: they stay out of the count, the KPI math,
+  // and the cards, reachable only through the quiet footnote below.
+  const real = rows.filter((r) => !isDemo(r));
+  const demos = rows.filter(isDemo);
+
+  // Fleet totals for the KPI strip, this month, real operators only.
+  const fleet = real.reduce(
     (t, r) => {
       t.sends += r.health.sendsThisMonth;
       t.reached += r.health.reached;
@@ -110,7 +115,7 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
     },
     { sends: 0, reached: 0, downloaded: 0, clicks: 0, bounced: 0 },
   );
-  const triage = rows.flatMap((r) => triageFor(r).map((t) => ({ ...t, row: r })));
+  const triage = real.flatMap((r) => triageFor(r).map((t) => ({ ...t, row: r })));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
@@ -123,7 +128,7 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
 
       {/* Fleet KPI strip */}
       <div style={kpiGrid}>
-        <Kpi n={String(rows.length)} label="Operators" />
+        <Kpi n={String(real.length)} label="Operators" />
         <Kpi n={String(fleet.sends)} label="Sends this month" />
         <Kpi n={String(fleet.reached)} label="Guests reached" />
         <Kpi n={`${pct(fleet.downloaded, fleet.reached)}%`} label="Downloaded" />
@@ -157,11 +162,11 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
         </div>
       ) : null}
 
-      {/* Operator cards */}
+      {/* Operator cards, real customers only */}
       <div>
         <h3 style={sectionH}>Operators</h3>
         <div style={cardGrid}>
-          {rows.map((r) => (
+          {real.map((r) => (
             <OperatorCard
               key={r.operatorId}
               row={r}
@@ -171,6 +176,23 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
           ))}
         </div>
       </div>
+
+      {/* Demo tenants, tucked away but reachable so nobody rediscovers them in
+          the database and mistakes them for stray duplicates. */}
+      {demos.length ? (
+        <p style={{ fontSize: "12px", color: "var(--muted-2)", margin: "2px 0 0" }}>
+          Hidden: {demos.map((d, i) => (
+            <span key={d.operatorId}>
+              {i > 0 ? ", " : ""}
+              <a href={`/admin/operators/${d.operatorId}`} className="fl-link">
+                {d.name}
+              </a>
+            </span>
+          ))}{" "}
+          {demos.length === 1 ? "is a demo tenant" : "are demo tenants"} powering the
+          homepage sample gallery. No login, not a customer, do not delete.
+        </p>
+      ) : null}
     </div>
   );
 }
