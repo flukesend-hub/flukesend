@@ -9,6 +9,7 @@
   trip date alongside it.
 */
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/db-page";
 
 export const dynamic = "force-dynamic";
 
@@ -62,15 +63,22 @@ export async function GET() {
   }
 
   // RLS already scopes recipients to this operator's deliveries; the inner join
-  // and operator filter make that explicit and drop any orphaned rows.
-  const { data, error } = await supabase
-    .from("recipients")
-    .select("email, name, created_at, deliveries!inner(operator_id, trip_datetime, created_at)")
-    .eq("deliveries.operator_id", membership.operator_id)
-    .order("created_at", { ascending: false })
-    .limit(10000);
-
-  if (error) {
+  // and operator filter make that explicit and drop any orphaned rows. Paged
+  // past the 1000 row response cap so a busy operator's export is complete;
+  // "your list is yours" only holds if the whole list comes out. The id
+  // tiebreak keeps pages stable when many rows share a created_at.
+  let data: Row[];
+  try {
+    data = await fetchAllRows<Row>((from, to) =>
+      supabase
+        .from("recipients")
+        .select("email, name, created_at, deliveries!inner(operator_id, trip_datetime, created_at)")
+        .eq("deliveries.operator_id", membership.operator_id)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    );
+  } catch {
     return new Response("Could not build the export.", { status: 500 });
   }
 
@@ -78,7 +86,7 @@ export async function GET() {
   // newest first, so that is the most recent), count trips, and track the
   // latest trip date across all of a guest's sends.
   const byEmail = new Map<string, Contact>();
-  for (const r of (data ?? []) as unknown as Row[]) {
+  for (const r of data) {
     const email = r.email.trim();
     if (!email) continue;
     const key = email.toLowerCase();

@@ -17,6 +17,7 @@
 */
 import { cronAuthorized } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/db-page";
 
 export const maxDuration = 300;
 
@@ -98,18 +99,25 @@ export async function GET(request: Request) {
   }
 
   // ---- Sweep 2: orphaned uploads ----
-  // Reference set: every storage key any photos row points at. Abort the
-  // sweep entirely if this read fails; an accidentally empty set would mark
-  // every object an orphan.
-  const { data: refRows, error: refErr } = await admin
-    .from("photos")
-    .select("storage_key")
-    .limit(500000);
-  if (refErr) {
-    summary.errors.push(`reference set query failed, orphan sweep skipped: ${refErr.message}`);
+  // Reference set: every storage key any photos row points at. This MUST be
+  // complete: PostgREST caps a single response at 1000 rows and .limit()
+  // cannot raise it, so a plain select would silently truncate once the fleet
+  // has more than 1000 photo rows, and every key outside the first page would
+  // read as an orphan and get deleted from live galleries. Page through all
+  // rows, and abort the sweep entirely if any page fails; an accidentally
+  // short set would mark referenced objects as orphans.
+  let referenced: Set<string>;
+  try {
+    const refRows = await fetchAllRows<{ id: string; storage_key: string }>((from, to) =>
+      admin.from("photos").select("id, storage_key").order("id").range(from, to),
+    );
+    referenced = new Set(refRows.map((r) => r.storage_key).filter(Boolean));
+  } catch (e) {
+    summary.errors.push(
+      `reference set query failed, orphan sweep skipped: ${e instanceof Error ? e.message : String(e)}`,
+    );
     return Response.json(summary);
   }
-  const referenced = new Set((refRows ?? []).map((r) => r.storage_key as string));
 
   const graceCutoff = Date.now() - ORPHAN_GRACE_HOURS * 60 * 60 * 1000;
   const orphans: string[] = [];

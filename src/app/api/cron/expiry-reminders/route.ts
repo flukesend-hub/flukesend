@@ -16,6 +16,7 @@
 */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cronAuthorized } from "@/lib/cron-auth";
+import { fetchAllRows } from "@/lib/db-page";
 import { sendEmail } from "@/lib/email";
 import { buildReminderEmail } from "@/lib/reminder-email";
 import { resolveFromAddress } from "@/lib/sender-domain";
@@ -128,13 +129,29 @@ export async function GET(request: Request) {
     }
     if (!recips?.length) continue;
 
-    // Who already downloaded. One query for the whole delivery.
-    const { data: evs } = await admin
-      .from("events")
-      .select("recipient_id")
-      .eq("type", "downloaded")
-      .in("recipient_id", recips.map((r) => r.id));
-    const downloaded = new Set((evs ?? []).map((e) => e.recipient_id as string));
+    // Who already downloaded. Paged past the 1000 row cap: every photo
+    // download is its own event, so a big delivery's downloaders can clear
+    // 1000 rows, and a truncated read would nudge guests who already saved
+    // their photos. On a failed page, skip the delivery rather than risk
+    // that; tomorrow's run retries.
+    let downloaded: Set<string>;
+    try {
+      const evs = await fetchAllRows<{ id: string; recipient_id: string }>((from, to) =>
+        admin
+          .from("events")
+          .select("id, recipient_id")
+          .eq("type", "downloaded")
+          .in("recipient_id", recips.map((r) => r.id))
+          .order("id")
+          .range(from, to),
+      );
+      downloaded = new Set(evs.map((e) => e.recipient_id));
+    } catch (e) {
+      summary.errors.push(
+        `events query failed for ${d.id}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      continue;
+    }
 
     const pending = recips.filter((r) => !downloaded.has(r.id));
     if (!pending.length) continue;
