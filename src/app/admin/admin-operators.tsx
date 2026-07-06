@@ -54,50 +54,53 @@ export function AdminOperators({ rows }: { rows: OperatorRow[] }) {
         <p style={{ color: "var(--good)", fontSize: "13px", margin: "0 0 12px" }}>{state.ok}</p>
       ) : null}
 
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13.5px" }}>
-        <thead>
-          <tr style={{ textAlign: "left", color: "var(--muted)" }}>
-            <th style={cell}>Operator</th>
-            <th style={cell}>Owner</th>
-            <th style={cell}>Plan</th>
-            <th style={cell}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.operatorId} style={{ borderTop: "1px solid var(--line)" }}>
-              <td style={cell}>{r.name}</td>
-              <td style={{ ...cell, color: "var(--muted)" }}>{r.email}</td>
-              <td style={cell}>
-                {r.paid ? (
-                  <span style={{ color: "var(--muted)" }}>Paid ({r.tier})</span>
-                ) : (
-                  <select
-                    className="fl-input"
-                    style={{ fontSize: "13px", padding: "7px 9px", minWidth: "170px" }}
-                    value={r.value}
-                    disabled={savingId === r.operatorId}
-                    onChange={(e) => change(r.operatorId, e.target.value)}
-                  >
-                    {OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </td>
-              <td style={{ ...cell, textAlign: "right" }}>
-                <a href={`/admin/operators/${r.operatorId}`} className="fl-link">
-                  Edit branding
-                </a>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Stacked rows, not a table: the owner email is long and a fixed four
+          column table overflows a phone. Each row reflows, name and controls
+          side by side on desktop, controls wrapping under the name on mobile. */}
+      <div>
+        {rows.map((r) => (
+          <div key={r.operatorId} style={rowWrap}>
+            <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+              <div style={{ fontWeight: 600, fontSize: "14px" }}>{r.name}</div>
+              <div style={{ color: "var(--muted)", fontSize: "12.5px", overflowWrap: "anywhere", marginTop: "2px" }}>
+                {r.email || "No sign-in owner (demo)"}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+              {r.paid ? (
+                <span style={{ color: "var(--muted)", fontSize: "13.5px" }}>Paid ({r.tier})</span>
+              ) : (
+                <select
+                  className="fl-input"
+                  style={{ fontSize: "13px", padding: "7px 9px", minWidth: "160px" }}
+                  value={r.value}
+                  disabled={savingId === r.operatorId}
+                  onChange={(e) => change(r.operatorId, e.target.value)}
+                >
+                  {OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <a href={`/admin/operators/${r.operatorId}`} className="fl-link" style={{ fontSize: "13.5px" }}>
+                Edit branding
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-const cell: React.CSSProperties = { padding: "9px 6px", verticalAlign: "middle" };
+const rowWrap: React.CSSProperties = {
+  borderTop: "1px solid var(--line)",
+  padding: "13px 4px",
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "10px 16px",
+  alignItems: "center",
+  justifyContent: "space-between",
+};
