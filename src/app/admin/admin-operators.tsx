@@ -236,10 +236,24 @@ function OperatorCard({
 
   return (
     <div className="fl-card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      <div style={{ height: "5px", background: band }} />
-      <div style={{ padding: "15px 17px 14px", flex: 1 }}>
+      {/* The header band is the operator's real brand: their color, their
+          logo, same as their gallery and emails. Logos are made for this
+          band (many are white), which is why they cannot sit on the card. */}
+      {h.logoUrl ? (
+        <div style={{ background: band, padding: "12px 17px", display: "flex", alignItems: "center" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={h.logoUrl}
+            alt=""
+            style={{ height: "22px", width: "auto", maxWidth: "70%", objectFit: "contain", display: "block" }}
+          />
+        </div>
+      ) : (
+        <div style={{ height: "5px", background: band }} />
+      )}
+      <div style={{ padding: "14px 17px", flex: 1 }}>
         <div style={{ display: "flex", gap: "11px", alignItems: "center" }}>
-          <Avatar name={r.name} color={h.brandColor} />
+          {h.logoUrl ? null : <Avatar name={r.name} color={h.brandColor} />}
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: "14.5px", display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
               {r.name}
