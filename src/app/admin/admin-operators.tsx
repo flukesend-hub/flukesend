@@ -51,9 +51,17 @@ function pct(part: number, whole: number): number {
 // A red flag puts the operator in the triage section; quiet gaps just show as
 // chips on their card. "Review engine off" only fires when they are actually
 // sending: photos going out with no review link means no ask can ever fire.
+// An operator with no sign-in owner is a demo tenant (it powers the public
+// sample gallery, deliberately wearing a real crew's branding). Demos never
+// enter triage: their review engine being off is intentional, not a problem.
+function isDemo(r: OperatorRow): boolean {
+  return !r.email;
+}
+
 type Triage = { title: string; fix: string; action: string; anchor: string };
 
 function triageFor(r: OperatorRow): Triage[] {
+  if (isDemo(r)) return [];
   const h = r.health;
   const out: Triage[] = [];
   if (h.totalSends > 0 && !h.hasReviewLinks) {
@@ -177,11 +185,15 @@ function OperatorCard({
   onPlan: (plan: string) => void;
 }) {
   const h = r.health;
+  const demo = isDemo(r);
   const band = h.brandColor ?? "var(--line-strong)";
+  // Demos skip the gap chips: their missing pieces are by design.
   const quietGaps: string[] = [];
-  if (h.totalSends === 0) quietGaps.push("No sends yet");
-  if (h.totalSends === 0 && !h.hasReviewLinks) quietGaps.push("No review links");
-  if (!h.hasLogo) quietGaps.push("No logo");
+  if (!demo) {
+    if (h.totalSends === 0) quietGaps.push("No sends yet");
+    if (h.totalSends === 0 && !h.hasReviewLinks) quietGaps.push("No review links");
+    if (!h.hasLogo) quietGaps.push("No logo");
+  }
 
   return (
     <div className="fl-card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -190,9 +202,14 @@ function OperatorCard({
         <div style={{ display: "flex", gap: "11px", alignItems: "center" }}>
           <Avatar name={r.name} color={h.brandColor} />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: "14.5px" }}>{r.name}</div>
+            <div style={{ fontWeight: 700, fontSize: "14.5px", display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+              {r.name}
+              {demo ? <span style={chipMuted}>Demo tenant</span> : null}
+            </div>
             <div style={{ fontSize: "11.5px", color: "var(--muted-2)", overflowWrap: "anywhere" }}>
-              {r.email || "No sign-in owner (demo)"}
+              {demo
+                ? "Powers the homepage sample gallery. No login. Not a customer."
+                : r.email}
             </div>
           </div>
         </div>
@@ -208,7 +225,7 @@ function OperatorCard({
           <Stat n={String(h.reviewClicks)} label="Review clicks" />
         </div>
 
-        {h.bounced > 0 || (h.totalSends > 0 && !h.hasReviewLinks) || quietGaps.length ? (
+        {!demo && (h.bounced > 0 || (h.totalSends > 0 && !h.hasReviewLinks) || quietGaps.length) ? (
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "12px" }}>
             {h.totalSends > 0 && !h.hasReviewLinks ? <span style={chipBad}>Review engine off</span> : null}
             {h.bounced > 0 ? <span style={chipBad}>{h.bounced} bounced</span> : null}

@@ -5,9 +5,11 @@
   inline corrected-address field. Saving fixes the address and, while the
   gallery is still live, resends their delivery email in the same move; on an
   expired send the address is saved for the export list and the button says so.
+  Delete (two taps: the first arms it) removes an unsalvageable address
+  entirely so it stops counting against the operator and never hits the export.
 */
 import { useState, useTransition } from "react";
-import { adminFixBouncedEmail, type AdminState } from "../../actions";
+import { adminDeleteRecipient, adminFixBouncedEmail, type AdminState } from "../../actions";
 
 export type BouncedGuest = {
   recipientId: string;
@@ -20,6 +22,8 @@ export function BouncedGuests({ guests }: { guests: BouncedGuest[] }) {
   const [state, setState] = useState<AdminState>(undefined);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // Two step delete: the first tap arms the button, the second deletes.
+  const [armedId, setArmedId] = useState<string | null>(null);
   const [, start] = useTransition();
 
   if (!guests.length) return null;
@@ -30,6 +34,21 @@ export function BouncedGuests({ guests }: { guests: BouncedGuest[] }) {
     setSavingId(recipientId);
     start(async () => {
       const r = await adminFixBouncedEmail(recipientId, draft);
+      setState(r);
+      setSavingId(null);
+    });
+  }
+
+  function remove(recipientId: string) {
+    if (armedId !== recipientId) {
+      setArmedId(recipientId);
+      return;
+    }
+    setState(undefined);
+    setSavingId(recipientId);
+    setArmedId(null);
+    start(async () => {
+      const r = await adminDeleteRecipient(recipientId);
       setState(r);
       setSavingId(null);
     });
@@ -85,6 +104,21 @@ export function BouncedGuests({ guests }: { guests: BouncedGuest[] }) {
                   : g.expired
                     ? "Save address"
                     : "Save and resend"}
+              </button>
+              <button
+                type="button"
+                className="fl-btn-ghost"
+                disabled={savingId === g.recipientId}
+                onClick={() => remove(g.recipientId)}
+                onBlur={() => setArmedId((a) => (a === g.recipientId ? null : a))}
+                style={{
+                  flex: "0 0 auto",
+                  fontSize: "12.5px",
+                  color: "var(--bad)",
+                  fontWeight: armedId === g.recipientId ? 700 : 500,
+                }}
+              >
+                {armedId === g.recipientId ? "Really delete?" : "Delete"}
               </button>
             </div>
           </div>

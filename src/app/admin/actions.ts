@@ -329,3 +329,31 @@ export async function adminFixBouncedEmail(
   }
   return { error: "Address saved, but the resend failed. Try again." };
 }
+
+// Remove a dead address entirely: the guest row and its events go (cascade),
+// so the bounce stops counting against the operator's numbers and the address
+// never lands in their export. For typos prefer the fix-and-resend path; this
+// is for addresses that cannot be salvaged. Usage is not refunded, matching
+// the operator's own delete semantics.
+export async function adminDeleteRecipient(recipientId: string): Promise<AdminState> {
+  await requireAdmin();
+  if (!recipientId) return { error: "Missing guest." };
+
+  const admin = createAdminClient();
+  // Resolve the operator first so the right pages revalidate after the delete.
+  const { data: r } = await admin
+    .from("recipients")
+    .select("id, deliveries!inner(operator_id)")
+    .eq("id", recipientId)
+    .maybeSingle();
+  if (!r) return { error: "Guest not found." };
+  const operatorId = (r as unknown as { deliveries: { operator_id: string } }).deliveries
+    .operator_id;
+
+  const { error } = await admin.from("recipients").delete().eq("id", recipientId);
+  if (error) return { error: "Could not delete the guest. Try again." };
+
+  revalidatePath(`/admin/operators/${operatorId}`);
+  revalidatePath("/admin");
+  return { ok: "Guest removed. The bounce no longer counts against their numbers." };
+}
