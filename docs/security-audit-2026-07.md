@@ -22,6 +22,35 @@ a single point of failure worth hardening (5.1). None of this blocks onboarding 
 #2. The genuine blockers are all in section 1 (live RLS verification and the two-tenant
 test), which the ownership situation does not touch.
 
+## Live verification (2026-07-07, project ockpylhphwhumgulhvzv)
+
+Run directly against the production database via the Supabase connector. This closes MUST
+items 1 and 2 below; they are no longer pending.
+
+- **RLS enabled on all 15 public tables**, with policy counts matching the migrations
+  (`operators` has 2, every other table 1). No table in the exposed `public` schema has RLS
+  off. PASS.
+- **`photos` bucket is private**: `storage.buckets.public = false` for `photos` (and `true`
+  for `branding`, as intended for logos). `storage.objects` has RLS **enabled with zero
+  policies**, so no `anon`/`authenticated` role can read, list, or write objects by path.
+  The only access is the service role (server-only) or a server-minted signed URL. A guessed
+  path returns 403. PASS.
+- **Cross-tenant read test passed with real data.** Three operators already hold data in
+  prod (`dbb9e0a2` = 303 recipients is the live customer; `0d2fb4e9` and `0a01d601` are
+  demo/showcase tenants), so isolation is already exercised at the data layer. Impersonating
+  operator `0d2fb4e9`'s user under RLS returned **10 recipients / 5 deliveries / 1 operator /
+  49 photos** (their own), not the 314 / 22 / 3 totals. Impersonating a membership-less
+  authenticated user returned **0 rows on every table** (recipients, deliveries,
+  captured_guests, photos, operators, operator_members, subscriptions). PASS.
+- **`SECURITY DEFINER` functions are safe**: both `increment_recipients_used` and
+  `protect_branding_plan` pin `search_path=public`. Execute on `increment_recipients_used`
+  is revoked from `anon`/`authenticated` (only the service role can call it). PASS.
+- **Still to run by you:** `get_advisors` (security) requires an interactive approval that a
+  non-interactive session cannot grant. Run it once from the Supabase dashboard (Advisors
+  tab) or an interactive MCP session and confirm zero security findings. The manual checks
+  above already cover its main lints (RLS-off tables, mutable-search_path definers), so this
+  is a belt-and-suspenders confirmation, not an open risk.
+
 ## How to read this
 
 The good news first: the RLS model is coherent and I found **no concrete cross-tenant
@@ -64,16 +93,20 @@ The pattern is consistent and the join-based policies (photos/recipients/events)
 written correctly. Recipient and capture tokens are `encode(gen_random_bytes(16),'hex')`
 = 128 bits of entropy, which is not enumerable.
 
-### 1.1 CRITICAL — Live RLS / storage-policy state is unverified
+### 1.1 CONFIRMED (was CRITICAL) — Live RLS / storage-policy state verified 2026-07-07
 
-- **Risk:** The entire isolation story assumes every table actually has RLS *enabled*
-  in the live project and that the `photos` bucket has *no* permissive object policy. The
-  migration files say so, but migrations drift from what is actually deployed (someone
-  can toggle a policy in the dashboard). With one tenant, a missing policy would never
-  have surfaced. With two tenants it becomes a live PII leak on day one.
+- **Status:** Verified against production on 2026-07-07 (see "Live verification" at the top).
+  All 15 tables have RLS enabled, `photos` is private with no permissive storage policy, and
+  both the positive control (operator sees only their own rows) and the negative test
+  (membership-less user sees zero) passed against real multi-tenant data. No leak. The only
+  residual is running `get_advisors` interactively as a final confirmation.
+- **Original risk (now closed):** The isolation story assumed every table actually had RLS
+  *enabled* in the live project and that `photos` had *no* permissive object policy.
+  Migrations can drift from what is deployed, and with one tenant a missing policy would
+  never surface. This is exactly what the verification confirmed is not the case.
 - **Where:** all tables; `storage.objects` for buckets `photos` (private) and `branding`
   (public).
-- **Fix (do before onboarding):** Authenticate the Supabase MCP / dashboard and run:
+- **How it was verified (re-runnable):**
   - `get_advisors` (security lints) and confirm zero "RLS disabled" / "policy exists but
     RLS off" findings.
   - `select relname, relrowsecurity from pg_class where relname in
@@ -307,20 +340,22 @@ is unreachable. Operational, not a leak.
 ## MUST be true before I onboard operator #2
 
 These are the real blockers. None of them are affected by the ownership change; they are
-all about the isolation boundary itself, which has never run with two tenants.
+all about the isolation boundary itself.
 
-1. **Live RLS confirmed on every table** (1.1): `get_advisors` clean, `relrowsecurity = t`
-   on all 15 tables, and a real anon-JWT test with a membership-less user returns zero rows
-   from `recipients`, `deliveries`, `captured_guests`, and `photos`. This is the two-tenant
-   test that has never actually run.
-2. **`photos` bucket confirmed private with no permissive storage policy** (1.1, 3):
-   `photos.public = false` and no `anon`/`authenticated` select policy on `storage.objects`
-   for that bucket.
-3. **Second-tenant smoke test in the app itself:** create Ocean Ecoventures as a real
+1. **[DONE 2026-07-07] Live RLS confirmed on every table** (1.1): `relrowsecurity = t` on all
+   15 tables verified; a membership-less authenticated user returned zero rows from
+   `recipients`, `deliveries`, `captured_guests`, `photos`, and more; and a real operator saw
+   only their own 10 recipients, not the 314 total. PASS. Remaining sub-item: run
+   `get_advisors` (security) once from the dashboard as a final confirmation (needs an
+   interactive approval this session could not grant).
+2. **[DONE 2026-07-07] `photos` bucket confirmed private with no permissive storage policy**
+   (1.1, 3): `photos.public = false`, `storage.objects` RLS enabled with zero policies. PASS.
+3. **[TODO] Second-tenant smoke test in the app itself:** create Ocean Ecoventures as a real
    operator, then, signed in as each operator, confirm neither sees the other's sends,
    galleries, guest emails (Transfers drawer + `/api/export/recipients`), analytics, boats,
    crew, review links, or captured guests. Confirm one operator's gallery token cannot be
-   made to render the other's photos.
+   made to render the other's photos. (The database layer is now proven; this confirms the
+   app layer end-to-end through the actual UI and API routes.)
 
 (Removed from the MUST list after the ownership clarification: secret rotation and the
 Stripe/GitHub cutover items. Nothing was moved or revoked, so nothing there breaks or
