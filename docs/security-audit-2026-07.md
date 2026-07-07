@@ -8,6 +8,20 @@ client layer, auth/session, every server action, all tokened guest routes, the S
 and Resend webhooks, the cron jobs, the CSV exports, storage handling, and the admin
 surface.
 
+## Ownership state (clarified 2026-07-07)
+
+slater@flukesend.com was **added** to every part of the stack (Supabase, Vercel, Resend,
+Stripe, GitHub). **Nothing was removed** from flukesend@gmail.com, which retains full
+control. So this is an *add-a-second-admin*, not an account migration. That corrects two
+things in the original draft: (a) nothing broke, because no account, key, price id, or
+webhook was moved or revoked; and (b) there is no orphaned or leftover access to clean up
+as an incident. The findings in sections 4 and 5 below are recalibrated accordingly. The
+only standing note that survives is that flukesend@gmail.com now guards production access
+to all-tenant PII (the service role bypasses RLS), so that Gmail account's own security is
+a single point of failure worth hardening (5.1). None of this blocks onboarding operator
+#2. The genuine blockers are all in section 1 (live RLS verification and the two-tenant
+test), which the ownership situation does not touch.
+
 ## How to read this
 
 The good news first: the RLS model is coherent and I found **no concrete cross-tenant
@@ -211,72 +225,57 @@ state) and 1.2 (app-only key check).
 This is the area with the most half-done state, and it is coupled to isolation only
 indirectly (via who holds the keys, section 5).
 
-### 4.1 HIGH — Live Stripe price IDs and secrets belong to the pre-move account
+### 4.1 RESOLVED (was HIGH) — Stripe keeps working; nothing was moved
 
-- **Risk:** `src/lib/stripe.ts` bakes in **live-mode** price IDs
-  (`price_1Tnp6y...` etc.) as defaults, and the Stripe secret + webhook secret come from
-  env. If the ownership move to slater@flukesend.com involves a **new Stripe account** (or
-  the old account is closed/transferred), those price IDs, the `STRIPE_SECRET_KEY`, and the
-  `STRIPE_WEBHOOK_SECRET` all belong to the old account. What breaks if it stays this way:
-  - Checkout: `priceFor()` returns an id that does not exist in the new account ->
-    `checkout.sessions.create` fails -> operators cannot subscribe.
-  - Webhook: events are signed with the old account's secret -> `constructEvent` throws ->
-    every subscription state change is silently dropped (the handler returns 400 and Stripe
-    stops retrying) -> comped/paid status never updates.
-  - Customer mapping: `syncSubscription` matches on `stripe_customer_id`; customers created
-    under the old account will not exist under the new one.
-- **Fix / sequence for the move:**
-  1. Decide whether billing stays on the existing Stripe account (simplest: transfer the
-     account to the new owner, keep all ids and customers) or moves to a new account.
-  2. If a new account: recreate products/prices, set `STRIPE_PRICE_*` env overrides (the
-     code already supports these), migrate or recreate customers, and re-map
-     `subscriptions.stripe_customer_id`/`stripe_subscription_id`.
-  3. Rotate `STRIPE_SECRET_KEY` and register a new webhook endpoint + `STRIPE_WEBHOOK_SECRET`
-     in Vercel.
-  4. Verify with a Stripe test event that `/api/webhooks/stripe` returns 200 and updates a
-     row.
-- **Note:** Princess Whale Watch (the one existing customer) — confirm whether they are on
-  a real Stripe subscription or a comp. If comped (`status=active`, no `stripe_customer_id`),
-  the admin panel `setPlan` still works regardless of Stripe, so they are insulated from the
-  Stripe move; only new paid signups are blocked until 4.1 is resolved.
+- **Status:** Recalibrated after the ownership clarification. slater@flukesend.com was
+  added to the existing Stripe account and the old account was not closed or transferred,
+  so the baked-in live price IDs (`price_1Tnp6y...`), `STRIPE_SECRET_KEY`, and
+  `STRIPE_WEBHOOK_SECRET` still point at the same live account. Checkout, webhook signature
+  verification, and `stripe_customer_id` mapping all keep working. No action required for
+  the product to run.
+- **Residual (LOW):** The live price IDs are hard-coded as defaults in `src/lib/stripe.ts`.
+  That is fine while billing stays on this account. Only relevant if you ever *do* move to a
+  different Stripe account, at which point set the `STRIPE_PRICE_*` env overrides (already
+  supported) and rotate the two Stripe secrets. Nothing to do now.
+- **Note:** Confirm slater's Stripe access is actually functional (login works, correct role),
+  since "added" can silently fail if the invite was never accepted.
 
-### 4.2 MEDIUM — GitHub ownership swap: confirm access, secrets, and deploy hooks
+### 4.2 RESOLVED (was MEDIUM) — GitHub/Vercel deploys keep working
 
-- The repo is `flukesend-hub/flukesend`; the invite link and deploy target hardcode
-  `www.flukesend.com`. Nothing in the code breaks on a GitHub org/owner change, but the
-  operational couplings do:
-  - Vercel's Git integration is tied to the GitHub account/installation. If GitHub
-    ownership moves without reconnecting Vercel, `main` auto-deploy stops.
-  - Any GitHub Actions secrets / deploy tokens tied to the old owner become invalid.
-- **Fix:** After the GitHub transfer, reconnect the Vercel project to the repo under the new
-  owner, re-authorize the GitHub app/installation, and confirm a test push to `main`
-  deploys. Verify no Actions or webhooks reference the old owner's PATs.
+- **Status:** The repo (`flukesend-hub/flukesend`) was not transferred to a different owner;
+  slater was added as a collaborator/member and flukesend@gmail.com still owns it. The
+  Vercel Git integration and any Actions secrets are unchanged, so `main` still auto-deploys.
+  No action required.
+- **Residual (LOW):** If you later transfer the repo or Vercel project ownership outright,
+  reconnect the Vercel <-> GitHub integration and confirm a test push to `main` deploys.
+  Not a now-item.
 
 ---
 
 ## 5. Secrets, webhooks, and Resend
 
-### 5.1 CRITICAL — Rotate all shared secrets on the ownership move, or the prior owner keeps full PII access
+### 5.1 MEDIUM (was CRITICAL) — flukesend@gmail.com now guards all-tenant PII; secret rotation is not a now-item
 
-- **Risk:** README states local dev runs against the **production** Supabase project
-  (`.env.local` points at prod). That means anyone who has ever had `.env.local` holds the
-  production `SUPABASE_SERVICE_ROLE_KEY`, which **bypasses RLS on every table**. It also
-  means the prod `RESEND_API_KEY`, `CRON_SECRET`, `STRIPE_SECRET_KEY`, and webhook secrets
-  have likely been on multiple machines. If ownership is moving to slater@flukesend.com and
-  these are not rotated, the previous owner retains unrestricted read/write to *all*
-  operators' galleries and guest emails (Princess Whale Watch's and Ocean Ecoventures'
-  PII) indefinitely, entirely outside RLS. This is the single biggest threat to the trust
-  proposition, and it is an ownership-hygiene issue, not a code bug.
-- **Fix (do before onboarding operator #2):** Rotate and re-set in Vercel (and locally):
-  - `SUPABASE_SERVICE_ROLE_KEY` (Supabase dashboard -> API -> roll the service role key;
-    also consider rolling the anon key and JWT secret).
-  - `RESEND_API_KEY` and `RESEND_WEBHOOK_SECRET`.
-  - `CRON_SECRET`.
-  - `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (ties into 4.1).
-  - Confirm the new owner controls the Supabase org, the Vercel project, the Resend
-    account, and the Stripe account. Remove the prior owner's dashboard access.
-  - Consider standing up a separate dev/staging Supabase project so local dev stops running
-    against production data (pre-existing hazard, worth fixing while touching env anyway).
+- **Recalibration:** The original CRITICAL assumed a handoff where a *former* owner kept
+  leftover access. That is not the situation: flukesend@gmail.com deliberately still has
+  full control, and no keys were rotated or revoked. There is no orphaned access and no
+  active compromise, so **rotating secrets is not required before onboarding operator #2.**
+- **What is still true:** Both flukesend@gmail.com and slater@flukesend.com now hold
+  admin/owner access to the Supabase project, whose service role key **bypasses RLS on every
+  table**. So each of those two accounts is, in effect, a master key to every operator's
+  guest emails and galleries. That makes the security of the Gmail account itself (strong
+  unique password + 2FA, and no shared inbox access) a single point of failure for all
+  tenant PII. README also notes local dev runs against the **production** Supabase project,
+  so the service role key has likely been on developer machines.
+- **Fix (hygiene, not a blocker):**
+  - Confirm flukesend@gmail.com and slater@flukesend.com both have 2FA on every dashboard
+    (Supabase, Vercel, Resend, Stripe, GitHub, and the Gmail account itself).
+  - Stand up a separate dev/staging Supabase project so local dev stops running against
+    production PII. This is the highest-value item here because it stops copies of the prod
+    service role key from spreading further.
+  - Rotate the shared secrets (`SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
+    `RESEND_WEBHOOK_SECRET`, `CRON_SECRET`, Stripe secrets) **only if/when you actually
+    offboard an account or suspect a key has leaked** — not as part of adding slater.
 
 ### 5.2 GOOD — Webhook signature verification is correct
 
@@ -307,6 +306,9 @@ is unreachable. Operational, not a leak.
 
 ## MUST be true before I onboard operator #2
 
+These are the real blockers. None of them are affected by the ownership change; they are
+all about the isolation boundary itself, which has never run with two tenants.
+
 1. **Live RLS confirmed on every table** (1.1): `get_advisors` clean, `relrowsecurity = t`
    on all 15 tables, and a real anon-JWT test with a membership-less user returns zero rows
    from `recipients`, `deliveries`, `captured_guests`, and `photos`. This is the two-tenant
@@ -314,18 +316,15 @@ is unreachable. Operational, not a leak.
 2. **`photos` bucket confirmed private with no permissive storage policy** (1.1, 3):
    `photos.public = false` and no `anon`/`authenticated` select policy on `storage.objects`
    for that bucket.
-3. **All shared secrets rotated and owned by the new owner** (5.1): service role key
-   (mandatory), anon/JWT, Resend key + webhook secret, cron secret, Stripe secret + webhook
-   secret. Prior owner's dashboard access removed.
-4. **Stripe billing path works end-to-end under the new ownership** (4.1): checkout creates
-   a session with valid price ids, and a test webhook event returns 200 and updates a
-   subscription row. (If Princess Whale Watch is comped, they are insulated; new paid
-   signups are not.)
-5. **Second-tenant smoke test in the app itself:** create Ocean Ecoventures as a real
+3. **Second-tenant smoke test in the app itself:** create Ocean Ecoventures as a real
    operator, then, signed in as each operator, confirm neither sees the other's sends,
    galleries, guest emails (Transfers drawer + `/api/export/recipients`), analytics, boats,
    crew, review links, or captured guests. Confirm one operator's gallery token cannot be
    made to render the other's photos.
+
+(Removed from the MUST list after the ownership clarification: secret rotation and the
+Stripe/GitHub cutover items. Nothing was moved or revoked, so nothing there breaks or
+leaks. See 4.1, 4.2, and 5.1.)
 
 ## Should fix soon
 
@@ -334,11 +333,11 @@ is unreachable. Operational, not a leak.
   lost.
 - **1.4** Add `WITH CHECK` to `operators_member_update`; scope `updateRecipientEmail` by
   operator explicitly to match the codebase's defense-in-depth pattern.
-- **4.2** Reconnect Vercel <-> GitHub under the new owner and confirm `main` auto-deploys;
-  purge old-owner Actions secrets/tokens.
-- **5.4** Confirm the `slater@flukesend.com` auth account exists (or set `ADMIN_EMAILS`).
-- Stand up a dedicated dev/staging Supabase project so local development stops running
-  against production PII (5.1).
+- **5.1** Stand up a dedicated dev/staging Supabase project so local development stops
+  running against production PII, and confirm 2FA is on for both admin accounts (Gmail
+  included) since each is a service-role master key to all tenant data.
+- **5.4** Confirm the `slater@flukesend.com` auth account exists (or set `ADMIN_EMAILS`),
+  and that slater's Stripe/Vercel/GitHub invites were actually accepted, not just sent.
 
 ## Nice to have
 
