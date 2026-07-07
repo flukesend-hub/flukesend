@@ -45,11 +45,33 @@ items 1 and 2 below; they are no longer pending.
 - **`SECURITY DEFINER` functions are safe**: both `increment_recipients_used` and
   `protect_branding_plan` pin `search_path=public`. Execute on `increment_recipients_used`
   is revoked from `anon`/`authenticated` (only the service role can call it). PASS.
-- **Still to run by you:** `get_advisors` (security) requires an interactive approval that a
-  non-interactive session cannot grant. Run it once from the Supabase dashboard (Advisors
-  tab) or an interactive MCP session and confirm zero security findings. The manual checks
-  above already cover its main lints (RLS-off tables, mutable-search_path definers), so this
-  is a belt-and-suspenders confirmation, not an open risk.
+- **Security Advisor result (dashboard, 2026-07-07): 0 errors, 3 warnings, 0 info.** No
+  errors is the headline: the scanner found no RLS-disabled tables and no cross-tenant
+  exposure, matching the manual tests. The three warnings and their disposition:
+  1. "Public can execute SECURITY DEFINER function" on `protect_branding_plan()` -> fixed
+     in migration 0023 (execute revoked from public/anon/authenticated). Was never
+     REST-callable anyway (trigger return type), but now clean.
+  2. "Signed-in users can execute SECURITY DEFINER function" on `protect_branding_plan()`
+     -> same fix, migration 0023.
+  3. "Leaked Password Protection Disabled" (Auth) -> **still open, a dashboard toggle for
+     the owner.** Enable Authentication -> Policies -> Password security -> "Leaked password
+     protection" so breached passwords are rejected at signup. The app only enforces 8+
+     chars today, so this is a real hardening win. Not code, not a blocker.
+
+### Migration 0023 applied (2026-07-07)
+
+`docs/0023_isolation_hardening.sql`, applied to production and verified live. Three
+defense-in-depth changes, none of which change behavior for a correct client:
+
+- **Revoked EXECUTE on `protect_branding_plan()`** from public/anon/authenticated (clears
+  advisor warnings 1 and 2; the trigger still fires normally).
+- **Added `WITH CHECK` to `operators_member_update`** (closes finding 1.4's policy half).
+- **Added trigger `photos_storage_key_owner_guard`** enforcing that a photo's `storage_key`
+  is under the owning delivery's `operator_id` namespace (closes finding 1.2). Verified all
+  254 existing photos already conform, then tested live: a cross-tenant insert on operator
+  A's delivery with operator B's key was **rejected** ("storage_key ... is outside operator
+  ... namespace"), and a legitimate own-namespace insert was **accepted**. Both test rows
+  rolled back; zero rows left behind.
 
 ## How to read this
 
@@ -122,7 +144,7 @@ written correctly. Recipient and capture tokens are `encode(gen_random_bytes(16)
     `captured_guests`, and `photos` returns **zero rows**. This is the actual two-tenant
     test that has never been run.
 
-### 1.2 HIGH — Photo ownership rests on an app-layer string check, not RLS
+### 1.2 FIXED (was HIGH) — Photo ownership now enforced by a DB trigger (migration 0023)
 
 - **Risk:** `photos` RLS validates only that `delivery_id` belongs to the operator. It
   does **not** validate `storage_key`. The only thing stopping operator A from creating a
@@ -135,11 +157,11 @@ written correctly. Recipient and capture tokens are `encode(gen_random_bytes(16)
   `photos/<operator_id>/<send_id>/...`, and operator ids are visible (they appear in the
   showcase page source and are the storage prefix), so the target is guessable.
 - **Where:** `src/app/send/actions.ts:198-202`; policy in `docs/0001_init.sql:172-181`.
-- **Fix:** Keep the app check (it is correct today) but add a database-level guard so the
-  control is not app-only: a `BEFORE INSERT/UPDATE` trigger on `photos` that rejects a
-  `storage_key` whose leading path segment is not the owning delivery's `operator_id`.
-  This makes cross-tenant photo attachment impossible even if a future insert path forgets
-  the check.
+- **Status:** Done in migration 0023. The `photos_storage_key_owner_guard` trigger rejects
+  any `storage_key` whose leading path segment is not the owning delivery's `operator_id`,
+  so cross-tenant photo attachment is now impossible even if a future insert path forgets the
+  app check. Verified live (cross-tenant insert rejected, own-namespace insert accepted). The
+  app check in `createSend` stays as the friendly first line of defense.
 
 ### 1.3 HIGH — Guest-facing paths run entirely on the service role
 
@@ -158,7 +180,7 @@ written correctly. Recipient and capture tokens are `encode(gen_random_bytes(16)
   everything through the single `getGalleryByToken` / `getCaptureByToken` helpers (already
   the pattern) so new routes inherit the scoping instead of re-querying raw.
 
-### 1.4 MEDIUM — `operators_member_update` has no WITH CHECK; write paths lean on RLS alone
+### 1.4 PARTIALLY FIXED (was MEDIUM) — `operators_member_update` WITH CHECK added (migration 0023)
 
 - **Risk (two parts):**
   1. The `operators` UPDATE policy (`docs/0001_init.sql:143-146`) has a `using` clause but
@@ -172,10 +194,11 @@ written correctly. Recipient and capture tokens are `encode(gen_random_bytes(16)
      (`deleteReviewLink`, `deleteNamed`, `setCrewRoles`) add a belt-and-suspenders
      `.eq("operator_id", operatorId)`. If RLS on `recipients` were ever misconfigured
      (see 1.1), this write path would let an operator change any guest's email by id.
-- **Fix:** Add `with check (id in (select operator_id ...))` to `operators_member_update`.
-  For `updateRecipientEmail`, scope the update to the operator's deliveries explicitly
-  (join or a `delivery_id in (...)` guard) to match the codebase's own defense-in-depth
-  pattern.
+- **Status:** Part 1 done in migration 0023: `operators_member_update` now carries a
+  `WITH CHECK` matching its `USING` clause. Part 2 (scoping `updateRecipientEmail`
+  explicitly by operator) is a **code** change in `src/app/deliveries/[id]/actions.ts`, not
+  applied here since it touches app code rather than schema; it remains on the "should fix
+  soon" list. RLS already protects that path, so this is defense-in-depth, not an open hole.
 
 ### 1.5 LOW — Usage/trial counts rely on RLS with no explicit filter
 
@@ -363,11 +386,14 @@ leaks. See 4.1, 4.2, and 5.1.)
 
 ## Should fix soon
 
-- **1.2** Add a DB trigger enforcing `photos.storage_key` prefix = owning delivery's
-  `operator_id`, so cross-tenant photo attachment is impossible even if the app check is
-  lost.
-- **1.4** Add `WITH CHECK` to `operators_member_update`; scope `updateRecipientEmail` by
-  operator explicitly to match the codebase's defense-in-depth pattern.
+- **[DONE, migration 0023] 1.2** DB trigger enforcing `photos.storage_key` prefix = owning
+  delivery's `operator_id`. Applied and verified live.
+- **[PARTIAL, migration 0023] 1.4** `WITH CHECK` added to `operators_member_update` (done).
+  Still open: scope `updateRecipientEmail` by operator explicitly in
+  `src/app/deliveries/[id]/actions.ts` to match the codebase's defense-in-depth pattern
+  (code change, low priority since RLS covers it).
+- **[Advisor] Enable Leaked Password Protection** in Auth -> Policies -> Password security.
+  Dashboard toggle, closes the one remaining advisor warning.
 - **5.1** Stand up a dedicated dev/staging Supabase project so local development stops
   running against production PII, and confirm 2FA is on for both admin accounts (Gmail
   included) since each is a service-role master key to all tenant data.
