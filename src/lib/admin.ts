@@ -8,7 +8,7 @@ import "server-only";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "flukesend@gmail.com")
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "slater@flukesend.com")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
