@@ -14,7 +14,14 @@ async function signInWithGoogle() {
   const supabase = createClient();
   await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+      // Always show Google's account picker instead of silently reusing
+      // whichever Google account is already active on the device. Without
+      // this, a phone signed into several Google accounts logs the wrong one
+      // in and lands the user on onboarding with no obvious way back.
+      queryParams: { prompt: "select_account" },
+    },
   });
 }
 
