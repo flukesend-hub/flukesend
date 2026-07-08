@@ -68,15 +68,17 @@ export async function GET(request: Request) {
     }
   }
 
-  // Sum head counts across the selected trips, matched to the unioned species by
-  // lowercased name. A species with no number on any trip simply has no count.
+  // Take the HIGHEST per-trip count for each species across the selected trips,
+  // not the sum: the same animals are often seen on more than one trip, so a sum
+  // would badly overstate the day. The most seen at once is the honest number. A
+  // species with no number on any trip simply has no count.
   const countByKey = new Map<string, number>();
   for (const dv of deliveries) {
     const sc = (dv.species_counts ?? {}) as Record<string, unknown>;
     for (const [name, val] of Object.entries(sc)) {
       const k = name.trim().toLowerCase();
       const n = Number(val);
-      if (k && Number.isFinite(n) && n > 0) countByKey.set(k, (countByKey.get(k) ?? 0) + n);
+      if (k && Number.isFinite(n) && n > 0) countByKey.set(k, Math.max(countByKey.get(k) ?? 0, n));
     }
   }
   const counts: Record<string, number> = {};
