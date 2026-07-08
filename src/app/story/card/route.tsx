@@ -21,6 +21,10 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const d = url.searchParams.get("d") ?? "";
   const heroId = url.searchParams.get("hero");
+  // Optional subset of the day's trips to include, e.g. just the 3pm departure.
+  // Absent means the whole day.
+  const tParam = url.searchParams.get("t");
+  const wanted = tParam ? new Set(tParam.split(",").filter(Boolean)) : null;
   if (!DATE_RE.test(d)) {
     return new Response("Bad date", { status: 400 });
   }
@@ -36,10 +40,15 @@ export async function GET(request: Request) {
     .gte("trip_datetime", dayStart)
     .lt("trip_datetime", dayEnd)
     .order("trip_datetime", { ascending: true });
-  const deliveries = dels ?? [];
-  if (!deliveries.length) {
+  const dayDeliveries = dels ?? [];
+  if (!dayDeliveries.length) {
     return new Response("No trips that day", { status: 404 });
   }
+  // Restrict to the requested trips when a valid subset is given; any unknown id
+  // is simply ignored (the filter only keeps this operator's own day trips), and
+  // an empty result falls back to the whole day.
+  const filtered = wanted ? dayDeliveries.filter((x) => wanted.has(x.id as string)) : dayDeliveries;
+  const deliveries = filtered.length ? filtered : dayDeliveries;
   const deliveryIds = deliveries.map((x) => x.id as string);
 
   // Union of species across the day, keeping first-seen order.

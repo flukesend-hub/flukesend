@@ -1,8 +1,9 @@
 /*
-  Story Builder data. Called from the client when a day is picked: returns that
-  day's photos as signed thumbnails to choose the hero from. RLS scopes the
-  deliveries and photos to the signed in operator; the thumbnails are signed with
-  the service role since the photos bucket is private.
+  Story Builder data. Called when a day is picked: returns that day's trips, each
+  with its departure time, its sightings, and its photos as signed thumbnails, so
+  the builder can let the operator toggle which trips to include and pick the hero
+  from the included ones. RLS scopes deliveries and photos to the signed in
+  operator; thumbnails are signed with the service role since the bucket is private.
 */
 "use server";
 
@@ -12,8 +13,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export type DayPhoto = { id: string; thumbUrl: string };
+export type DayTrip = { id: string; timeLabel: string; species: string[]; photos: DayPhoto[] };
 
-export async function getDayPhotos(date: string): Promise<DayPhoto[]> {
+export async function getDay(date: string): Promise<DayTrip[]> {
   if (!DATE_RE.test(date)) return [];
   const { supabase, operatorId } = await requireOperator();
 
@@ -22,20 +24,21 @@ export async function getDayPhotos(date: string): Promise<DayPhoto[]> {
 
   const { data: dels } = await supabase
     .from("deliveries")
-    .select("id")
+    .select("id, trip_datetime, species")
     .eq("operator_id", operatorId)
     .gte("trip_datetime", dayStart)
-    .lt("trip_datetime", dayEnd);
-  const ids = (dels ?? []).map((d) => d.id as string);
-  if (!ids.length) return [];
+    .lt("trip_datetime", dayEnd)
+    .order("trip_datetime", { ascending: true });
+  const deliveries = dels ?? [];
+  if (!deliveries.length) return [];
+  const ids = deliveries.map((d) => d.id as string);
 
   const { data: photos } = await supabase
     .from("photos")
-    .select("id, storage_key, sort_order")
+    .select("id, storage_key, delivery_id, sort_order")
     .in("delivery_id", ids)
     .order("sort_order", { ascending: true });
   const rows = photos ?? [];
-  if (!rows.length) return [];
 
   const admin = createAdminClient();
   const thumbs = await Promise.all(
@@ -47,7 +50,22 @@ export async function getDayPhotos(date: string): Promise<DayPhoto[]> {
         }),
     ),
   );
-  return rows
-    .map((r, i) => ({ id: r.id as string, thumbUrl: thumbs[i]?.data?.signedUrl ?? "" }))
-    .filter((p) => p.thumbUrl);
+  const photosByDelivery = new Map<string, DayPhoto[]>();
+  rows.forEach((r, i) => {
+    const url = thumbs[i]?.data?.signedUrl;
+    if (!url) return;
+    const key = r.delivery_id as string;
+    const arr = photosByDelivery.get(key) ?? [];
+    arr.push({ id: r.id as string, thumbUrl: url });
+    photosByDelivery.set(key, arr);
+  });
+
+  return deliveries.map((d) => ({
+    id: d.id as string,
+    timeLabel: d.trip_datetime
+      ? new Date(d.trip_datetime as string).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })
+      : "Trip",
+    species: ((d.species ?? []) as string[]).map((s) => s.trim()).filter(Boolean),
+    photos: photosByDelivery.get(d.id as string) ?? [],
+  }));
 }

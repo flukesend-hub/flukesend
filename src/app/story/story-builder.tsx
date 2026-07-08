@@ -1,15 +1,15 @@
 "use client";
 
 /*
-  The Story Builder surface. Pick a trip day, pick the hero photo of the day from
-  every shot across that day's trips, watch the branded card preview update, and
-  download it. The day list and the aggregated sightings come from the server;
-  the day's photos are fetched on demand (signed thumbnails) when a day is picked.
-  The preview and the download both point at /story/card, which renders the real
-  1080x1920 image.
+  The Story Builder surface. Pick a trip day, then choose which of that day's
+  trips to include (default all), pick the hero photo of the day from the
+  included trips, watch the branded card preview update, and share or download
+  it. One trip selected shows that trip's time on the card; several shows just
+  the date. On a touch device the primary action is the native share sheet
+  (Instagram, Messages, etc.); desktop gets a download.
 */
-import { useState } from "react";
-import { getDayPhotos, type DayPhoto } from "./actions";
+import { useEffect, useMemo, useState } from "react";
+import { getDay, type DayTrip } from "./actions";
 
 export type StoryDay = {
   date: string; // YYYY-MM-DD (UTC)
@@ -21,26 +21,66 @@ export type StoryDay = {
 
 export function StoryBuilder({ days }: { days: StoryDay[] }) {
   const [day, setDay] = useState<StoryDay | null>(null);
-  const [photos, setPhotos] = useState<DayPhoto[]>([]);
+  const [trips, setTrips] = useState<DayTrip[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [heroId, setHeroId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [rendering, setRendering] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  // Only offer native share on a touch-first device that can share files.
+  useEffect(() => {
+    try {
+      const touchFirst = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+      const probe = new File([new Uint8Array(1)], "probe.png", { type: "image/png" });
+      setCanShare(touchFirst && typeof navigator.canShare === "function" && navigator.canShare({ files: [probe] }));
+    } catch {
+      setCanShare(false);
+    }
+  }, []);
+
+  const selectedPhotos = useMemo(
+    () => trips.filter((t) => selected.has(t.id)).flatMap((t) => t.photos),
+    [trips, selected],
+  );
 
   async function pickDay(d: StoryDay) {
     setDay(d);
-    setPhotos([]);
+    setTrips([]);
+    setSelected(new Set());
     setHeroId(null);
+    setNote(null);
     setLoading(true);
     try {
-      const p = await getDayPhotos(d.date);
-      setPhotos(p);
-      if (p[0]) {
-        setHeroId(p[0].id);
+      const t = await getDay(d.date);
+      setTrips(t);
+      setSelected(new Set(t.map((x) => x.id)));
+      const firstPhoto = t.flatMap((x) => x.photos)[0];
+      if (firstPhoto) {
+        setHeroId(firstPhoto.id);
         setRendering(true);
       }
     } finally {
       setLoading(false);
     }
+  }
+
+  function toggleTrip(id: string) {
+    const next = new Set(selected);
+    if (next.has(id)) {
+      if (next.size === 1) return; // always keep at least one trip
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelected(next);
+    const stillPhotos = trips.filter((t) => next.has(t.id)).flatMap((t) => t.photos);
+    if (!stillPhotos.some((p) => p.id === heroId)) {
+      setHeroId(stillPhotos[0]?.id ?? null);
+    }
+    setRendering(true);
   }
 
   function chooseHero(id: string) {
@@ -49,7 +89,29 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     setRendering(true);
   }
 
-  const cardSrc = day ? `/story/card?d=${day.date}${heroId ? `&hero=${heroId}` : ""}` : null;
+  const cardSrc = day && heroId ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${heroId}` : null;
+
+  async function share() {
+    if (!cardSrc) return;
+    setSharing(true);
+    setNote(null);
+    try {
+      const res = await fetch(cardSrc);
+      if (!res.ok) throw new Error("render failed");
+      const blob = await res.blob();
+      const file = new File([blob], "flukesend-story.png", { type: "image/png" });
+      if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
+        throw new Error("cannot share");
+      }
+      await navigator.share({ files: [file] });
+    } catch (e) {
+      if (!(e instanceof Error && e.name === "AbortError")) {
+        setNote("Could not open sharing here. Use download instead.");
+      }
+    } finally {
+      setSharing(false);
+    }
+  }
 
   return (
     <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "28px 22px 90px" }}>
@@ -100,78 +162,135 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
           </div>
 
           {day ? (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "26px", marginTop: "26px", alignItems: "flex-start" }}>
-              {/* Photo picker */}
-              <div style={{ flex: "1 1 380px", minWidth: "300px" }}>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
-                  Pick the photo of the day
-                </div>
-                {loading ? (
-                  <div style={{ color: "var(--muted)", fontSize: "14px" }}>Loading photos...</div>
-                ) : photos.length === 0 ? (
-                  <div style={{ color: "var(--muted)", fontSize: "14px" }}>No photos found for this day.</div>
-                ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: "8px" }}>
-                    {photos.map((p) => {
-                      const active = p.id === heroId;
+            <>
+              {/* Trip toggles, only when the day had more than one trip. */}
+              {trips.length > 1 ? (
+                <div style={{ marginTop: "22px" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "8px" }}>
+                    Trips to include
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {trips.map((t) => {
+                      const on = selected.has(t.id);
                       return (
                         <button
-                          key={p.id}
+                          key={t.id}
                           type="button"
-                          onClick={() => chooseHero(p.id)}
+                          onClick={() => toggleTrip(t.id)}
                           style={{
-                            padding: 0,
-                            border: active ? "3px solid var(--signal)" : "1px solid var(--line)",
-                            borderRadius: "10px",
-                            overflow: "hidden",
+                            font: "inherit",
                             cursor: "pointer",
-                            aspectRatio: "1 / 1",
-                            background: "#e7e2d8",
+                            borderRadius: "999px",
+                            padding: "8px 14px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#1c2b2e",
+                            border: on ? "2px solid var(--signal)" : "1px solid var(--line)",
+                            background: on ? "#eef5fb" : "#fff",
                           }}
-                          aria-label={active ? "Selected hero photo" : "Use this photo"}
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={p.thumbUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          {on ? "✓ " : ""}
+                          {t.timeLabel}
+                          {t.photos.length ? "" : " · no photos"}
                         </button>
                       );
                     })}
                   </div>
-                )}
-              </div>
+                  <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "7px" }}>
+                    All trips makes a day recap. Pick one to feature just that trip, with its time.
+                  </div>
+                </div>
+              ) : null}
 
-              {/* Live preview + download */}
-              <div style={{ flex: "0 0 auto", width: "300px", maxWidth: "100%" }}>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>Preview</div>
-                <div style={{ position: "relative", width: "270px", maxWidth: "100%", aspectRatio: "1080 / 1920", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--line)", background: "#f2efe9" }}>
-                  {cardSrc && heroId ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={cardSrc}
-                      src={cardSrc}
-                      alt="Story preview"
-                      onLoad={() => setRendering(false)}
-                      onError={() => setRendering(false)}
-                      style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", opacity: rendering ? 0.35 : 1, transition: "opacity .15s" }}
-                    />
-                  ) : null}
-                  {rendering ? (
-                    <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "12.5px", fontWeight: 600, color: "#6b7a7d" }}>
-                      Rendering...
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "26px", marginTop: "26px", alignItems: "flex-start" }}>
+                {/* Photo picker */}
+                <div style={{ flex: "1 1 380px", minWidth: "300px" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
+                    Pick the photo of the day
+                  </div>
+                  {loading ? (
+                    <div style={{ color: "var(--muted)", fontSize: "14px" }}>Loading photos...</div>
+                  ) : selectedPhotos.length === 0 ? (
+                    <div style={{ color: "var(--muted)", fontSize: "14px" }}>No photos in the selected trips.</div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: "8px" }}>
+                      {selectedPhotos.map((p) => {
+                        const active = p.id === heroId;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => chooseHero(p.id)}
+                            style={{
+                              padding: 0,
+                              border: active ? "3px solid var(--signal)" : "1px solid var(--line)",
+                              borderRadius: "10px",
+                              overflow: "hidden",
+                              cursor: "pointer",
+                              aspectRatio: "1 / 1",
+                              background: "#e7e2d8",
+                            }}
+                            aria-label={active ? "Selected hero photo" : "Use this photo"}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={p.thumbUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Live preview + share/download */}
+                <div style={{ flex: "0 0 auto", width: "300px", maxWidth: "100%" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>Preview</div>
+                  <div style={{ position: "relative", width: "270px", maxWidth: "100%", aspectRatio: "1080 / 1920", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--line)", background: "#f2efe9" }}>
+                    {cardSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={cardSrc}
+                        src={cardSrc}
+                        alt="Story preview"
+                        onLoad={() => setRendering(false)}
+                        onError={() => setRendering(false)}
+                        style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", opacity: rendering ? 0.35 : 1, transition: "opacity .15s" }}
+                      />
+                    ) : null}
+                    {rendering ? (
+                      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "12.5px", fontWeight: 600, color: "#6b7a7d" }}>
+                        Rendering...
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {cardSrc ? (
+                    <div style={{ width: "270px", maxWidth: "100%", marginTop: "14px" }}>
+                      {canShare ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={share}
+                            disabled={sharing}
+                            className="fl-btn"
+                            style={{ display: "block", width: "100%", textAlign: "center", padding: "13px", cursor: "pointer", border: 0, font: "inherit", opacity: sharing ? 0.75 : 1 }}
+                          >
+                            {sharing ? "Preparing..." : "Share"}
+                          </button>
+                          <a href={cardSrc} download="flukesend-story.png" style={{ display: "block", textAlign: "center", marginTop: "8px", fontSize: "12.5px", color: "var(--muted)", textDecoration: "underline", textUnderlineOffset: "3px" }}>
+                            or download
+                          </a>
+                        </>
+                      ) : (
+                        <a href={cardSrc} download="flukesend-story.png" className="fl-btn" style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "13px" }}>
+                          Download story
+                        </a>
+                      )}
+                      {note ? <p style={{ fontSize: "12.5px", color: "#a04435", margin: "8px 0 0", textAlign: "center" }}>{note}</p> : null}
                     </div>
                   ) : null}
                 </div>
-                {cardSrc && heroId ? (
-                  <a
-                    href={cardSrc}
-                    download="flukesend-story.png"
-                    className="fl-btn"
-                    style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "13px", marginTop: "14px", width: "270px", maxWidth: "100%" }}
-                  >
-                    Download story
-                  </a>
-                ) : null}
               </div>
-            </div>
+            </>
           ) : null}
         </>
       )}
