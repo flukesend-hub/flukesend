@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   // The operator's trips on that UTC day.
   const { data: dels } = await supabase
     .from("deliveries")
-    .select("id, species, trip_datetime")
+    .select("id, species, species_counts, trip_datetime")
     .eq("operator_id", operatorId)
     .gte("trip_datetime", dayStart)
     .lt("trip_datetime", dayEnd)
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
   const deliveries = filtered.length ? filtered : dayDeliveries;
   const deliveryIds = deliveries.map((x) => x.id as string);
 
-  // Union of species across the day, keeping first-seen order.
+  // Union of species across the selected trips, keeping first-seen order.
   const seen = new Set<string>();
   const species: string[] = [];
   for (const dv of deliveries) {
@@ -66,6 +66,23 @@ export async function GET(request: Request) {
         species.push(s);
       }
     }
+  }
+
+  // Sum head counts across the selected trips, matched to the unioned species by
+  // lowercased name. A species with no number on any trip simply has no count.
+  const countByKey = new Map<string, number>();
+  for (const dv of deliveries) {
+    const sc = (dv.species_counts ?? {}) as Record<string, unknown>;
+    for (const [name, val] of Object.entries(sc)) {
+      const k = name.trim().toLowerCase();
+      const n = Number(val);
+      if (k && Number.isFinite(n) && n > 0) countByKey.set(k, (countByKey.get(k) ?? 0) + n);
+    }
+  }
+  const counts: Record<string, number> = {};
+  for (const s of species) {
+    const n = countByKey.get(s.toLowerCase());
+    if (n && n > 0) counts[s] = n;
   }
 
   // Photos across the day, for hero validation and default.
@@ -105,6 +122,7 @@ export async function GET(request: Request) {
     operatorName: (operator?.name as string) || "",
     website,
     species,
+    counts,
     dateText,
     timeText,
     heroUrl,

@@ -79,11 +79,28 @@ export type StoryCardInput = {
   // Overlay label on the hero. Single card says "Photo of the day"; a slideshow
   // frame says "Photos from today".
   label?: string;
+  // Optional head count per species, keyed by the same (trimmed) names as
+  // species. When any species has a count, the sightings show the number to the
+  // left of each pill; with no counts at all it falls back to the plain pills.
+  counts?: Record<string, number>;
 };
 
 export function storyCardImage(input: StoryCardInput): ImageResponse {
   const brand = input.brandColor || "#0b5563";
-  const species = pluralizeSpecies(input.species);
+  // Each sighting keeps its pluralized label and its optional count together, so
+  // the count can sit beside the right pill. Counts are looked up by the trimmed
+  // species name, matching how the caller keys them.
+  const sightings = input.species
+    .map((raw) => raw.trim())
+    .filter(Boolean)
+    .map((s) => {
+      const n = Number(input.counts?.[s]);
+      return {
+        label: /s$/i.test(s) ? s : `${s}s`,
+        count: Number.isFinite(n) && n > 0 ? n : null,
+      };
+    });
+  const anyCount = sightings.some((x) => x.count !== null);
   const fontFamily = input.fonts ? "Archivo" : "sans-serif";
 
   return new ImageResponse(
@@ -118,14 +135,30 @@ export function storyCardImage(input: StoryCardInput): ImageResponse {
             ) : null}
           </div>
 
-          {species.length ? (
+          {sightings.length ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 52 }}>
               <div style={{ display: "flex", fontSize: 26, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase", color: SOFT }}>Sighted today</div>
-              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: 20, maxWidth: 900 }}>
-                {species.map((s) => (
-                  <div key={s} style={{ display: "flex", border: `2px solid ${LINE}`, padding: "16px 32px", margin: 9, fontSize: 38, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{s}</div>
-                ))}
-              </div>
+              {anyCount ? (
+                // With counts: a centered block of rows, each a right-aligned
+                // number beside its pill, so numbers and pills line up.
+                <div style={{ display: "flex", justifyContent: "center", marginTop: 20, maxWidth: 940 }}>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    {sightings.map(({ label, count }) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", margin: "9px 0" }}>
+                        <div style={{ display: "flex", width: 150, justifyContent: "flex-end", paddingRight: 24, fontSize: 42, fontWeight: 700 }}>{count !== null ? String(count) : ""}</div>
+                        <div style={{ display: "flex", border: `2px solid ${LINE}`, padding: "16px 32px", fontSize: 38, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                // No counts: the original centered, wrapped pills.
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: 20, maxWidth: 900 }}>
+                  {sightings.map(({ label }) => (
+                    <div key={label} style={{ display: "flex", border: `2px solid ${LINE}`, padding: "16px 32px", margin: 9, fontSize: 38, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{label}</div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : null}
 
