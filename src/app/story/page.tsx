@@ -24,10 +24,10 @@ export default async function StoryPage() {
       <>
         <OperatorNav operatorName={operatorName ?? "Operator"} />
         <main style={{ maxWidth: "620px", margin: "0 auto", padding: "44px 22px 80px" }}>
-          <div className="fl-eyebrow">Story Builder</div>
-          <h1 className="fl-h1" style={{ fontSize: "30px" }}>A ready-to-post story from every day on the water</h1>
+          <div className="fl-eyebrow">Social</div>
+          <h1 className="fl-h1" style={{ fontSize: "30px" }}>Ready-to-post social from every day on the water</h1>
           <p style={{ color: "var(--muted)", fontSize: "14.5px", lineHeight: 1.6, maxWidth: "54ch", margin: "10px 0 0" }}>
-            Turn a day of trips into a branded photo-of-the-day story: the species you sighted and the shot of your choice, in your own colors and logo, sized for Instagram. The Story Builder is part of the Fleet plan.
+            Turn a day of trips into a branded photo-of-the-day story, or grab a set of the day's best shots for a regular Instagram post. Your own colors and logo, sized for Instagram. Social is part of the Fleet plan.
           </p>
           <Link href="/billing" className="fl-btn" style={{ display: "inline-block", marginTop: 22, textDecoration: "none", padding: "13px 22px" }}>
             See the Fleet plan

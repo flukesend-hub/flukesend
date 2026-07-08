@@ -14,6 +14,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export type DayPhoto = { id: string; thumbUrl: string };
 export type DayTrip = { id: string; timeLabel: string; species: string[]; photos: DayPhoto[] };
+export type PostUrl = { id: string; url: string; filename: string };
 
 export async function getDay(date: string): Promise<DayTrip[]> {
   if (!DATE_RE.test(date)) return [];
@@ -68,4 +69,38 @@ export async function getDay(date: string): Promise<DayTrip[]> {
     species: ((d.species ?? []) as string[]).map((s) => s.trim()).filter(Boolean),
     photos: photosByDelivery.get(d.id as string) ?? [],
   }));
+}
+
+// Full resolution signed URLs for the photos the operator chose to post. The
+// day grid only carries 400px thumbnails, which are too small for Instagram, so
+// Post mode signs the originals just for the selected ids at save time (not for
+// the whole day up front). The ids come from the client, so the read goes
+// through the RLS client: any id that is not one of this operator's own photos
+// simply returns nothing.
+export async function getPostUrls(ids: string[]): Promise<PostUrl[]> {
+  const clean = [...new Set(ids)].filter((id) => typeof id === "string" && id.length > 0).slice(0, 10);
+  if (!clean.length) return [];
+  const { supabase } = await requireOperator();
+
+  const { data: rows } = await supabase
+    .from("photos")
+    .select("id, storage_key, filename")
+    .in("id", clean);
+  const photos = rows ?? [];
+  if (!photos.length) return [];
+
+  const admin = createAdminClient();
+  const signed = await Promise.all(
+    photos.map((p) =>
+      admin.storage.from("photos").createSignedUrl(p.storage_key as string, 600),
+    ),
+  );
+  const out: PostUrl[] = [];
+  photos.forEach((p, i) => {
+    const url = signed[i]?.data?.signedUrl;
+    if (!url) return;
+    const raw = (p.filename as string | null) || `photo-${(p.id as string).slice(0, 8)}.jpg`;
+    out.push({ id: p.id as string, url, filename: raw.replace(/[\r\n"\\]/g, "") });
+  });
+  return out;
 }
