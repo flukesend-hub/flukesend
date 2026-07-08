@@ -1,0 +1,145 @@
+/*
+  The story card renderer, shared by the per-send "Download story card" button
+  and the Story Builder tab. Draws a 1080x1920 Instagram story in the operator's
+  own brand: their logo on the brand band, a hero "photo of the day", then the
+  date, an optional trip time, the species sighted as bordered pills, and their
+  website. Callers resolve the operator's brand, the hero photo signed URL, and
+  the copy; this file only paints.
+*/
+import "server-only";
+import { ImageResponse } from "next/og";
+
+export const STORY_W = 1080;
+export const STORY_H = 1920;
+
+const INK = "#f7f6f3";
+const SOFT = "rgba(247,246,243,0.72)";
+const LINE = "rgba(247,246,243,0.45)";
+
+// Trim and pluralize each species, matching the source design.
+export function pluralizeSpecies(list: string[]): string[] {
+  return list
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => (/s$/i.test(s) ? s : `${s}s`));
+}
+
+export type StoryFont = { name: string; data: ArrayBuffer; weight: 500 | 600 | 700; style: "normal" };
+
+async function fetchOneWeight(weight: 500 | 600 | 700): Promise<StoryFont | null> {
+  const cssRes = await fetch(`https://fonts.googleapis.com/css2?family=Archivo:wght@${weight}`, {
+    // An older UA makes Google serve a ttf, which Satori can read (not woff2).
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1)" },
+  });
+  const css = await cssRes.text();
+  const url = css.match(/src:\s*url\(([^)]+)\)/)?.[1];
+  if (!url) return null;
+  const data = await (await fetch(url)).arrayBuffer();
+  return { name: "Archivo", data, weight, style: "normal" };
+}
+
+// Fetching Archivo from Google is the slow part of a render, so load it once per
+// server instance and reuse it: hero swaps then only pay the image composite.
+// Cached on success only, so a failed load falls back to the built in font and
+// retries on the next render. The three weights load in parallel.
+let fontCache: StoryFont[] | undefined;
+let fontInflight: Promise<StoryFont[] | undefined> | undefined;
+export async function loadStoryFonts(): Promise<StoryFont[] | undefined> {
+  if (fontCache) return fontCache;
+  if (!fontInflight) {
+    fontInflight = (async () => {
+      try {
+        const loaded = await Promise.all(([500, 600, 700] as const).map(fetchOneWeight));
+        const good = loaded.filter((f): f is StoryFont => f !== null);
+        if (good.length === 3) {
+          fontCache = good;
+          return good;
+        }
+        return undefined;
+      } catch {
+        return undefined;
+      } finally {
+        fontInflight = undefined;
+      }
+    })();
+  }
+  return fontInflight;
+}
+
+export type StoryCardInput = {
+  brandColor: string;
+  logoUrl: string | null;
+  operatorName: string;
+  website: string; // display form, no scheme
+  species: string[]; // raw, pluralized here
+  dateText: string;
+  timeText: string | null; // shown only for a single trip day
+  heroUrl: string | null;
+  fonts?: StoryFont[];
+};
+
+export function storyCardImage(input: StoryCardInput): ImageResponse {
+  const brand = input.brandColor || "#0b5563";
+  const species = pluralizeSpecies(input.species);
+  const fontFamily = input.fonts ? "Archivo" : "sans-serif";
+
+  return new ImageResponse(
+    (
+      <div style={{ width: STORY_W, height: STORY_H, display: "flex", flexDirection: "column", background: brand, color: INK, fontFamily }}>
+        {/* Operator logo banner, on the brand color where their logo is built to sit. */}
+        <div style={{ height: 268, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 60px" }}>
+          {input.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={input.logoUrl} height={150} style={{ objectFit: "contain" }} alt="" />
+          ) : (
+            <div style={{ display: "flex", fontSize: 60, fontWeight: 700, letterSpacing: 1, textAlign: "center" }}>{input.operatorName}</div>
+          )}
+        </div>
+
+        {/* Hero photo, natural aspect, full bleed, never cropped. */}
+        <div style={{ flex: "0 0 auto", display: "flex", position: "relative", overflow: "hidden" }}>
+          {input.heroUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={input.heroUrl} width={STORY_W} style={{ display: "block" }} alt="" />
+          ) : null}
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 240, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.72) 100%)" }} />
+          <div style={{ position: "absolute", left: 64, bottom: 44, display: "flex", fontSize: 30, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase" }}>Photo of the day</div>
+        </div>
+
+        {/* Date, trip time, species, website, centered in the leftover space. */}
+        <div style={{ flex: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 64px 96px", textAlign: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ display: "flex", fontSize: 54, fontWeight: 700 }}>{input.dateText}</div>
+            {input.timeText ? (
+              <div style={{ display: "flex", marginTop: 16, fontSize: 28, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase", color: SOFT }}>{input.timeText} Trip</div>
+            ) : null}
+          </div>
+
+          {species.length ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 52 }}>
+              <div style={{ display: "flex", fontSize: 26, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase", color: SOFT }}>Sighted today</div>
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: 20, maxWidth: 900 }}>
+                {species.map((s) => (
+                  <div key={s} style={{ display: "flex", border: `2px solid ${LINE}`, padding: "16px 32px", margin: 9, fontSize: 38, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{s}</div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {input.website ? (
+            <div style={{ display: "flex", marginTop: 52, fontSize: 30, fontWeight: 500, letterSpacing: 4, textTransform: "uppercase", color: SOFT }}>{input.website}</div>
+          ) : null}
+        </div>
+      </div>
+    ),
+    {
+      width: STORY_W,
+      height: STORY_H,
+      fonts: input.fonts,
+      // Let the browser reuse the rendered card so re-picking a hero already
+      // viewed is instant. The PNG has no signed URL baked in, so caching it
+      // briefly is safe.
+      headers: { "cache-control": "private, max-age=600" },
+    },
+  );
+}

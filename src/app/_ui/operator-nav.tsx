@@ -39,6 +39,9 @@ export function OperatorNav({ operatorName }: { operatorName: string }) {
             <Link href="/analytics" style={navLink(pathname.startsWith("/analytics"))}>
               Analytics
             </Link>
+            <Link href="/story" style={navLink(pathname.startsWith("/story"))}>
+              Story
+            </Link>
             <Link href="/settings" style={navLink(pathname.startsWith("/settings"))}>
               Settings
             </Link>
