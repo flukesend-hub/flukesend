@@ -28,6 +28,9 @@ export type StoryDay = {
   species: string[];
 };
 
+// Bumped when the card design changes, so a plain reload fetches the new render
+// instead of the browser's 10 minute cached copy of the same URL.
+const CARD_V = 2;
 const MAX_POST = 10; // Instagram carousel limit.
 const MAX_SLIDES = 10;
 const MAX_VIDEO_SECONDS = 15; // hard cap on the slideshow length
@@ -224,9 +227,9 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     [slideIdsKey, selectedPhotos],
   );
 
-  const cardSrc = day && heroId ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${heroId}` : null;
+  const cardSrc = day && heroId ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${heroId}&v=${CARD_V}` : null;
   function cardUrlFor(photoId: string) {
-    return day ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${photoId}&kind=slideshow` : "";
+    return day ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${photoId}&kind=slideshow&v=${CARD_V}` : "";
   }
 
   // Cycle the (already-loaded) slideshow frames by index only, so switching is
