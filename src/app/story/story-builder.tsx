@@ -16,7 +16,7 @@
   (share sheet's Save to Photos on a phone, download on desktop), then the
   operator opens Instagram to post it.
 */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getDay, getPostUrls, type DayTrip } from "./actions";
 import { makeSlideshow, videoSupported } from "./make-video";
 
@@ -79,6 +79,23 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
       setCanShare(false);
     }
     setCanVideo(videoSupported());
+  }, []);
+
+  // Arriving from a send's "Make a story" opens that trip's day straight away.
+  const didPreselect = useRef(false);
+  useEffect(() => {
+    if (didPreselect.current) return;
+    didPreselect.current = true;
+    try {
+      const d = new URLSearchParams(window.location.search).get("d");
+      if (d) {
+        const match = days.find((x) => x.date === d);
+        if (match) pickDay(match);
+      }
+    } catch {
+      // no query, nothing to preselect
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selectedPhotos = useMemo(

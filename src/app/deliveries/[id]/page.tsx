@@ -101,6 +101,12 @@ export default async function DeliveryPage({
   const crew = (delivery.crew_names ?? []) as string[];
   const guests = recipients?.length ?? 0;
   const photos = photoCount ?? 0;
+  // Deep link to the Social page, opened on this trip's day so the operator can
+  // build a story, slideshow, or post from it.
+  const tripDay = delivery.trip_datetime
+    ? new Date(delivery.trip_datetime as string).toISOString().slice(0, 10)
+    : null;
+  const storyHref = tripDay ? `/story?d=${tripDay}` : "/story";
   const emailedN = emailed !== undefined ? Number(emailed) : null;
   const failedEmails = failed ? failed.split(",").filter(Boolean) : [];
   const expires = fmtDate(delivery.expires_at);
@@ -174,17 +180,15 @@ export default async function DeliveryPage({
               </a>
             ) : null}
             {photos > 0 ? (
-              // A ready to post Instagram story of the trip, in the operator's
-              // brand: their logo, the hero photo, the date and trip time, and
-              // the species sighted. Downloads the generated image.
-              <a
-                href={`/deliveries/${delivery.id}/card`}
-                download="flukesend-story.png"
+              // Send them to the Social page, opened on this trip's day, where
+              // they can build a branded story, a slideshow video, or a post.
+              <Link
+                href={storyHref}
                 className="fl-btn-ghost"
                 style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "13px", fontSize: "14px" }}
               >
-                Download story card
-              </a>
+                Make a story
+              </Link>
             ) : null}
           </div>
         </div>
