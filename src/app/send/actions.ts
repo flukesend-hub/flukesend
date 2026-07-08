@@ -160,6 +160,10 @@ export async function getCapturedForTrip(
 export type CreateSendInput = {
   tripDatetime: string | null;
   species: string[];
+  // Optional head count per species, e.g. { "Humpback whale": 3 }. Only species
+  // the operator gave a positive number for appear here; the rest just show the
+  // name. Keyed by the same names as species.
+  speciesCounts?: Record<string, number>;
   captainName: string | null;
   naturalistName: string | null;
   photographerName: string | null;
@@ -272,6 +276,15 @@ export async function createSend(
     ? new Date(input.tripDatetime).toISOString()
     : null;
 
+  // Keep only positive whole counts for species actually on this send, so a
+  // stray or negative client value never lands in the row. Null when empty.
+  const speciesCounts: Record<string, number> = {};
+  for (const name of input.species) {
+    const n = Math.floor(Number(input.speciesCounts?.[name]));
+    if (Number.isFinite(n) && n > 0) speciesCounts[name] = n;
+  }
+  const speciesCountsValue = Object.keys(speciesCounts).length ? speciesCounts : null;
+
   const { data: delivery, error: dErr } = await supabase
     .from("deliveries")
     .insert({
@@ -279,6 +292,7 @@ export async function createSend(
       created_by: userId,
       trip_datetime: tripDatetime,
       species: input.species,
+      species_counts: speciesCountsValue,
       captain_name: input.captainName,
       naturalist_name: input.naturalistName,
       photographer_name: input.photographerName,

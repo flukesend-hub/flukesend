@@ -60,6 +60,9 @@ export function SendForm({
   const [files, setFiles] = useState<File[]>([]);
   const [emailsRaw, setEmailsRaw] = useState("");
   const [species, setSpecies] = useState<string[]>([]);
+  // Optional head count per selected species, kept as raw input strings (blank
+  // is fine). Turned into a name to number map at submit time.
+  const [speciesCounts, setSpeciesCounts] = useState<Record<string, string>>({});
   // Trip date and time are split so the time lines up with the 30 minute slots a
   // guest picks when self capturing. Together they become the delivery datetime.
   const [tripDate, setTripDate] = useState("");
@@ -171,6 +174,14 @@ export function SendForm({
     setSpecies((prev) =>
       prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name],
     );
+    // Drop a species' count when it is unselected, so a hidden number never
+    // rides along on a later reselect.
+    setSpeciesCounts((prev) => {
+      if (!(name in prev)) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
   }
 
   function toggleAboard(name: string) {
@@ -258,6 +269,11 @@ export function SendForm({
       const res = await createSend({
         tripDatetime,
         species,
+        speciesCounts: Object.fromEntries(
+          species
+            .map((name) => [name, parseInt(speciesCounts[name] ?? "", 10)] as const)
+            .filter(([, n]) => Number.isFinite(n) && n > 0),
+        ),
         captainName,
         naturalistName,
         photographerName,
@@ -446,6 +462,28 @@ export function SendForm({
             );
           })}
         </div>
+
+        {/* How many, per selected species. Optional: leave blank when you did not
+            count (or only have a rough sense). Used on the sightings recap. */}
+        {species.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", margin: "0 0 12px" }}>
+            {species.map((name) => (
+              <div key={name} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "12px", color: "var(--muted)", flex: "1 1 auto" }}>{name}</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  placeholder="how many"
+                  value={speciesCounts[name] ?? ""}
+                  onChange={(e) => setSpeciesCounts((prev) => ({ ...prev, [name]: e.target.value }))}
+                  style={countInput}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         <p className="fl-hint" style={{ margin: "0 0 16px" }}>
           Edit this list in <a href="/settings" style={{ color: "var(--signal-2)", fontWeight: 600 }}>Settings</a>.
         </p>
@@ -775,6 +813,17 @@ const speciesPill = (on: boolean): React.CSSProperties => ({
   cursor: "pointer",
   fontWeight: on ? 600 : 400,
 });
+const countInput: React.CSSProperties = {
+  font: "inherit",
+  fontSize: "12.5px",
+  width: "96px",
+  flex: "0 0 auto",
+  background: "var(--ink)",
+  color: "inherit",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "8px",
+  padding: "6px 9px",
+};
 const waterRing: React.CSSProperties = {
   position: "relative",
   width: "188px",
