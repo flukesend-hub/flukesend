@@ -17,9 +17,11 @@ export const dynamic = "force-dynamic";
 
 const CARD_W = 1080;
 const CARD_H = 1920;
-// All current operators are on the California coast; a per operator timezone can
-// come later. Used so the trip time reads as the local departure, not UTC.
-const TZ = "America/Los_Angeles";
+// trip_datetime is stored as the naive local departure clock time tagged +00
+// (a 9am trip is 09:00:00+00), and the rest of the app renders it in the
+// server's UTC zone. Format in UTC to match, so a 9am trip reads "9:00 AM"
+// rather than being shifted by a timezone conversion.
+const TZ = "UTC";
 
 const INK = "#f7f6f3";
 const SOFT = "rgba(247,246,243,0.72)";
