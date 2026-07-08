@@ -76,6 +76,9 @@ export type StoryCardInput = {
   timeText: string | null; // shown only for a single trip day
   heroUrl: string | null;
   fonts?: StoryFont[];
+  // Overlay label on the hero. Single card says "Photo of the day"; a slideshow
+  // frame says "Photos from today".
+  label?: string;
 };
 
 export function storyCardImage(input: StoryCardInput): ImageResponse {
@@ -103,7 +106,7 @@ export function storyCardImage(input: StoryCardInput): ImageResponse {
             <img src={input.heroUrl} width={STORY_W} style={{ display: "block" }} alt="" />
           ) : null}
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 240, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.72) 100%)" }} />
-          <div style={{ position: "absolute", left: 64, bottom: 44, display: "flex", fontSize: 30, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase" }}>Photo of the day</div>
+          <div style={{ position: "absolute", left: 64, bottom: 44, display: "flex", fontSize: 30, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase" }}>{input.label ?? "Photo of the day"}</div>
         </div>
 
         {/* Date, trip time, species, website, centered in the leftover space. */}

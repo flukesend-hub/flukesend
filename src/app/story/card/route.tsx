@@ -25,6 +25,9 @@ export async function GET(request: Request) {
   // Absent means the whole day.
   const tParam = url.searchParams.get("t");
   const wanted = tParam ? new Set(tParam.split(",").filter(Boolean)) : null;
+  // A slideshow frame labels the hero "Photos from today" instead of the single
+  // card's "Photo of the day".
+  const label = url.searchParams.get("kind") === "slideshow" ? "Photos from today" : "Photo of the day";
   if (!DATE_RE.test(d)) {
     return new Response("Bad date", { status: 400 });
   }
@@ -105,6 +108,7 @@ export async function GET(request: Request) {
     dateText,
     timeText,
     heroUrl,
+    label,
     fonts: await loadStoryFonts(),
   });
 }

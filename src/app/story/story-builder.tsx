@@ -209,7 +209,7 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
 
   const cardSrc = day && heroId ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${heroId}` : null;
   function cardUrlFor(photoId: string) {
-    return day ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${photoId}` : "";
+    return day ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${photoId}&kind=slideshow` : "";
   }
 
   // Cycle the (already-loaded) slideshow frames by index only, so switching is
