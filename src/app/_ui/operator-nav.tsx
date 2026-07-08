@@ -40,7 +40,7 @@ export function OperatorNav({ operatorName }: { operatorName: string }) {
               Analytics
             </Link>
             <Link href="/story" style={navLink(pathname.startsWith("/story"))}>
-              Story
+              Social
             </Link>
             <Link href="/settings" style={navLink(pathname.startsWith("/settings"))}>
               Settings
