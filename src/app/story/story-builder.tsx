@@ -2,19 +2,19 @@
 
 /*
   The Social surface. Pick a trip day, then pick which of that day's trips to
-  include (default all). Three modes share that day and trip picker:
+  include (default all). Two top level modes share that picker:
 
-  - Story: choose one hero photo of the day and post a branded 1080x1920 card.
-  - Slideshow: choose several photos; each becomes the same branded card, and they
-    are encoded into one vertical .mp4 that plays them in sequence (a moving photo
-    of the day). Encoding runs on the device with its own H.264 encoder; a browser
-    without one falls back to a message.
-  - Post: choose several of the day's photos and post them as a regular Instagram
-    carousel of the raw photos.
+  - Story: a branded photo-of-the-day for your Instagram Story. Two flavors:
+      Single    one hero photo on the branded 1080x1920 card.
+      Slideshow several photos, each on the same card, encoded into one vertical
+                mp4 that plays them in sequence. Capped at 15 seconds, with a
+                Fast/Medium/Slow control. Encoding runs on the device with its own
+                H.264 encoder (WebCodecs); a browser without one falls back.
+  - Post: several of the day's raw photos as a regular Instagram carousel.
 
-  For Slideshow and Post, since Instagram cannot be filled from the web, the file
-  is saved (share sheet's Save to Photos on a phone, download on desktop) and then
-  the operator opens Instagram to post it.
+  Since Instagram cannot be filled from the web, a video or photo set is saved
+  (share sheet's Save to Photos on a phone, download on desktop), then the
+  operator opens Instagram to post it.
 */
 import { useEffect, useMemo, useState } from "react";
 import { getDay, getPostUrls, type DayTrip } from "./actions";
@@ -30,12 +30,19 @@ export type StoryDay = {
 
 const MAX_POST = 10; // Instagram carousel limit.
 const MAX_SLIDES = 10;
-const SLIDE_SECONDS = 3; // hold per photo in the video
+const MAX_VIDEO_SECONDS = 15; // hard cap on the slideshow length
+const SPEEDS = [
+  { label: "Fast", sec: 1 },
+  { label: "Medium", sec: 2 },
+  { label: "Slow", sec: 3 },
+];
 
-type Mode = "story" | "slideshow" | "post";
+type Mode = "story" | "post";
+type StoryKind = "single" | "slideshow";
 
 export function StoryBuilder({ days }: { days: StoryDay[] }) {
   const [mode, setMode] = useState<Mode>("story");
+  const [storyKind, setStoryKind] = useState<StoryKind>("single");
   const [day, setDay] = useState<StoryDay | null>(null);
   const [trips, setTrips] = useState<DayTrip[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -52,8 +59,9 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
   const [postSaved, setPostSaved] = useState(false);
   const [postNote, setPostNote] = useState<string | null>(null);
 
-  // Slideshow mode state.
+  // Slideshow state.
   const [slideSel, setSlideSel] = useState<Set<string>>(new Set());
+  const [perPhoto, setPerPhoto] = useState(2);
   const [making, setMaking] = useState(false);
   const [slideProgress, setSlideProgress] = useState(0);
   const [slideSaved, setSlideSaved] = useState(false);
@@ -78,6 +86,9 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     [trips, selected],
   );
 
+  // Most photos allowed at the current speed without passing the 15s cap.
+  const slideCap = Math.min(MAX_SLIDES, Math.floor(MAX_VIDEO_SECONDS / perPhoto));
+
   function resetExtras() {
     setPostSel(new Set());
     setPostSaved(false);
@@ -86,6 +97,7 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     setSlideSaved(false);
     setSlideNote(null);
     setSlideProgress(0);
+    setPlayIdx(0);
   }
 
   async function pickDay(d: StoryDay) {
@@ -162,8 +174,8 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
       if (next.has(id)) {
         next.delete(id);
         setSlideNote(null);
-      } else if (next.size >= MAX_SLIDES) {
-        setSlideNote(`Keep it to ${MAX_SLIDES} photos for a tidy clip.`);
+      } else if (next.size >= slideCap) {
+        setSlideNote(`Up to ${slideCap} photos at ${perPhoto}s each (15s max). Speed them up to fit more.`);
         return prev;
       } else {
         next.add(id);
@@ -173,12 +185,21 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     });
   }
 
+  function chooseSpeed(sec: number) {
+    setPerPhoto(sec);
+    setSlideSaved(false);
+    setSlideNote(null);
+    const cap = Math.min(MAX_SLIDES, Math.floor(MAX_VIDEO_SECONDS / sec));
+    // Trim the selection (keeping tap order) if the faster/slower cap is smaller.
+    setSlideSel((prev) => (prev.size <= cap ? prev : new Set([...prev].slice(0, cap))));
+  }
+
   const postPhotos = useMemo(
     () => selectedPhotos.filter((p) => postSel.has(p.id)),
     [selectedPhotos, postSel],
   );
 
-  // Slideshow photos in the order the operator tapped them (a Set keeps insertion order).
+  // Slideshow photos in the order they were tapped (a Set keeps insertion order).
   const slideIdsKey = [...slideSel].join(",");
   const slidePhotos = useMemo(
     () => [...slideSel].map((id) => selectedPhotos.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p),
@@ -187,19 +208,19 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
   );
 
   const cardSrc = day && heroId ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${heroId}` : null;
-
   function cardUrlFor(photoId: string) {
     return day ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${photoId}` : "";
   }
 
-  // Animated slideshow preview: cycle the branded card through the chosen photos.
+  // Cycle the (already-loaded) slideshow frames by index only, so switching is
+  // instant and selecting a new photo never reloads the ones already shown.
+  const inSlideshow = mode === "story" && storyKind === "slideshow";
   useEffect(() => {
-    if (mode !== "slideshow" || slidePhotos.length === 0) return;
-    setPlayIdx(0);
-    if (slidePhotos.length === 1) return;
-    const iv = setInterval(() => setPlayIdx((i) => (i + 1) % slidePhotos.length), SLIDE_SECONDS * 1000);
+    if (!inSlideshow || slidePhotos.length < 2) return;
+    const iv = setInterval(() => setPlayIdx((i) => i + 1), perPhoto * 1000);
     return () => clearInterval(iv);
-  }, [mode, slideIdsKey, slidePhotos.length]);
+  }, [inSlideshow, slidePhotos.length, perPhoto]);
+  const curSlide = slidePhotos.length ? playIdx % slidePhotos.length : 0;
 
   async function share() {
     if (!cardSrc) return;
@@ -282,7 +303,7 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
       const urls = slidePhotos.map((p) => cardUrlFor(p.id));
       const blob = await makeSlideshow({
         urls,
-        secondsPer: SLIDE_SECONDS,
+        secondsPer: perPhoto,
         onProgress: (d, t) => setSlideProgress(Math.round((d / t) * 100)),
       });
       if (!blob) {
@@ -305,8 +326,8 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
       setSlideSaved(true);
       setSlideNote(
         canShare
-          ? "Saved your video. Open Instagram and post it to your Story, feed, or a Reel."
-          : "Downloaded your video. Open Instagram and upload it.",
+          ? "Saved your video. Open Instagram and add it to your Story."
+          : "Downloaded your video. Open Instagram and add it to your Story.",
       );
     } catch (e) {
       if (!(e instanceof Error && e.name === "AbortError")) {
@@ -321,18 +342,14 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     window.open("https://www.instagram.com/", "_blank", "noopener");
   }
 
-  const modeBlurb: Record<Mode, string> = {
-    story: "Story: one branded photo-of-the-day card, sized for Instagram Stories.",
-    slideshow: "Slideshow: pick a few photos and make one video that plays them, in your brand.",
-    post: "Post: pick several of the day's shots for a regular Instagram carousel.",
-  };
+  const totalSecs = slidePhotos.length * perPhoto;
 
   return (
     <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "28px 22px 90px" }}>
       <div className="fl-eyebrow">Social</div>
       <h1 className="fl-h1" style={{ fontSize: "30px" }}>Social</h1>
       <p style={{ color: "var(--muted)", fontSize: "14.5px", margin: "6px 0 0", maxWidth: "60ch" }}>
-        Pick a day, then post a branded story, a slideshow video, or a set of the day's best shots.
+        Pick a day, then post a branded Story or a set of the day's best shots.
       </p>
 
       {days.length === 0 ? (
@@ -343,7 +360,7 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
         <>
           {/* Mode toggle */}
           <div style={{ display: "inline-flex", gap: "4px", marginTop: "20px", padding: "4px", background: "#eef1f0", borderRadius: "12px" }}>
-            {(["story", "slideshow", "post"] as const).map((m) => {
+            {(["story", "post"] as const).map((m) => {
               const on = mode === m;
               return (
                 <button
@@ -355,7 +372,7 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
                     cursor: "pointer",
                     border: 0,
                     borderRadius: "9px",
-                    padding: "8px 18px",
+                    padding: "8px 20px",
                     fontSize: "13.5px",
                     fontWeight: 600,
                     color: on ? "var(--signal-ink)" : "var(--muted)",
@@ -368,7 +385,11 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
               );
             })}
           </div>
-          <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "7px" }}>{modeBlurb[mode]}</div>
+          <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "7px" }}>
+            {mode === "story"
+              ? "Story: a branded photo-of-the-day for your Instagram Story, as one card or a slideshow video."
+              : "Post: pick several of the day's shots for a regular Instagram carousel."}
+          </div>
 
           {/* Day picker */}
           <div style={{ margin: "22px 0 4px", fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>Pick a day</div>
@@ -439,210 +460,268 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
                       );
                     })}
                   </div>
-                  <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "7px" }}>
-                    {mode === "story"
-                      ? "All trips makes a day recap. Pick one to feature just that trip, with its time."
-                      : "Choose which trips' photos to pick from."}
-                  </div>
                 </div>
               ) : null}
 
               {mode === "story" ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "26px", marginTop: "26px", alignItems: "flex-start" }}>
-                  {/* Photo picker */}
-                  <div style={{ flex: "1 1 380px", minWidth: "300px" }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
-                      Pick the photo of the day
-                    </div>
-                    {loading ? (
-                      <div style={{ color: "var(--muted)", fontSize: "14px" }}>Loading photos...</div>
-                    ) : selectedPhotos.length === 0 ? (
-                      <div style={{ color: "var(--muted)", fontSize: "14px" }}>No photos in the selected trips.</div>
-                    ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: "8px" }}>
-                        {selectedPhotos.map((p) => {
-                          const active = p.id === heroId;
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => chooseHero(p.id)}
-                              style={{
-                                padding: 0,
-                                border: active ? "3px solid var(--signal)" : "1px solid var(--line)",
-                                borderRadius: "10px",
-                                overflow: "hidden",
-                                cursor: "pointer",
-                                aspectRatio: "1 / 1",
-                                background: "#e7e2d8",
-                              }}
-                              aria-label={active ? "Selected hero photo" : "Use this photo"}
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={p.thumbUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Live preview + share/download */}
-                  <div style={{ flex: "0 0 auto", width: "300px", maxWidth: "100%" }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>Preview</div>
-                    <div style={{ position: "relative", width: "270px", maxWidth: "100%", aspectRatio: "1080 / 1920", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--line)", background: "#f2efe9" }}>
-                      {cardSrc ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={cardSrc}
-                          src={cardSrc}
-                          alt="Story preview"
-                          onLoad={() => setRendering(false)}
-                          onError={() => setRendering(false)}
-                          style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", opacity: rendering ? 0.35 : 1, transition: "opacity .15s" }}
-                        />
-                      ) : null}
-                      {rendering ? (
-                        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "12.5px", fontWeight: 600, color: "#6b7a7d" }}>
-                          Rendering...
-                        </div>
-                      ) : null}
-                    </div>
-
-                    {cardSrc ? (
-                      <div style={{ width: "270px", maxWidth: "100%", marginTop: "14px" }}>
-                        {canShare ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={share}
-                              disabled={sharing}
-                              className="fl-btn"
-                              style={{ display: "block", width: "100%", textAlign: "center", padding: "13px", cursor: "pointer", border: 0, font: "inherit", opacity: sharing ? 0.75 : 1 }}
-                            >
-                              {sharing ? "Preparing..." : "Share"}
-                            </button>
-                            <a href={cardSrc} download="flukesend-story.png" style={{ display: "block", textAlign: "center", marginTop: "8px", fontSize: "12.5px", color: "var(--muted)", textDecoration: "underline", textUnderlineOffset: "3px" }}>
-                              or download
-                            </a>
-                          </>
-                        ) : (
-                          <a href={cardSrc} download="flukesend-story.png" className="fl-btn" style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "13px" }}>
-                            Download story
-                          </a>
-                        )}
-                        {note ? <p style={{ fontSize: "12.5px", color: "#a04435", margin: "8px 0 0", textAlign: "center" }}>{note}</p> : null}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              ) : mode === "slideshow" ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "26px", marginTop: "26px", alignItems: "flex-start" }}>
-                  {/* Ordered multi-select photo picker */}
-                  <div style={{ flex: "1 1 380px", minWidth: "300px" }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
-                      Pick photos for the video{slideSel.size ? ` (${slideSel.size})` : ""}
-                    </div>
-                    {loading ? (
-                      <div style={{ color: "var(--muted)", fontSize: "14px" }}>Loading photos...</div>
-                    ) : selectedPhotos.length === 0 ? (
-                      <div style={{ color: "var(--muted)", fontSize: "14px" }}>No photos in the selected trips.</div>
-                    ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: "8px" }}>
-                        {selectedPhotos.map((p) => {
-                          const order = [...slideSel].indexOf(p.id);
-                          const on = order >= 0;
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => toggleSlide(p.id)}
-                              style={{
-                                position: "relative",
-                                padding: 0,
-                                border: on ? "3px solid var(--signal)" : "1px solid var(--line)",
-                                borderRadius: "10px",
-                                overflow: "hidden",
-                                cursor: "pointer",
-                                aspectRatio: "1 / 1",
-                                background: "#e7e2d8",
-                              }}
-                              aria-label={on ? "Remove from video" : "Add to video"}
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={p.thumbUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: on ? 1 : 0.92 }} />
-                              {on ? (
-                                <span style={{ position: "absolute", top: "6px", right: "6px", minWidth: "20px", height: "20px", padding: "0 5px", borderRadius: "999px", display: "grid", placeItems: "center", fontSize: "11.5px", fontWeight: 700, color: "var(--signal-ink)", background: "var(--signal)" }}>
-                                  {order + 1}
-                                </span>
-                              ) : null}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "8px" }}>
-                      Tap in the order you want them to play. Each photo shows for {SLIDE_SECONDS} seconds.
-                    </div>
-                  </div>
-
-                  {/* Animated preview + make video */}
-                  <div style={{ flex: "0 0 auto", width: "300px", maxWidth: "100%" }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
-                      Preview{slidePhotos.length ? ` (${slidePhotos.length} x ${SLIDE_SECONDS}s = ${slidePhotos.length * SLIDE_SECONDS}s)` : ""}
-                    </div>
-                    <div style={{ position: "relative", width: "270px", maxWidth: "100%", aspectRatio: "1080 / 1920", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--line)", background: "#f2efe9" }}>
-                      {slidePhotos.length > 0 ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={slidePhotos[Math.min(playIdx, slidePhotos.length - 1)]?.id}
-                          src={cardUrlFor(slidePhotos[Math.min(playIdx, slidePhotos.length - 1)]?.id ?? "")}
-                          alt="Slideshow preview"
-                          style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-                        />
-                      ) : (
-                        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "12.5px", color: "#6b7a7d", textAlign: "center", padding: "0 20px" }}>
-                          Tap photos on the left to build a video.
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ width: "270px", maxWidth: "100%", marginTop: "14px" }}>
-                      <button
-                        type="button"
-                        onClick={makeVideo}
-                        disabled={making || slidePhotos.length === 0}
-                        className="fl-btn"
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          textAlign: "center",
-                          padding: "13px",
-                          cursor: slidePhotos.length === 0 ? "not-allowed" : "pointer",
-                          border: 0,
-                          font: "inherit",
-                          opacity: making || slidePhotos.length === 0 ? 0.55 : 1,
-                        }}
-                      >
-                        {making ? (slideProgress ? `Making video... ${slideProgress}%` : "Making video...") : canShare ? "Make video for Instagram" : "Make video (download)"}
-                      </button>
-                      {slideSaved ? (
+                <>
+                  {/* Single vs Slideshow */}
+                  <div style={{ display: "inline-flex", gap: "4px", marginTop: "22px", padding: "4px", background: "#eef1f0", borderRadius: "10px" }}>
+                    {(["single", "slideshow"] as const).map((k) => {
+                      const on = storyKind === k;
+                      return (
                         <button
+                          key={k}
                           type="button"
-                          onClick={openInstagram}
-                          style={{ display: "block", width: "100%", textAlign: "center", marginTop: "8px", padding: "12px", cursor: "pointer", font: "inherit", fontSize: "14px", fontWeight: 600, color: "var(--signal-ink)", background: "#fff", border: "1.5px solid var(--signal)", borderRadius: "10px" }}
+                          onClick={() => setStoryKind(k)}
+                          style={{
+                            font: "inherit",
+                            cursor: "pointer",
+                            border: 0,
+                            borderRadius: "7px",
+                            padding: "7px 16px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: on ? "var(--signal-ink)" : "var(--muted)",
+                            background: on ? "var(--signal)" : "transparent",
+                            textTransform: "capitalize",
+                          }}
                         >
-                          Open Instagram
+                          {k}
                         </button>
-                      ) : null}
-                      {slideNote ? (
-                        <p style={{ fontSize: "12.5px", color: slideSaved ? "var(--muted)" : "#a04435", margin: "10px 0 0", textAlign: "center", lineHeight: 1.5 }}>{slideNote}</p>
-                      ) : null}
-                    </div>
+                      );
+                    })}
                   </div>
-                </div>
+
+                  {storyKind === "single" ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "26px", marginTop: "22px", alignItems: "flex-start" }}>
+                      {/* Hero picker */}
+                      <div style={{ flex: "1 1 380px", minWidth: "300px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
+                          Pick the photo of the day
+                        </div>
+                        {loading ? (
+                          <div style={{ color: "var(--muted)", fontSize: "14px" }}>Loading photos...</div>
+                        ) : selectedPhotos.length === 0 ? (
+                          <div style={{ color: "var(--muted)", fontSize: "14px" }}>No photos in the selected trips.</div>
+                        ) : (
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: "8px" }}>
+                            {selectedPhotos.map((p) => {
+                              const active = p.id === heroId;
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => chooseHero(p.id)}
+                                  style={{
+                                    padding: 0,
+                                    border: active ? "3px solid var(--signal)" : "1px solid var(--line)",
+                                    borderRadius: "10px",
+                                    overflow: "hidden",
+                                    cursor: "pointer",
+                                    aspectRatio: "1 / 1",
+                                    background: "#e7e2d8",
+                                  }}
+                                  aria-label={active ? "Selected hero photo" : "Use this photo"}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={p.thumbUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Live preview + share/download */}
+                      <div style={{ flex: "0 0 auto", width: "300px", maxWidth: "100%" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>Preview</div>
+                        <div style={{ position: "relative", width: "270px", maxWidth: "100%", aspectRatio: "1080 / 1920", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--line)", background: "#f2efe9" }}>
+                          {cardSrc ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={cardSrc}
+                              src={cardSrc}
+                              alt="Story preview"
+                              onLoad={() => setRendering(false)}
+                              onError={() => setRendering(false)}
+                              style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", opacity: rendering ? 0.35 : 1, transition: "opacity .15s" }}
+                            />
+                          ) : null}
+                          {rendering ? (
+                            <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "12.5px", fontWeight: 600, color: "#6b7a7d" }}>
+                              Rendering...
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {cardSrc ? (
+                          <div style={{ width: "270px", maxWidth: "100%", marginTop: "14px" }}>
+                            {canShare ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={share}
+                                  disabled={sharing}
+                                  className="fl-btn"
+                                  style={{ display: "block", width: "100%", textAlign: "center", padding: "13px", cursor: "pointer", border: 0, font: "inherit", opacity: sharing ? 0.75 : 1 }}
+                                >
+                                  {sharing ? "Preparing..." : "Share"}
+                                </button>
+                                <a href={cardSrc} download="flukesend-story.png" style={{ display: "block", textAlign: "center", marginTop: "8px", fontSize: "12.5px", color: "var(--muted)", textDecoration: "underline", textUnderlineOffset: "3px" }}>
+                                  or download
+                                </a>
+                              </>
+                            ) : (
+                              <a href={cardSrc} download="flukesend-story.png" className="fl-btn" style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "13px" }}>
+                                Download story
+                              </a>
+                            )}
+                            {note ? <p style={{ fontSize: "12.5px", color: "#a04435", margin: "8px 0 0", textAlign: "center" }}>{note}</p> : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "26px", marginTop: "22px", alignItems: "flex-start" }}>
+                      {/* Ordered multi-select + speed */}
+                      <div style={{ flex: "1 1 380px", minWidth: "300px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
+                          Speed
+                        </div>
+                        <div style={{ display: "flex", gap: "6px", marginBottom: "16px" }}>
+                          {SPEEDS.map((s) => {
+                            const on = perPhoto === s.sec;
+                            return (
+                              <button
+                                key={s.sec}
+                                type="button"
+                                onClick={() => chooseSpeed(s.sec)}
+                                style={{
+                                  font: "inherit",
+                                  cursor: "pointer",
+                                  borderRadius: "999px",
+                                  padding: "7px 14px",
+                                  fontSize: "12.5px",
+                                  fontWeight: 600,
+                                  color: "#1c2b2e",
+                                  border: on ? "2px solid var(--signal)" : "1px solid var(--line)",
+                                  background: on ? "#eef5fb" : "#fff",
+                                }}
+                              >
+                                {s.label} · {s.sec}s
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
+                          Pick photos for the video{slideSel.size ? ` (${slideSel.size}/${slideCap})` : ""}
+                        </div>
+                        {loading ? (
+                          <div style={{ color: "var(--muted)", fontSize: "14px" }}>Loading photos...</div>
+                        ) : selectedPhotos.length === 0 ? (
+                          <div style={{ color: "var(--muted)", fontSize: "14px" }}>No photos in the selected trips.</div>
+                        ) : (
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: "8px" }}>
+                            {selectedPhotos.map((p) => {
+                              const order = [...slideSel].indexOf(p.id);
+                              const on = order >= 0;
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => toggleSlide(p.id)}
+                                  style={{
+                                    position: "relative",
+                                    padding: 0,
+                                    border: on ? "3px solid var(--signal)" : "1px solid var(--line)",
+                                    borderRadius: "10px",
+                                    overflow: "hidden",
+                                    cursor: "pointer",
+                                    aspectRatio: "1 / 1",
+                                    background: "#e7e2d8",
+                                  }}
+                                  aria-label={on ? "Remove from video" : "Add to video"}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={p.thumbUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: on ? 1 : 0.92 }} />
+                                  {on ? (
+                                    <span style={{ position: "absolute", top: "6px", right: "6px", minWidth: "20px", height: "20px", padding: "0 5px", borderRadius: "999px", display: "grid", placeItems: "center", fontSize: "11.5px", fontWeight: 700, color: "var(--signal-ink)", background: "var(--signal)" }}>
+                                      {order + 1}
+                                    </span>
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "8px" }}>
+                          Tap in play order. {slidePhotos.length ? `${slidePhotos.length} photos = ${totalSecs}s.` : `Up to ${slideCap} at this speed (15s max).`}
+                        </div>
+                      </div>
+
+                      {/* Animated preview (preloaded frames) + make video */}
+                      <div style={{ flex: "0 0 auto", width: "300px", maxWidth: "100%" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
+                          Preview{slidePhotos.length ? ` · ${totalSecs}s` : ""}
+                        </div>
+                        <div style={{ position: "relative", width: "270px", maxWidth: "100%", aspectRatio: "1080 / 1920", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--line)", background: "#f2efe9" }}>
+                          {slidePhotos.length === 0 ? (
+                            <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "12.5px", color: "#6b7a7d", textAlign: "center", padding: "0 20px" }}>
+                              Tap photos on the left to build a video.
+                            </div>
+                          ) : (
+                            slidePhotos.map((p, i) => (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={p.id}
+                                src={cardUrlFor(p.id)}
+                                alt=""
+                                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", display: "block", opacity: i === curSlide ? 1 : 0 }}
+                              />
+                            ))
+                          )}
+                        </div>
+
+                        <div style={{ width: "270px", maxWidth: "100%", marginTop: "14px" }}>
+                          <button
+                            type="button"
+                            onClick={makeVideo}
+                            disabled={making || slidePhotos.length === 0}
+                            className="fl-btn"
+                            style={{
+                              display: "block",
+                              width: "100%",
+                              textAlign: "center",
+                              padding: "13px",
+                              cursor: slidePhotos.length === 0 ? "not-allowed" : "pointer",
+                              border: 0,
+                              font: "inherit",
+                              opacity: making || slidePhotos.length === 0 ? 0.55 : 1,
+                            }}
+                          >
+                            {making ? (slideProgress ? `Making video... ${slideProgress}%` : "Making video...") : canShare ? "Make video for your Story" : "Make video (download)"}
+                          </button>
+                          {slideSaved ? (
+                            <button
+                              type="button"
+                              onClick={openInstagram}
+                              style={{ display: "block", width: "100%", textAlign: "center", marginTop: "8px", padding: "12px", cursor: "pointer", font: "inherit", fontSize: "14px", fontWeight: 600, color: "var(--signal-ink)", background: "#fff", border: "1.5px solid var(--signal)", borderRadius: "10px" }}
+                            >
+                              Open Instagram
+                            </button>
+                          ) : null}
+                          {slideNote ? (
+                            <p style={{ fontSize: "12.5px", color: slideSaved ? "var(--muted)" : "#a04435", margin: "10px 0 0", textAlign: "center", lineHeight: 1.5 }}>{slideNote}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "26px", marginTop: "26px", alignItems: "flex-start" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "26px", marginTop: "22px", alignItems: "flex-start" }}>
                   {/* Multi-select photo picker */}
                   <div style={{ flex: "1 1 380px", minWidth: "300px" }}>
                     <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
