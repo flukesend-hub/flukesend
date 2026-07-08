@@ -74,6 +74,11 @@ export async function GET(request: Request) {
     manualList: [] as string[],
   };
 
+  // Everything runs inside one guard: a single bad row, or an unexpected throw
+  // anywhere, is reported as JSON instead of collapsing the whole sweep into a
+  // bare 500. The sweep is idempotent (consumed rows are skipped next time), so
+  // returning a partial summary and letting the next run finish is safe.
+  try {
   // Un-consumed captures for past trips only.
   let query = admin
     .from("captured_guests")
@@ -83,7 +88,10 @@ export async function GET(request: Request) {
     .not("trip_date", "is", null);
   if (onlyOperator) query = query.eq("operator_id", onlyOperator);
   const { data: caps, error } = await query;
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) {
+    summary.errors.push(`scan failed: ${error.message}`);
+    return Response.json(summary);
+  }
   summary.scanned = caps?.length ?? 0;
 
   const ctxCache = new Map<string, OperatorCtx>();
@@ -121,17 +129,24 @@ export async function GET(request: Request) {
   }
 
   for (const cap of caps ?? []) {
+   try {
     const operatorId = cap.operator_id as string;
     const email = (cap.email as string).toLowerCase();
     const tripDate = cap.trip_date as string;
     const tripTime = cap.trip_time as string | null;
 
     // 1. Already reached for THIS trip? Then the row is redundant, consume it.
-    const { data: reached } = await admin
+    const { data: reached, error: reachedErr } = await admin
       .from("recipients")
       .select("id, deliveries!inner(operator_id, trip_datetime)")
       .eq("deliveries.operator_id", operatorId)
       .ilike("email", email);
+    if (reachedErr) {
+      // Cannot tell if the guest was already reached, so do not risk a duplicate
+      // send. Leave the row for the next run and report it.
+      summary.errors.push(`reached lookup failed for ${email} (${tripDate}): ${reachedErr.message}`);
+      continue;
+    }
     const reachedThisTrip = (reached ?? []).some((r) => {
       const dt = (r as unknown as { deliveries: { trip_datetime: string | null } }).deliveries?.trip_datetime;
       return dt ? utcDate(dt) === tripDate : false;
@@ -153,12 +168,16 @@ export async function GET(request: Request) {
     // 2. Find the send that matches this trip's date and departure time.
     const dayStart = `${tripDate}T00:00:00.000Z`;
     const dayEnd = new Date(new Date(dayStart).getTime() + 24 * 60 * 60 * 1000).toISOString();
-    const { data: dels } = await admin
+    const { data: dels, error: delsErr } = await admin
       .from("deliveries")
       .select("id, trip_datetime, expires_at, species, captain_name, naturalist_name, photographer_name, custom_message")
       .eq("operator_id", operatorId)
       .gte("trip_datetime", dayStart)
       .lt("trip_datetime", dayEnd);
+    if (delsErr) {
+      summary.errors.push(`send lookup failed for ${email} (${tripDate} ${tripTime}): ${delsErr.message}`);
+      continue;
+    }
     const matches = (dels ?? []).filter((d) => d.trip_datetime && utcHHMM(d.trip_datetime as string) === tripTime);
     if (matches.length !== 1) {
       summary.needsManual++;
@@ -228,7 +247,19 @@ export async function GET(request: Request) {
 
     summary.recovered++;
     summary.recoveredList.push(email);
+   } catch (rowErr) {
+     // One bad row never kills the sweep. Report it and move on; the row stays
+     // un-consumed, so the next run retries it.
+     const who = `${(cap.email as string) ?? "?"} (${(cap.trip_date as string) ?? "?"})`;
+     summary.errors.push(`row failed for ${who}: ${rowErr instanceof Error ? rowErr.message : String(rowErr)}`);
+   }
   }
 
   return Response.json(summary);
+  } catch (err) {
+    // Anything unexpected surfaces as readable JSON, not a bare 500, so the run
+    // can be diagnosed. Partial progress above is preserved in the summary.
+    summary.errors.push(`sweep failed: ${err instanceof Error ? err.message : String(err)}`);
+    return Response.json(summary);
+  }
 }
