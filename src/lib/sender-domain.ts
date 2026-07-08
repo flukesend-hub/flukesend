@@ -125,11 +125,12 @@ export async function checkSenderDomain(
     .maybeSingle();
   if (!row) return { error: "No domain set up yet." };
 
-  // Kick verification (idempotent on Resend's side), then read fresh state.
-  await fetch(`${API}/domains/${row.resend_domain_id}/verify`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-  }).catch(() => {});
+  // Read the domain's settled status first. Do NOT trigger a re-verify and then
+  // read immediately: Resend flips an already-verified domain back to "pending"
+  // while it re-checks the DNS, so a read right after the POST catches that
+  // transient state and the panel never shows verified even once the domain is
+  // done. So we GET the current status, and only nudge a re-verify (fire and
+  // forget, for next time) when the domain is not verified yet.
   const res = await fetch(`${API}/domains/${row.resend_domain_id}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
@@ -137,10 +138,19 @@ export async function checkSenderDomain(
     return { error: "Could not check the domain. Try again." };
   }
   const d = (await res.json()) as ResendDomain;
+  const status = d.status ?? "pending";
+  if (status !== "verified") {
+    // Not verified yet: nudge Resend to re-check so the next look reflects any
+    // DNS that has since propagated. Idempotent, and we do not wait on it.
+    await fetch(`${API}/domains/${row.resend_domain_id}/verify`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+    }).catch(() => {});
+  }
   const { error } = await admin
     .from("sender_domains")
     .update({
-      status: d.status ?? "pending",
+      status,
       records: mapRecords(d),
       updated_at: new Date().toISOString(),
     })
@@ -148,7 +158,7 @@ export async function checkSenderDomain(
   if (error) {
     console.error(`sender domain refresh failed for ${operatorId}: ${error.message}`);
   }
-  return { ok: true, status: d.status ?? "pending" };
+  return { ok: true, status };
 }
 
 export async function removeSenderDomain(
