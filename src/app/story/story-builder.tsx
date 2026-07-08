@@ -2,21 +2,23 @@
 
 /*
   The Social surface. Pick a trip day, then pick which of that day's trips to
-  include (default all). Two modes share that day and trip picker:
+  include (default all). Three modes share that day and trip picker:
 
   - Story: choose one hero photo of the day and post a branded 1080x1920 card.
-    One trip selected shows that trip's time on the card; several shows the date.
-  - Post: choose several of the day's photos and post them as a regular
-    Instagram carousel. Since Instagram cannot be filled from the web, Post saves
-    the full resolution photos (the phone share sheet offers Save to Photos, or a
-    download on desktop) and then opens Instagram, where the operator makes the
-    carousel from their camera roll.
+  - Slideshow: choose several photos; each becomes the same branded card, and they
+    are encoded into one vertical .mp4 that plays them in sequence (a moving photo
+    of the day). Encoding runs on the device with its own H.264 encoder; a browser
+    without one falls back to a message.
+  - Post: choose several of the day's photos and post them as a regular Instagram
+    carousel of the raw photos.
 
-  On a touch device the primary action is the native share sheet; desktop gets a
-  download.
+  For Slideshow and Post, since Instagram cannot be filled from the web, the file
+  is saved (share sheet's Save to Photos on a phone, download on desktop) and then
+  the operator opens Instagram to post it.
 */
 import { useEffect, useMemo, useState } from "react";
 import { getDay, getPostUrls, type DayTrip } from "./actions";
+import { makeSlideshow, videoSupported } from "./make-video";
 
 export type StoryDay = {
   date: string; // YYYY-MM-DD (UTC)
@@ -27,9 +29,13 @@ export type StoryDay = {
 };
 
 const MAX_POST = 10; // Instagram carousel limit.
+const MAX_SLIDES = 10;
+const SLIDE_SECONDS = 3; // hold per photo in the video
+
+type Mode = "story" | "slideshow" | "post";
 
 export function StoryBuilder({ days }: { days: StoryDay[] }) {
-  const [mode, setMode] = useState<"story" | "post">("story");
+  const [mode, setMode] = useState<Mode>("story");
   const [day, setDay] = useState<StoryDay | null>(null);
   const [trips, setTrips] = useState<DayTrip[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -46,6 +52,15 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
   const [postSaved, setPostSaved] = useState(false);
   const [postNote, setPostNote] = useState<string | null>(null);
 
+  // Slideshow mode state.
+  const [slideSel, setSlideSel] = useState<Set<string>>(new Set());
+  const [making, setMaking] = useState(false);
+  const [slideProgress, setSlideProgress] = useState(0);
+  const [slideSaved, setSlideSaved] = useState(false);
+  const [slideNote, setSlideNote] = useState<string | null>(null);
+  const [playIdx, setPlayIdx] = useState(0);
+  const [canVideo, setCanVideo] = useState(true);
+
   // Only offer native share on a touch-first device that can share files.
   useEffect(() => {
     try {
@@ -55,6 +70,7 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     } catch {
       setCanShare(false);
     }
+    setCanVideo(videoSupported());
   }, []);
 
   const selectedPhotos = useMemo(
@@ -62,10 +78,14 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     [trips, selected],
   );
 
-  function resetPost() {
+  function resetExtras() {
     setPostSel(new Set());
     setPostSaved(false);
     setPostNote(null);
+    setSlideSel(new Set());
+    setSlideSaved(false);
+    setSlideNote(null);
+    setSlideProgress(0);
   }
 
   async function pickDay(d: StoryDay) {
@@ -74,7 +94,7 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     setSelected(new Set());
     setHeroId(null);
     setNote(null);
-    resetPost();
+    resetExtras();
     setLoading(true);
     try {
       const t = await getDay(d.date);
@@ -103,12 +123,11 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     if (!stillPhotos.some((p) => p.id === heroId)) {
       setHeroId(stillPhotos[0]?.id ?? null);
     }
-    // Drop any picked-to-post photos that are no longer in an included trip.
-    setPostSel((prev) => {
-      const keep = new Set([...prev].filter((pid) => stillPhotos.some((p) => p.id === pid)));
-      return keep;
-    });
+    const prune = (prev: Set<string>) => new Set([...prev].filter((pid) => stillPhotos.some((p) => p.id === pid)));
+    setPostSel(prune);
+    setSlideSel(prune);
     setPostSaved(false);
+    setSlideSaved(false);
     setRendering(true);
   }
 
@@ -136,12 +155,51 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     });
   }
 
+  function toggleSlide(id: string) {
+    setSlideSaved(false);
+    setSlideSel((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+        setSlideNote(null);
+      } else if (next.size >= MAX_SLIDES) {
+        setSlideNote(`Keep it to ${MAX_SLIDES} photos for a tidy clip.`);
+        return prev;
+      } else {
+        next.add(id);
+        setSlideNote(null);
+      }
+      return next;
+    });
+  }
+
   const postPhotos = useMemo(
     () => selectedPhotos.filter((p) => postSel.has(p.id)),
     [selectedPhotos, postSel],
   );
 
+  // Slideshow photos in the order the operator tapped them (a Set keeps insertion order).
+  const slideIdsKey = [...slideSel].join(",");
+  const slidePhotos = useMemo(
+    () => [...slideSel].map((id) => selectedPhotos.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [slideIdsKey, selectedPhotos],
+  );
+
   const cardSrc = day && heroId ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${heroId}` : null;
+
+  function cardUrlFor(photoId: string) {
+    return day ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${photoId}` : "";
+  }
+
+  // Animated slideshow preview: cycle the branded card through the chosen photos.
+  useEffect(() => {
+    if (mode !== "slideshow" || slidePhotos.length === 0) return;
+    setPlayIdx(0);
+    if (slidePhotos.length === 1) return;
+    const iv = setInterval(() => setPlayIdx((i) => (i + 1) % slidePhotos.length), SLIDE_SECONDS * 1000);
+    return () => clearInterval(iv);
+  }, [mode, slideIdsKey, slidePhotos.length]);
 
   async function share() {
     if (!cardSrc) return;
@@ -210,16 +268,71 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     }
   }
 
+  async function makeVideo() {
+    if (!day || slidePhotos.length === 0) return;
+    setMaking(true);
+    setSlideNote(null);
+    setSlideSaved(false);
+    setSlideProgress(0);
+    try {
+      if (!canVideo) {
+        setSlideNote("This browser can't make video. Try Chrome, or an iPhone on iOS 17 or newer.");
+        return;
+      }
+      const urls = slidePhotos.map((p) => cardUrlFor(p.id));
+      const blob = await makeSlideshow({
+        urls,
+        secondsPer: SLIDE_SECONDS,
+        onProgress: (d, t) => setSlideProgress(Math.round((d / t) * 100)),
+      });
+      if (!blob) {
+        setSlideNote("This browser can't make video. Try Chrome, or an iPhone on iOS 17 or newer.");
+        return;
+      }
+      const file = new File([blob], "flukesend-slideshow.mp4", { type: "video/mp4" });
+      if (canShare && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+      } else {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      setSlideSaved(true);
+      setSlideNote(
+        canShare
+          ? "Saved your video. Open Instagram and post it to your Story, feed, or a Reel."
+          : "Downloaded your video. Open Instagram and upload it.",
+      );
+    } catch (e) {
+      if (!(e instanceof Error && e.name === "AbortError")) {
+        setSlideNote("Could not make the video here. Try Chrome or a newer iPhone.");
+      }
+    } finally {
+      setMaking(false);
+    }
+  }
+
   function openInstagram() {
     window.open("https://www.instagram.com/", "_blank", "noopener");
   }
+
+  const modeBlurb: Record<Mode, string> = {
+    story: "Story: one branded photo-of-the-day card, sized for Instagram Stories.",
+    slideshow: "Slideshow: pick a few photos and make one video that plays them, in your brand.",
+    post: "Post: pick several of the day's shots for a regular Instagram carousel.",
+  };
 
   return (
     <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "28px 22px 90px" }}>
       <div className="fl-eyebrow">Social</div>
       <h1 className="fl-h1" style={{ fontSize: "30px" }}>Social</h1>
       <p style={{ color: "var(--muted)", fontSize: "14.5px", margin: "6px 0 0", maxWidth: "60ch" }}>
-        Pick a day, then post a branded story of your sightings or a set of the day's best shots.
+        Pick a day, then post a branded story, a slideshow video, or a set of the day's best shots.
       </p>
 
       {days.length === 0 ? (
@@ -228,9 +341,9 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
         </div>
       ) : (
         <>
-          {/* Story / Post mode toggle */}
+          {/* Mode toggle */}
           <div style={{ display: "inline-flex", gap: "4px", marginTop: "20px", padding: "4px", background: "#eef1f0", borderRadius: "12px" }}>
-            {(["story", "post"] as const).map((m) => {
+            {(["story", "slideshow", "post"] as const).map((m) => {
               const on = mode === m;
               return (
                 <button
@@ -242,23 +355,20 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
                     cursor: "pointer",
                     border: 0,
                     borderRadius: "9px",
-                    padding: "8px 20px",
+                    padding: "8px 18px",
                     fontSize: "13.5px",
                     fontWeight: 600,
                     color: on ? "var(--signal-ink)" : "var(--muted)",
                     background: on ? "var(--signal)" : "transparent",
+                    textTransform: "capitalize",
                   }}
                 >
-                  {m === "story" ? "Story" : "Post"}
+                  {m}
                 </button>
               );
             })}
           </div>
-          <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "7px" }}>
-            {mode === "story"
-              ? "Story: one branded photo-of-the-day card, sized for Instagram Stories."
-              : "Post: pick several of the day's shots for a regular Instagram carousel."}
-          </div>
+          <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "7px" }}>{modeBlurb[mode]}</div>
 
           {/* Day picker */}
           <div style={{ margin: "22px 0 4px", fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>Pick a day</div>
@@ -424,6 +534,111 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
                         {note ? <p style={{ fontSize: "12.5px", color: "#a04435", margin: "8px 0 0", textAlign: "center" }}>{note}</p> : null}
                       </div>
                     ) : null}
+                  </div>
+                </div>
+              ) : mode === "slideshow" ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "26px", marginTop: "26px", alignItems: "flex-start" }}>
+                  {/* Ordered multi-select photo picker */}
+                  <div style={{ flex: "1 1 380px", minWidth: "300px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
+                      Pick photos for the video{slideSel.size ? ` (${slideSel.size})` : ""}
+                    </div>
+                    {loading ? (
+                      <div style={{ color: "var(--muted)", fontSize: "14px" }}>Loading photos...</div>
+                    ) : selectedPhotos.length === 0 ? (
+                      <div style={{ color: "var(--muted)", fontSize: "14px" }}>No photos in the selected trips.</div>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: "8px" }}>
+                        {selectedPhotos.map((p) => {
+                          const order = [...slideSel].indexOf(p.id);
+                          const on = order >= 0;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => toggleSlide(p.id)}
+                              style={{
+                                position: "relative",
+                                padding: 0,
+                                border: on ? "3px solid var(--signal)" : "1px solid var(--line)",
+                                borderRadius: "10px",
+                                overflow: "hidden",
+                                cursor: "pointer",
+                                aspectRatio: "1 / 1",
+                                background: "#e7e2d8",
+                              }}
+                              aria-label={on ? "Remove from video" : "Add to video"}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={p.thumbUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: on ? 1 : 0.92 }} />
+                              {on ? (
+                                <span style={{ position: "absolute", top: "6px", right: "6px", minWidth: "20px", height: "20px", padding: "0 5px", borderRadius: "999px", display: "grid", placeItems: "center", fontSize: "11.5px", fontWeight: 700, color: "var(--signal-ink)", background: "var(--signal)" }}>
+                                  {order + 1}
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "8px" }}>
+                      Tap in the order you want them to play. Each photo shows for {SLIDE_SECONDS} seconds.
+                    </div>
+                  </div>
+
+                  {/* Animated preview + make video */}
+                  <div style={{ flex: "0 0 auto", width: "300px", maxWidth: "100%" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>
+                      Preview{slidePhotos.length ? ` (${slidePhotos.length} x ${SLIDE_SECONDS}s = ${slidePhotos.length * SLIDE_SECONDS}s)` : ""}
+                    </div>
+                    <div style={{ position: "relative", width: "270px", maxWidth: "100%", aspectRatio: "1080 / 1920", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--line)", background: "#f2efe9" }}>
+                      {slidePhotos.length > 0 ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={slidePhotos[Math.min(playIdx, slidePhotos.length - 1)]?.id}
+                          src={cardUrlFor(slidePhotos[Math.min(playIdx, slidePhotos.length - 1)]?.id ?? "")}
+                          alt="Slideshow preview"
+                          style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+                        />
+                      ) : (
+                        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "12.5px", color: "#6b7a7d", textAlign: "center", padding: "0 20px" }}>
+                          Tap photos on the left to build a video.
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ width: "270px", maxWidth: "100%", marginTop: "14px" }}>
+                      <button
+                        type="button"
+                        onClick={makeVideo}
+                        disabled={making || slidePhotos.length === 0}
+                        className="fl-btn"
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "center",
+                          padding: "13px",
+                          cursor: slidePhotos.length === 0 ? "not-allowed" : "pointer",
+                          border: 0,
+                          font: "inherit",
+                          opacity: making || slidePhotos.length === 0 ? 0.55 : 1,
+                        }}
+                      >
+                        {making ? (slideProgress ? `Making video... ${slideProgress}%` : "Making video...") : canShare ? "Make video for Instagram" : "Make video (download)"}
+                      </button>
+                      {slideSaved ? (
+                        <button
+                          type="button"
+                          onClick={openInstagram}
+                          style={{ display: "block", width: "100%", textAlign: "center", marginTop: "8px", padding: "12px", cursor: "pointer", font: "inherit", fontSize: "14px", fontWeight: 600, color: "var(--signal-ink)", background: "#fff", border: "1.5px solid var(--signal)", borderRadius: "10px" }}
+                        >
+                          Open Instagram
+                        </button>
+                      ) : null}
+                      {slideNote ? (
+                        <p style={{ fontSize: "12.5px", color: slideSaved ? "var(--muted)" : "#a04435", margin: "10px 0 0", textAlign: "center", lineHeight: 1.5 }}>{slideNote}</p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ) : (
