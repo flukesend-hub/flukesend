@@ -29,6 +29,9 @@ export type Plan = {
   whiteLabel: boolean;
   // Automatic expiring-soon nudge to guests who have not downloaded.
   expiryReminder: boolean;
+  // The Story Builder: a branded "photo of the day" social card built from a
+  // trip day, with the sightings across that day's trips and a hero of choice.
+  storyBuilder: boolean;
 };
 
 export const PLANS: Record<PlanKey, Plan> = {
@@ -42,6 +45,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     video: false,
     whiteLabel: false,
     expiryReminder: false,
+    storyBuilder: false,
   },
   two: {
     key: "two",
@@ -53,6 +57,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     video: false,
     whiteLabel: false,
     expiryReminder: true,
+    storyBuilder: false,
   },
   fleet: {
     key: "fleet",
@@ -64,6 +69,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     video: true,
     whiteLabel: true,
     expiryReminder: true,
+    storyBuilder: true,
   },
 };
 
