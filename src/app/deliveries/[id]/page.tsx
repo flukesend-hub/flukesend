@@ -173,6 +173,19 @@ export default async function DeliveryPage({
                 Open
               </a>
             ) : null}
+            {photos > 0 ? (
+              // A ready to post Instagram story of the trip, in the operator's
+              // brand: their logo, the hero photo, the date and trip time, and
+              // the species sighted. Downloads the generated image.
+              <a
+                href={`/deliveries/${delivery.id}/card`}
+                download="flukesend-story.png"
+                className="fl-btn-ghost"
+                style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "13px", fontSize: "14px" }}
+              >
+                Download story card
+              </a>
+            ) : null}
           </div>
         </div>
 
