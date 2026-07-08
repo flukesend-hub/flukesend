@@ -26,27 +26,44 @@ export function pluralizeSpecies(list: string[]): string[] {
 
 export type StoryFont = { name: string; data: ArrayBuffer; weight: 500 | 600 | 700; style: "normal" };
 
-// Best effort Archivo so the card matches the design; falls back to the built in
-// font when the fetch fails, so the card always renders.
+async function fetchOneWeight(weight: 500 | 600 | 700): Promise<StoryFont | null> {
+  const cssRes = await fetch(`https://fonts.googleapis.com/css2?family=Archivo:wght@${weight}`, {
+    // An older UA makes Google serve a ttf, which Satori can read (not woff2).
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1)" },
+  });
+  const css = await cssRes.text();
+  const url = css.match(/src:\s*url\(([^)]+)\)/)?.[1];
+  if (!url) return null;
+  const data = await (await fetch(url)).arrayBuffer();
+  return { name: "Archivo", data, weight, style: "normal" };
+}
+
+// Fetching Archivo from Google is the slow part of a render, so load it once per
+// server instance and reuse it: hero swaps then only pay the image composite.
+// Cached on success only, so a failed load falls back to the built in font and
+// retries on the next render. The three weights load in parallel.
+let fontCache: StoryFont[] | undefined;
+let fontInflight: Promise<StoryFont[] | undefined> | undefined;
 export async function loadStoryFonts(): Promise<StoryFont[] | undefined> {
-  try {
-    const weights: (500 | 600 | 700)[] = [500, 600, 700];
-    const out: StoryFont[] = [];
-    for (const weight of weights) {
-      const cssRes = await fetch(`https://fonts.googleapis.com/css2?family=Archivo:wght@${weight}`, {
-        // An older UA makes Google serve a ttf, which Satori can read (not woff2).
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1)" },
-      });
-      const css = await cssRes.text();
-      const url = css.match(/src:\s*url\(([^)]+)\)/)?.[1];
-      if (!url) return undefined;
-      const data = await (await fetch(url)).arrayBuffer();
-      out.push({ name: "Archivo", data, weight, style: "normal" });
-    }
-    return out;
-  } catch {
-    return undefined;
+  if (fontCache) return fontCache;
+  if (!fontInflight) {
+    fontInflight = (async () => {
+      try {
+        const loaded = await Promise.all(([500, 600, 700] as const).map(fetchOneWeight));
+        const good = loaded.filter((f): f is StoryFont => f !== null);
+        if (good.length === 3) {
+          fontCache = good;
+          return good;
+        }
+        return undefined;
+      } catch {
+        return undefined;
+      } finally {
+        fontInflight = undefined;
+      }
+    })();
   }
+  return fontInflight;
 }
 
 export type StoryCardInput = {
@@ -115,6 +132,14 @@ export function storyCardImage(input: StoryCardInput): ImageResponse {
         </div>
       </div>
     ),
-    { width: STORY_W, height: STORY_H, fonts: input.fonts },
+    {
+      width: STORY_W,
+      height: STORY_H,
+      fonts: input.fonts,
+      // Let the browser reuse the rendered card so re-picking a hero already
+      // viewed is instant. The PNG has no signed URL baked in, so caching it
+      // briefly is safe.
+      headers: { "cache-control": "private, max-age=600" },
+    },
   );
 }

@@ -24,6 +24,7 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
   const [photos, setPhotos] = useState<DayPhoto[]>([]);
   const [heroId, setHeroId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rendering, setRendering] = useState(false);
 
   async function pickDay(d: StoryDay) {
     setDay(d);
@@ -33,10 +34,19 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     try {
       const p = await getDayPhotos(d.date);
       setPhotos(p);
-      setHeroId(p[0]?.id ?? null);
+      if (p[0]) {
+        setHeroId(p[0].id);
+        setRendering(true);
+      }
     } finally {
       setLoading(false);
     }
+  }
+
+  function chooseHero(id: string) {
+    if (id === heroId) return;
+    setHeroId(id);
+    setRendering(true);
   }
 
   const cardSrc = day ? `/story/card?d=${day.date}${heroId ? `&hero=${heroId}` : ""}` : null;
@@ -71,13 +81,13 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
                     minWidth: "170px",
                     cursor: "pointer",
                     border: active ? "2px solid var(--signal)" : "1px solid var(--line)",
-                    background: active ? "var(--signal-wash, #eef6fb)" : "#fff",
+                    background: active ? "#eef5fb" : "#fff",
                     borderRadius: "12px",
                     padding: "12px 14px",
                     font: "inherit",
                   }}
                 >
-                  <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--ink, #1c2b2e)" }}>{d.label}</div>
+                  <div style={{ fontWeight: 700, fontSize: "14px", color: "#1c2b2e" }}>{d.label}</div>
                   <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "3px" }}>
                     {d.trips} trip{d.trips === 1 ? "" : "s"} · {d.photos} photo{d.photos === 1 ? "" : "s"}
                   </div>
@@ -108,7 +118,7 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
                         <button
                           key={p.id}
                           type="button"
-                          onClick={() => setHeroId(p.id)}
+                          onClick={() => chooseHero(p.id)}
                           style={{
                             padding: 0,
                             border: active ? "3px solid var(--signal)" : "1px solid var(--line)",
@@ -132,10 +142,22 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
               {/* Live preview + download */}
               <div style={{ flex: "0 0 auto", width: "300px", maxWidth: "100%" }}>
                 <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "10px" }}>Preview</div>
-                <div style={{ width: "270px", maxWidth: "100%", aspectRatio: "1080 / 1920", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--line)", background: "#f2efe9" }}>
+                <div style={{ position: "relative", width: "270px", maxWidth: "100%", aspectRatio: "1080 / 1920", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--line)", background: "#f2efe9" }}>
                   {cardSrc && heroId ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={cardSrc} alt="Story preview" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+                    <img
+                      key={cardSrc}
+                      src={cardSrc}
+                      alt="Story preview"
+                      onLoad={() => setRendering(false)}
+                      onError={() => setRendering(false)}
+                      style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", opacity: rendering ? 0.35 : 1, transition: "opacity .15s" }}
+                    />
+                  ) : null}
+                  {rendering ? (
+                    <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "12.5px", fontWeight: 600, color: "#6b7a7d" }}>
+                      Rendering...
+                    </div>
                   ) : null}
                 </div>
                 {cardSrc && heroId ? (
