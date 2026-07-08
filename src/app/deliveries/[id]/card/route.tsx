@@ -132,18 +132,24 @@ export async function GET(
           )}
         </div>
 
-        {/* Hero photo of the day. */}
-        <div style={{ height: 880, flex: "0 0 auto", display: "flex", position: "relative", overflow: "hidden", background: "rgba(0,0,0,0.2)" }}>
+        {/* Hero photo of the day. Shown at its natural aspect, full bleed to the
+            edges, never cropped: the width is fixed to the card and the height
+            follows the photo. The text block below takes whatever height is
+            left. */}
+        <div style={{ flex: "0 0 auto", display: "flex", position: "relative", overflow: "hidden" }}>
           {heroUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={heroUrl} width={CARD_W} height={880} style={{ objectFit: "cover" }} alt="" />
+            <img src={heroUrl} width={CARD_W} style={{ display: "block" }} alt="" />
           ) : null}
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 240, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.72) 100%)" }} />
           <div style={{ position: "absolute", left: 64, bottom: 44, display: "flex", fontSize: 30, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase" }}>Photo of the day</div>
         </div>
 
-        {/* Date, trip time, species, website. */}
-        <div style={{ flex: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "70px 64px 84px", textAlign: "center" }}>
+        {/* Date, trip time, species, website. Centered in whatever space the
+            photo leaves, so a shorter photo lets this drift down and a taller
+            photo keeps it snug under the image, but the bottom padding means it
+            never sits flush against the very bottom edge. */}
+        <div style={{ flex: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 64px 96px", textAlign: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ display: "flex", fontSize: 54, fontWeight: 700 }}>{dateText}</div>
             {timeText ? (
