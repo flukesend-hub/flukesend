@@ -14,7 +14,6 @@ export const STORY_H = 1920;
 
 const INK = "#f7f6f3";
 const SOFT = "rgba(247,246,243,0.72)";
-const LINE = "rgba(247,246,243,0.45)";
 
 // Trim and pluralize each species, matching the source design.
 export function pluralizeSpecies(list: string[]): string[] {
@@ -126,44 +125,41 @@ export function storyCardImage(input: StoryCardInput): ImageResponse {
           <div style={{ position: "absolute", left: 64, bottom: 44, display: "flex", fontSize: 30, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase" }}>{input.label ?? "Photo of the day"}</div>
         </div>
 
-        {/* Date, trip time, species, website, centered in the leftover space. */}
-        <div style={{ flex: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 64px 96px", textAlign: "center" }}>
+        {/* Date, trip time, species, website, sitting just under the hero. */}
+        <div style={{ flex: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "48px 64px 64px", textAlign: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ display: "flex", fontSize: 54, fontWeight: 700 }}>{input.dateText}</div>
             {input.timeText ? (
-              <div style={{ display: "flex", marginTop: 16, fontSize: 28, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase", color: SOFT }}>{input.timeText} Trip</div>
+              <div style={{ display: "flex", marginTop: 16, fontSize: 28, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase", color: SOFT }}>{input.timeText}</div>
             ) : null}
           </div>
 
           {sightings.length ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 52 }}>
-              <div style={{ display: "flex", fontSize: 26, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase", color: SOFT }}>Sighted today</div>
-              {anyCount ? (
-                // With counts: a centered block of rows, each a right-aligned
-                // number beside its pill, so numbers and pills line up.
-                <div style={{ display: "flex", justifyContent: "center", marginTop: 20, maxWidth: 940 }}>
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    {sightings.map(({ label, count }) => (
-                      <div key={label} style={{ display: "flex", alignItems: "center", margin: "12px 0" }}>
-                        <div style={{ display: "flex", width: 130, justifyContent: "flex-end", paddingRight: 28, fontSize: 42, fontWeight: 700 }}>{count !== null ? String(count) : ""}</div>
-                        <div style={{ display: "flex", fontSize: 40, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{label}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                // No counts: the original centered, wrapped pills.
-                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: 20, maxWidth: 900 }}>
-                  {sightings.map(({ label }) => (
-                    <div key={label} style={{ display: "flex", border: `2px solid ${LINE}`, padding: "16px 32px", margin: 9, fontSize: 38, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{label}</div>
+            anyCount ? (
+              // With counts: rows of a right-aligned number beside the species,
+              // so the numbers and names line up. No boxes.
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 40, maxWidth: 940 }}>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  {sightings.map(({ label, count }) => (
+                    <div key={label} style={{ display: "flex", alignItems: "center", margin: "11px 0" }}>
+                      <div style={{ display: "flex", width: 130, justifyContent: "flex-end", paddingRight: 28, fontSize: 42, fontWeight: 700 }}>{count !== null ? String(count) : ""}</div>
+                      <div style={{ display: "flex", fontSize: 40, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{label}</div>
+                    </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              // No counts: the plain species names, centered, no boxes.
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 40 }}>
+                {sightings.map(({ label }) => (
+                  <div key={label} style={{ display: "flex", margin: "8px 0", fontSize: 40, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{label}</div>
+                ))}
+              </div>
+            )
           ) : null}
 
           {input.website ? (
-            <div style={{ display: "flex", marginTop: 52, fontSize: 30, fontWeight: 500, letterSpacing: 4, textTransform: "uppercase", color: SOFT }}>{input.website}</div>
+            <div style={{ display: "flex", marginTop: 44, fontSize: 30, fontWeight: 500, letterSpacing: 4, textTransform: "uppercase", color: SOFT }}>{input.website}</div>
           ) : null}
         </div>
       </div>
