@@ -144,9 +144,9 @@ export function storyCardImage(input: StoryCardInput): ImageResponse {
                 <div style={{ display: "flex", justifyContent: "center", marginTop: 20, maxWidth: 940 }}>
                   <div style={{ display: "flex", flexDirection: "column" }}>
                     {sightings.map(({ label, count }) => (
-                      <div key={label} style={{ display: "flex", alignItems: "center", margin: "9px 0" }}>
-                        <div style={{ display: "flex", width: 150, justifyContent: "flex-end", paddingRight: 24, fontSize: 42, fontWeight: 700 }}>{count !== null ? String(count) : ""}</div>
-                        <div style={{ display: "flex", border: `2px solid ${LINE}`, padding: "16px 32px", fontSize: 38, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{label}</div>
+                      <div key={label} style={{ display: "flex", alignItems: "center", margin: "12px 0" }}>
+                        <div style={{ display: "flex", width: 130, justifyContent: "flex-end", paddingRight: 28, fontSize: 42, fontWeight: 700 }}>{count !== null ? String(count) : ""}</div>
+                        <div style={{ display: "flex", fontSize: 40, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>{label}</div>
                       </div>
                     ))}
                   </div>
