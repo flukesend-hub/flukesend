@@ -115,7 +115,8 @@ export default function HowItWorksPage() {
           </a>
         </div>
         <p style={{ fontSize: "13px", color: "#8a938f", margin: "14px 0 0" }}>
-          Your first 3 transfers or 30 guest emails are free. No card required.
+          Your first 3 transfers are free, with as many guest emails as you like
+          on each. No card required.
         </p>
       </section>
     </main>

@@ -18,7 +18,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, sendEmailBatch, type BatchEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
-import { getTrialUsage, getPlan, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
+import { getTrialUsage, getPlan, TRIAL_TRANSFERS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
 import { deliveryExpiresAt } from "@/lib/retention";
@@ -85,10 +85,7 @@ export async function signUploads(
   if (usage.status === "canceled") {
     return { error: "This account has no active plan. Choose a plan to keep sending." };
   }
-  if (
-    usage.status !== "active" &&
-    (usage.transfers >= TRIAL_TRANSFERS || usage.emails >= TRIAL_EMAILS)
-  ) {
+  if (usage.status !== "active" && usage.transfers >= TRIAL_TRANSFERS) {
     return { error: "Your free trial is used up. Upgrade to keep sending." };
   }
 
@@ -217,9 +214,9 @@ export async function createSend(
   }
 
   // Plan gate. Canceled means no plan: they must buy before sending, with no
-  // free allowance. Trial (or no row) gets the free allowance up to
-  // TRIAL_TRANSFERS or TRIAL_EMAILS, both counted in recipients. Active
-  // operators are held to their plan's per send and monthly recipient caps.
+  // free allowance. Trial (or no row) gets TRIAL_TRANSFERS free transfers,
+  // however many guests each reaches. Active operators are held to their plan's
+  // per send and monthly recipient caps.
   const usage = await getTrialUsage(supabase, operatorId);
   if (usage.status === "canceled") {
     return {
@@ -231,12 +228,6 @@ export async function createSend(
     if (usage.transfers >= TRIAL_TRANSFERS) {
       return {
         error: `Your free trial covers ${TRIAL_TRANSFERS} transfers, and you have used them. Upgrade to keep sending.`,
-        upgrade: true,
-      };
-    }
-    if (usage.emails + emails.length > TRIAL_EMAILS) {
-      return {
-        error: `This send would pass your ${TRIAL_EMAILS} free trial guest emails (${usage.emails} used so far). Upgrade to keep sending.`,
         upgrade: true,
       };
     }

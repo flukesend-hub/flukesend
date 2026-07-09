@@ -51,7 +51,7 @@ export default async function LandingPage() {
           </div>
           <div style={{ display: "flex", gap: "14px", alignItems: "center", marginTop: "14px", flexWrap: "wrap" }}>
             <p style={{ fontSize: "13px", color: "#8a938f", margin: 0 }}>
-              Your first 3 transfers or 30 guest emails are free. No card required.
+              Your first 3 transfers are free, with as many guest emails as you like on each. No card required.
             </p>
             {/* A real gallery on a demo tenant: same code path guests use, so
                 the sample IS the product, not a mockup. */}

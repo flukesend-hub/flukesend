@@ -1,41 +1,36 @@
 /*
-  Free trial limits and usage. The trial allows up to TRIAL_TRANSFERS transfers
-  or TRIAL_EMAILS guest emails, whichever comes first. Usage is counted live
-  from the deliveries and recipients tables (RLS scopes both to the operator),
-  so there is no counter to keep in sync. "No subscription row" reads as trial.
+  Free trial limits and usage. The trial allows up to TRIAL_TRANSFERS transfers,
+  regardless of how many guest emails those transfers reach. Usage is counted
+  live from the deliveries table (RLS scopes it to the operator), so there is no
+  counter to keep in sync. "No subscription row" reads as trial.
 */
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tier } from "./stripe";
 
 export const TRIAL_TRANSFERS = 3;
-export const TRIAL_EMAILS = 30;
 
 export type TrialUsage = {
   status: "trial" | "active" | "canceled";
   transfers: number;
-  emails: number;
 };
 
 export async function getTrialUsage(
   supabase: SupabaseClient,
   operatorId: string,
 ): Promise<TrialUsage> {
-  // Three independent reads, one round trip of latency. RLS scopes the
-  // recipients count to this operator's deliveries.
-  const [{ data: sub }, { count: transfers }, { count: emails }] = await Promise.all([
+  // Two independent reads, one round trip of latency.
+  const [{ data: sub }, { count: transfers }] = await Promise.all([
     supabase.from("subscriptions").select("status").eq("operator_id", operatorId).maybeSingle(),
     supabase
       .from("deliveries")
       .select("*", { count: "exact", head: true })
       .eq("operator_id", operatorId),
-    supabase.from("recipients").select("*", { count: "exact", head: true }),
   ]);
 
   return {
     status: (sub?.status as TrialUsage["status"]) ?? "trial",
     transfers: transfers ?? 0,
-    emails: emails ?? 0,
   };
 }
 

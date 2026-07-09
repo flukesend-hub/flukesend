@@ -5,7 +5,7 @@
 */
 import { requireOperator } from "@/lib/operator-session";
 import { OperatorNav } from "@/app/_ui/operator-nav";
-import { getTrialUsage, getPlan, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
+import { getTrialUsage, getPlan, TRIAL_TRANSFERS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, monthlyQuota } from "@/lib/usage";
 import { speciesForSend } from "@/lib/species";
@@ -134,8 +134,7 @@ export default async function SendPage() {
           >
             <span>
               Free trial: <strong>{usage.transfers}</strong> of {TRIAL_TRANSFERS}{" "}
-              transfers and <strong>{usage.emails}</strong> of {TRIAL_EMAILS}{" "}
-              guest emails used.
+              transfers used, with as many guest emails as you like on each.
             </span>
             <a href="/billing" style={{ color: "var(--signal-2)", fontWeight: 600, marginLeft: "auto" }}>
               See plans
