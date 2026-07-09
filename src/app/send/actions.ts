@@ -21,6 +21,7 @@ import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { getTrialUsage, getPlan, TRIAL_TRANSFERS, TRIAL_EMAILS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
+import { deliveryExpiresAt } from "@/lib/retention";
 
 const PHOTO_TYPES = [
   "image/png",
@@ -259,7 +260,9 @@ export async function createSend(
   }
 
   // Retention is set per operator and stamped onto each delivery, so the
-  // cleanup job can expire this send on its own schedule.
+  // cleanup job can expire this send on its own schedule. Retention counts in
+  // whole local days: a send stays live through the full day retention_days
+  // later, then expires at local midnight, so every send on a day dies together.
   const { data: branding } = await supabase
     .from("branding")
     .select(
@@ -268,9 +271,7 @@ export async function createSend(
     .eq("operator_id", operatorId)
     .maybeSingle();
   const retentionDays = branding?.retention_days ?? 5;
-  const expiresAt = new Date(
-    Date.now() + retentionDays * 24 * 60 * 60 * 1000,
-  ).toISOString();
+  const expiresAt = deliveryExpiresAt(new Date(), retentionDays);
 
   const tripDatetime = input.tripDatetime
     ? new Date(input.tripDatetime).toISOString()
