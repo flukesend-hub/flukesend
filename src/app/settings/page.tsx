@@ -5,8 +5,10 @@
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { requireOperator } from "@/lib/operator-session";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getOperatorCaptureToken } from "@/lib/capture";
 import { OperatorNav } from "@/app/_ui/operator-nav";
+import { TeamManager } from "./team";
 import { BrandingForm } from "./branding-form";
 import { ReviewLinks } from "./review-links";
 import { SocialLinksForm } from "./social-links-form";
@@ -19,7 +21,7 @@ import { CaptureQr } from "./qr-cards";
 import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
 
 export default async function SettingsPage() {
-  const { supabase, operatorId, operatorName } = await requireOperator();
+  const { supabase, userId, operatorId, operatorName } = await requireOperator();
 
   // Independent reads all fire at once; the page waits for the slowest one,
   // not the sum. The capture link is the one lazy-creating call and is safe
@@ -83,6 +85,28 @@ export default async function SettingsPage() {
   const hasLogo = Boolean(branding?.logo_url);
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   const doneChip = { label: "Done", tone: "good" as const };
+
+  // Team: members with their emails (emails live in auth, so the service role
+  // reads them; the roster is small) and any pending invites.
+  const admin = createAdminClient();
+  const { data: memberRows } = await admin
+    .from("operator_members")
+    .select("user_id, role")
+    .eq("operator_id", operatorId);
+  const members = await Promise.all(
+    (memberRows ?? []).map(async (m) => {
+      const { data } = await admin.auth.admin.getUserById(m.user_id as string);
+      return { email: data?.user?.email ?? "unknown", role: (m.role as string) ?? "member" };
+    }),
+  );
+  const isOwner = (memberRows ?? []).some((m) => m.user_id === userId && (m.role as string) === "owner");
+  const { data: inviteRows } = await supabase
+    .from("operator_invites")
+    .select("id, email")
+    .is("accepted_at", null)
+    .eq("operator_id", operatorId)
+    .order("created_at", { ascending: false });
+  const invites = (inviteRows ?? []).map((i) => ({ id: i.id as string, email: i.email as string }));
 
   return (
     <>
@@ -192,6 +216,14 @@ export default async function SettingsPage() {
               chip={{ label: "Optional", tone: "muted" }}
             >
               <CaptureQr operatorName={operatorName ?? "Operator"} dataUrl={captureDataUrl} />
+            </SettingsSection>
+
+            <SettingsSection
+              title="Team"
+              summary={`${members.length} ${plural(members.length, "person", "people")}${invites.length ? `, ${invites.length} invited` : ""}`}
+              chip={members.length > 1 ? doneChip : { label: "Just you", tone: "muted" }}
+            >
+              <TeamManager members={members} invites={invites} isOwner={isOwner} />
             </SettingsSection>
           </div>
 
