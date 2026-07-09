@@ -9,8 +9,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEmail, escapeHtml } from "@/lib/email";
 import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { isCrewRole } from "@/lib/roles";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
@@ -361,8 +363,57 @@ export async function createInvite(
   if (error) {
     return { error: "Could not create the invite. Try again." };
   }
+
+  // Email the invite. Best effort: the invite already exists, so a mail hiccup
+  // must not fail the action. The teammate joins by signing up with this email.
+  try {
+    const { data: op } = await admin
+      .from("operators")
+      .select("name")
+      .eq("id", operatorId)
+      .maybeSingle();
+    const opName = (op?.name as string) || "your team";
+    const hdrs = await headers();
+    const host = hdrs.get("host");
+    const proto = hdrs.get("x-forwarded-proto") ?? "https";
+    const baseUrl = host ? `${proto}://${host}` : "";
+    await sendEmail(
+      email,
+      `Join ${opName} on Flukesend`,
+      inviteEmailHtml(opName, email, baseUrl),
+    );
+  } catch (mailErr) {
+    console.error(`invite email failed for ${email}: ${String(mailErr)}`);
+  }
+
   revalidatePath("/settings");
-  return { ok: "Invited. They join with this email address." };
+  return { ok: "Invited. They join by signing up with this email." };
+}
+
+function inviteEmailHtml(opName: string, email: string, baseUrl: string): string {
+  const name = escapeHtml(opName);
+  const url = escapeHtml(`${baseUrl}/login`);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
+  <body style="margin:0;padding:0;background:#ffffff;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1c2b2e">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:30px 16px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e6e9e8;border-radius:18px;overflow:hidden">
+        <tr><td style="padding:30px 28px 6px">
+          <h1 style="font-size:23px;line-height:1.25;margin:0 0 14px;color:#16241f">Join ${name} on Flukesend</h1>
+          <p style="font-size:15px;line-height:1.55;margin:0 0 8px;color:#33464a">You have been added as a team member for ${name}. Create your account with this email address, <strong>${escapeHtml(email)}</strong>, and you can join and start sending trip photos.</p>
+        </td></tr>
+        <tr><td style="padding:16px 28px 8px">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>
+            <td align="center" style="border-radius:12px;background:#0b5563">
+              <a href="${url}" style="display:block;padding:15px 24px;font-weight:600;font-size:15px;color:#ffffff;text-decoration:none">Create your account</a>
+            </td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="padding:10px 28px 28px">
+          <p style="font-size:12.5px;line-height:1.5;color:#8ba4ac;margin:0">Use the same email this was sent to, then follow the prompt to join ${name}. If you did not expect this, you can ignore it.</p>
+        </td></tr>
+      </table>
+    </td></tr></table>
+  </body></html>`;
 }
 
 export async function revokeInvite(formData: FormData): Promise<void> {

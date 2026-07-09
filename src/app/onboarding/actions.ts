@@ -110,3 +110,64 @@ export async function createOperator(
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }
+
+// Accept a team invite: bind the signed in user to the inviting operator instead
+// of creating their own. Guarded server side: the invite must be pending and its
+// email must match the signed in user's own email, so only the person who
+// controls that address (and proved it by authenticating) can join. A user who
+// already belongs to an operator is not given a second membership.
+export async function acceptInvite(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const inviteId = String(formData.get("inviteId") ?? "");
+  if (!inviteId) {
+    redirect("/onboarding");
+  }
+
+  const admin = createAdminClient();
+  const { data: invite } = await admin
+    .from("operator_invites")
+    .select("id, operator_id, email, role, accepted_at")
+    .eq("id", inviteId)
+    .maybeSingle();
+  const email = (user.email ?? "").trim().toLowerCase();
+  if (
+    !invite ||
+    invite.accepted_at ||
+    (invite.email as string).trim().toLowerCase() !== email
+  ) {
+    redirect("/onboarding");
+  }
+
+  // One login belongs to one operator. If they already have one, do not stack a
+  // second membership; just send them into the app.
+  const { data: existing } = await admin
+    .from("operator_members")
+    .select("operator_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (existing) {
+    redirect("/send");
+  }
+
+  const { error: memberError } = await admin.from("operator_members").insert({
+    operator_id: invite.operator_id,
+    user_id: user.id,
+    role: (invite.role as string) || "member",
+  });
+  if (memberError) {
+    redirect("/onboarding");
+  }
+  await admin
+    .from("operator_invites")
+    .update({ accepted_at: new Date().toISOString(), accepted_by: user.id })
+    .eq("id", invite.id);
+
+  revalidatePath("/", "layout");
+  redirect("/send");
+}
