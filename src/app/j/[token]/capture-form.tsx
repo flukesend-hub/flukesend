@@ -4,11 +4,13 @@
   The guest self capture form. Operator branded (the brand color drives the
   button and accents, never the Flukesend green). The guest picks which boat and
   which trip time they were on; the date is set to today automatically since they
-  are filling this in aboard. A hidden honeypot field catches bots. On success it
-  swaps to a short thank you.
+  are filling this in aboard. Only trips that have already departed are listed
+  (a trip appears the moment its time hits), so a guest cannot pick a later trip
+  that has not gone out; a quiet link reveals the full list for odd cases. A
+  hidden honeypot field catches bots. On success it swaps to a short thank you.
 */
 import { useEffect, useState } from "react";
-import { formatTripTime } from "@/lib/trip-times";
+import { formatTripTime, departedTripTimes } from "@/lib/trip-times";
 import { SOCIAL_PLATFORMS, type SocialLinks } from "@/lib/social";
 import { captureGuest } from "./actions";
 
@@ -33,6 +35,8 @@ export function CaptureForm({
   const [tripTime, setTripTime] = useState("");
   const [tripDate, setTripDate] = useState("");
   const [dateLabel, setDateLabel] = useState("today");
+  const [now, setNow] = useState<Date | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [company, setCompany] = useState(""); // honeypot
@@ -41,13 +45,35 @@ export function CaptureForm({
   const [error, setError] = useState<string | null>(null);
 
   // Stamp today from the guest's own device, since they are aboard right now.
-  // Set after mount so the server render and client agree.
+  // Set after mount so the server render and client agree. The clock ticks so
+  // a page left open still shows the right trips when the next one departs.
   useEffect(() => {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    setTripDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
-    setDateLabel(d.toLocaleDateString("en-US", { dateStyle: "long" }));
+    const stamp = () => {
+      const d = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setTripDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+      setDateLabel(d.toLocaleDateString("en-US", { dateStyle: "long" }));
+      setNow(d);
+    };
+    stamp();
+    const timer = setInterval(stamp, 30_000);
+    return () => clearInterval(timer);
   }, []);
+
+  // Only trips that have already left the dock, by the guest's own clock. The
+  // list is empty for one frame before mount (and matches the server render),
+  // then fills in. "Show all" is the escape hatch for odd cases: a delayed
+  // boat, a charter, or signing up from a photo of the QR later on.
+  const visibleTimes =
+    showAll ? tripTimes : now ? departedTripTimes(tripTimes, now) : [];
+
+  // One departed trip means it is theirs; select it so the common case
+  // (scanning mid-trip) is zero taps.
+  useEffect(() => {
+    if (!showAll && visibleTimes.length === 1 && !tripTime) {
+      setTripTime(visibleTimes[0]);
+    }
+  }, [showAll, visibleTimes, tripTime]);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -122,12 +148,27 @@ export function CaptureForm({
         <span style={labelText}>Which trip? (today, {dateLabel})</span>
         <select value={tripTime} onChange={(e) => setTripTime(e.target.value)} style={input}>
           <option value="">Choose your trip time</option>
-          {tripTimes.map((slot) => (
+          {visibleTimes.map((slot) => (
             <option key={slot} value={slot}>
               {formatTripTime(slot)}
             </option>
           ))}
         </select>
+        {!showAll ? (
+          <span style={{ display: "block", fontSize: "12px", color: "#8a938f", marginTop: "6px" }}>
+            {visibleTimes.length === 0 && now
+              ? "Trips show up here once they have left the dock. "
+              : null}
+            {"Don't see your trip? "}
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              style={{ font: "inherit", fontWeight: 600, color: "#33464a", background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}
+            >
+              Show all times
+            </button>
+          </span>
+        ) : null}
       </label>
 
       <label style={label}>

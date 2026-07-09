@@ -29,6 +29,17 @@ export function tripTimesFor(configured: string[] | null | undefined): string[] 
   return TRIP_TIME_SLOTS.filter((slot) => clean.includes(slot));
 }
 
+// The trips that have already left the dock, by the clock on the guest's own
+// phone (they are aboard, so their local time is trip time). The QR form shows
+// only these: a trip appears the moment its departure time hits and nothing in
+// the future is ever listed, so a guest on the 9:00 cannot mistakenly pick the
+// 12:00 that has not gone out yet. Guests scanning later in the day still see
+// every departed trip and pick their own.
+export function departedTripTimes(tripTimes: string[], now: Date): string[] {
+  const nowKey = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return tripTimes.filter((t) => t <= nowKey);
+}
+
 // "09:30" becomes "9:30 AM".
 export function formatTripTime(hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);
