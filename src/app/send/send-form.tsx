@@ -1,11 +1,16 @@
 "use client";
 
 /*
-  The send form, dark workspace styling from the design handoff. Trip details
-  with species pills, a photo dropzone with thumbnails uploading straight to
-  storage, and the live email chip box. While a send runs, a circular water fill
-  animates in the operator's brand color. On success it goes to the confirmation
-  page. The upload and createSend logic is unchanged from before.
+  The send form as a four step cascade (design handoff "Send Page v2"): Trip
+  details, Photos, Guests, then a read only Review before the send goes out.
+  All four steps are stacked cards; one is expanded at a time, the others
+  collapse to a header row with a live summary. Each step gates the next, so
+  the operator does one thing at a time and nothing ships half filled.
+
+  Only the presentation changed. The upload path (signed URLs straight to
+  storage), createSend, the QR captured guest loading, email parsing and
+  dedupe, crew crediting, and the circular water fill progress are all the
+  same logic as before.
 */
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -37,7 +42,19 @@ function fmtSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// "2026-07-09" as "Jul 9" for the collapsed card summary and the review row.
+function fmtDay(iso: string) {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00`);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 type Status = "idle" | "uploading" | "saving";
+
+const EASE = "cubic-bezier(.32,.72,0,1)";
+const STEP_TITLES = ["Trip details", "Photos", "Guests", "Review & send"];
 
 export function SendForm({
   defaultMessage,
@@ -57,6 +74,9 @@ export function SendForm({
   crew: { name: string; roles: string[] }[];
 }) {
   const router = useRouter();
+  // Which card is expanded (0 to 3). Everything else about the send lives in
+  // the same state the previous single screen form managed.
+  const [step, setStep] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [emailsRaw, setEmailsRaw] = useState("");
   const [species, setSpecies] = useState<string[]>([]);
@@ -78,7 +98,10 @@ export function SendForm({
   // Who was aboard, by name. Each person's roles (set in Settings) decide how
   // they get credited on the delivery, so the send just asks who came along.
   const [aboard, setAboard] = useState<string[]>([]);
-  const [crewOpen, setCrewOpen] = useState(false);
+  // Personal note for this send (overrides the default message). Controlled
+  // state now, since the field lives on step 3 and submit happens on step 4.
+  const [customMessage, setCustomMessage] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
   // Index of the file row being dragged, for reordering. Null when not dragging.
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -106,6 +129,7 @@ export function SendForm({
   }, [capturedGuests, parsed.valid]);
 
   // Object URL thumbnails for the first four files, revoked when files change.
+  // The review step reuses the same strip.
   const thumbUrls = useMemo(
     () => files.slice(0, 4).map((f) => URL.createObjectURL(f)),
     [files],
@@ -196,12 +220,55 @@ export function SendForm({
     setCapturedGuests((prev) => prev.filter((g) => g.id !== id));
   }
 
+  // Step completeness. Step 1 needs the trip pinned down (a boat too, when the
+  // operator has boats to choose from); 2 needs photos; 3 needs a guest.
+  function stepDone(i: number): boolean {
+    if (i === 0) return Boolean(tripDate && tripTime && (boats.length === 0 || boat));
+    if (i === 1) return files.length > 0;
+    if (i === 2) return allValid.length > 0;
+    return false;
+  }
+  // A step is unlocked when everything before it is done.
+  function unlocked(i: number): boolean {
+    for (let j = 0; j < i; j++) if (!stepDone(j)) return false;
+    return true;
+  }
+  function goTo(i: number) {
+    if (stepDone(i) || unlocked(i)) setStep(i);
+  }
+
+  const boatName = boats.find((b) => b.id === boat)?.name ?? null;
+  const speciesSummary = species
+    .map((n) => (speciesCounts[n] && parseInt(speciesCounts[n], 10) > 0 ? `${parseInt(speciesCounts[n], 10)} ${n}` : n))
+    .join(", ");
+  const tripSummary = [
+    tripDate ? fmtDay(tripDate) : null,
+    tripTime ? formatTripTime(tripTime) : null,
+    boatName,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const ready = files.length > 0 && allValid.length > 0;
+  const sums = [
+    tripSummary || "Date, boat, time",
+    files.length ? `${files.length} ${files.length === 1 ? "photo" : "photos"}` : "Nothing added yet",
+    allValid.length ? `${allValid.length} ${allValid.length === 1 ? "guest" : "guests"} ready` : "No guests yet",
+    ready ? "Ready to go" : "Waiting on the steps above",
+  ];
+  const sumSet = [Boolean(tripSummary), files.length > 0, allValid.length > 0, ready];
+  const completed = [0, 1, 2].filter((i) => stepDone(i)).length;
+
+  const missing: string[] = [];
+  if (boats.length > 0 && !boat) missing.push("pick a boat");
+  if (!tripTime) missing.push("pick a trip time");
+  if (!files.length) missing.push("add photos");
+  if (!allValid.length) missing.push("add at least one guest");
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setUpgrade(false);
 
-    const fd = new FormData(e.currentTarget);
     // Combine the split date and time into the delivery datetime. Time alone is
     // never sent without a date; a date without a time defaults to midnight.
     const tripDatetime = tripDate
@@ -220,8 +287,6 @@ export function SendForm({
     const naturalistName = nameForRole("naturalist");
     const photographerName = nameForRole("photographer");
     const crewNames = credited.filter((c) => c.role === "crew").map((c) => c.name);
-    const boatName = boats.find((b) => b.id === boat)?.name ?? null;
-    const customMessage = String(fd.get("custom_message") ?? "").trim() || null;
 
     if (!files.length) {
       setError("Add at least one photo.");
@@ -279,7 +344,7 @@ export function SendForm({
         photographerName,
         crewNames,
         boatName,
-        customMessage,
+        customMessage: customMessage.trim() || null,
         photos,
         emails: allValid,
         capturedIds: capturedGuests.map((g) => g.id),
@@ -347,79 +412,195 @@ export function SendForm({
     );
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="fl-side" style={{ gridTemplateColumns: "360px minmax(0, 480px)", marginTop: "22px" }}>
-      {/* Trip details */}
-      <div className="fl-card">
-        <h3 style={h3}>Trip details</h3>
-        <p className="fl-hint" style={{ margin: "0 0 16px" }}>
-          These show up on the gallery and warm up the review email.
-        </p>
-        <label style={field}>
-          <span className="fl-label-text">Trip date</span>
-          <input
-            type="date"
-            className="fl-input"
-            style={{ minWidth: 0, maxWidth: "100%" }}
-            value={tripDate}
-            onChange={(e) => setTripDate(e.target.value)}
-          />
-        </label>
-        {boats.length > 1 ? (
-          <label style={field}>
-            <span className="fl-label-text">Boat</span>
-            <select className="fl-input" value={boat} onChange={(e) => setBoat(e.target.value)}>
-              <option value="">No boat</option>
-              {boats.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-        <label style={field}>
-          <span className="fl-label-text">Trip time</span>
-          <select className="fl-input" value={tripTime} onChange={(e) => setTripTime(e.target.value)}>
-            <option value="">No time set</option>
-            {tripTimes.map((slot) => (
-              <option key={slot} value={slot}>
-                {formatTripTime(slot)}
-              </option>
-            ))}
-          </select>
-          {boats.length ? (
-            <span className="fl-hint" style={{ display: "block", marginTop: "6px" }}>
-              {boats.length > 1
-                ? "Pick the boat and trip time to load guests who signed up by QR."
-                : "Pick the trip time to load guests who signed up by QR."}
-            </span>
-          ) : null}
-        </label>
+  // Props for a card at position i, handed to the top level StepCard. Defining
+  // these as data (not components created inside the render) keeps the card
+  // subtree stable across renders, so typing never loses focus.
+  const cardProps = (i: number) => ({
+    index: i,
+    active: step === i,
+    done: stepDone(i),
+    open: unlocked(i),
+    summary: sums[i],
+    summarySet: sumSet[i],
+    onOpen: () => goTo(i),
+  });
+  const continueBtn = (i: number, label = "Continue") => {
+    const ok = stepDone(i);
+    return (
+      <button
+        type="button"
+        disabled={!ok}
+        onClick={() => {
+          if (stepDone(i)) setStep(i + 1);
+        }}
+        style={{ ...primaryBtn, opacity: ok ? 1 : 0.4, marginLeft: "auto" }}
+      >
+        {label}
+      </button>
+    );
+  };
+  const backBtn = (to: number) => (
+    <button type="button" onClick={() => setStep(to)} style={ghostBtn}>
+      Back
+    </button>
+  );
 
-        <div style={{ marginBottom: "16px" }}>
-          <button type="button" onClick={() => setCrewOpen((o) => !o)} aria-expanded={crewOpen} style={crewToggle}>
-            <span className="fl-label-text" style={{ margin: 0 }}>Crew mentions (recommended)</span>
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--muted)"
-              strokeWidth="2"
-              aria-hidden="true"
-              style={{ transform: crewOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}
-            >
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-          {crewOpen ? (
-            crew.length ? (
-              <div style={{ marginTop: "10px" }}>
-                <p className="fl-hint" style={{ margin: "0 0 8px" }}>
-                  Check who was aboard. Each person is credited once, by their main role.
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+  return (
+    <form onSubmit={handleSubmit} style={{ maxWidth: "640px", marginTop: "22px" }}>
+      {/* Progress: only the three input steps count; Review is the destination. */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
+        <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--text-2)" }}>
+          Step {step + 1} of 4
+        </span>
+        <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--muted)" }}>
+          {completed} of 3 steps complete
+        </span>
+      </div>
+      <div style={{ height: "4px", background: "var(--panel-2)", borderRadius: "999px", margin: "8px 0 12px" }}>
+        <div
+          style={{
+            height: "100%",
+            borderRadius: "999px",
+            background: "var(--signal)",
+            width: `${Math.max(6, Math.round((completed / 3) * 100))}%`,
+            transition: `width .5s ${EASE}`,
+          }}
+        />
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* Step 1: Trip details */}
+        <StepCard {...cardProps(0)}>
+          <div style={{ display: "grid", gap: "16px" }}>
+            <label style={{ display: "block" }}>
+              <span className="fl-label-text">Trip date</span>
+              <input
+                type="date"
+                className="fl-input"
+                style={{ maxWidth: "220px" }}
+                value={tripDate}
+                onChange={(e) => setTripDate(e.target.value)}
+              />
+            </label>
+
+            {boats.length > 1 ? (
+              <div>
+                <span className="fl-label-text">Boat · required</span>
+                <div style={{ display: "inline-flex", border: "1px solid var(--line-strong)", borderRadius: "12px", overflow: "hidden" }}>
+                  {boats.map((b) => {
+                    const on = boat === b.id;
+                    return (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => setBoat(b.id)}
+                        style={{
+                          font: "inherit",
+                          fontSize: "13.5px",
+                          padding: "10px 18px",
+                          border: 0,
+                          cursor: "pointer",
+                          background: on ? "var(--signal)" : "#fff",
+                          color: on ? "#fff" : "var(--muted)",
+                          fontWeight: on ? 600 : 500,
+                        }}
+                      >
+                        {b.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div>
+              <span className="fl-label-text">Trip time</span>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {tripTimes.map((slot) => {
+                  const on = tripTime === slot;
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setTripTime(on ? "" : slot)}
+                      style={{
+                        font: "inherit",
+                        fontSize: "13px",
+                        padding: "9px 15px",
+                        borderRadius: "999px",
+                        cursor: "pointer",
+                        border: `1px solid ${on ? "var(--signal)" : "var(--line-strong)"}`,
+                        background: on ? "var(--signal)" : "#fff",
+                        color: on ? "#fff" : "var(--muted)",
+                        fontWeight: on ? 600 : 500,
+                      }}
+                    >
+                      {formatTripTime(slot)}
+                    </button>
+                  );
+                })}
+              </div>
+              <span style={{ display: "block", marginTop: "8px", fontSize: "12.5px", color: "var(--muted)" }}>
+                {boat && tripTime && capturedGuests.length
+                  ? `${capturedGuests.length} QR ${capturedGuests.length === 1 ? "sign-up" : "sign-ups"} found for this trip. ${capturedGuests.length === 1 ? "They will" : "They'll"} be waiting on the Guests step.`
+                  : boats.length > 1
+                    ? "Pick the boat and trip time to load guests who signed up by QR."
+                    : "Pick the trip time to load guests who signed up by QR."}
+              </span>
+            </div>
+
+            <div>
+              <span className="fl-label-text">Species seen</span>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {speciesOptions.map((name) => {
+                  const on = species.includes(name);
+                  return (
+                    <button key={name} type="button" onClick={() => toggleSpecies(name)} style={speciesPill(on)}>
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* How many, per selected species. Optional: leave blank when you
+                  did not count. The number input sits snug beside the name. */}
+              {species.length ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "10px" }}>
+                  {species.map((name) => (
+                    <span
+                      key={name}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        border: "1px solid var(--line)",
+                        background: "var(--ink-2)",
+                        borderRadius: "10px",
+                        padding: "5px 6px 5px 11px",
+                      }}
+                    >
+                      <span style={{ fontSize: "12.5px", fontWeight: 700 }}>{name}</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        placeholder="how many"
+                        value={speciesCounts[name] ?? ""}
+                        onChange={(e) => setSpeciesCounts((prev) => ({ ...prev, [name]: e.target.value }))}
+                        style={countInput}
+                      />
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <p className="fl-hint" style={{ margin: "8px 0 0" }}>
+                Edit this list in <a href="/settings" style={{ color: "var(--signal-2)", fontWeight: 600 }}>Settings</a>.
+              </p>
+            </div>
+
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: "14px" }}>
+              <span className="fl-label-text">Crew mentions (recommended)</span>
+              {crew.length ? (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                   {crew.map((c) => {
                     const on = aboard.includes(c.name);
                     const credited = topRole(c.roles);
@@ -433,73 +614,33 @@ export function SendForm({
                           onChange={() => toggleAboard(c.name)}
                           style={{ width: "16px", height: "16px", accentColor: "var(--signal)", flex: "0 0 auto" }}
                         />
-                        <span style={{ fontSize: "13.5px", fontWeight: 500 }}>{c.name}</span>
-                        <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--muted)" }}>
+                        <span style={{ fontSize: "13px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {c.name}
+                        </span>
+                        <span style={{ marginLeft: "auto", fontSize: "11.5px", color: "var(--muted)", flex: "0 0 auto" }}>
                           {creditedLabel}
                         </span>
                       </label>
                     );
                   })}
                 </div>
-              </div>
-            ) : (
-              <p className="fl-hint" style={{ margin: "10px 0 0" }}>
-                Add your team in{" "}
-                <a href="/settings" style={{ color: "var(--signal-2)", fontWeight: 600 }}>Settings</a>{" "}
-                and tag each person&apos;s role to credit them here.
-              </p>
-            )
-          ) : null}
-        </div>
-        <span className="fl-label-text">Species seen</span>
-        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
-          {speciesOptions.map((name) => {
-            const on = species.includes(name);
-            return (
-              <button key={name} type="button" onClick={() => toggleSpecies(name)} style={speciesPill(on)}>
-                {name}
-              </button>
-            );
-          })}
-        </div>
+              ) : (
+                <p className="fl-hint" style={{ margin: "4px 0 0" }}>
+                  Add your team in{" "}
+                  <a href="/settings" style={{ color: "var(--signal-2)", fontWeight: 600 }}>Settings</a>{" "}
+                  and tag each person&apos;s role to credit them here.
+                </p>
+              )}
+            </div>
 
-        {/* How many, per selected species. Optional: leave blank when you did not
-            count (or only have a rough sense). Used on the sightings recap. */}
-        {species.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", margin: "0 0 12px" }}>
-            {species.map((name) => (
-              <div key={name} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ fontSize: "12px", color: "var(--muted)", flex: "1 1 auto" }}>{name}</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  placeholder="how many"
-                  value={speciesCounts[name] ?? ""}
-                  onChange={(e) => setSpeciesCounts((prev) => ({ ...prev, [name]: e.target.value }))}
-                  style={countInput}
-                />
-              </div>
-            ))}
+            <div style={{ display: "flex" }}>
+              {continueBtn(0)}
+            </div>
           </div>
-        ) : null}
+        </StepCard>
 
-        <p className="fl-hint" style={{ margin: "0 0 16px" }}>
-          Edit this list in <a href="/settings" style={{ color: "var(--signal-2)", fontWeight: 600 }}>Settings</a>.
-        </p>
-        <label style={{ display: "block", margin: 0 }}>
-          <span className="fl-label-text">Custom message (optional)</span>
-          <textarea name="custom_message" className="fl-textarea" style={{ minHeight: "60px" }} placeholder={defaultMessage || "Overrides your default message for this send."} />
-        </label>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        {/* Photos */}
-        <div className="fl-card">
-          <h3 style={h3}>Photos</h3>
-          <p className="fl-hint" style={{ margin: "0 0 14px" }}>
-            Drop the edited set in. They upload straight to storage.
-          </p>
+        {/* Step 2: Photos */}
+        <StepCard {...cardProps(1)}>
           <label style={{ display: "block" }}>
             <div style={{ ...dropzone, background: `${brandColor}16` }}>Drop photos here, or browse</div>
             <input
@@ -526,7 +667,7 @@ export function SendForm({
             </div>
           ) : null}
           {files.length > 1 ? (
-            <p className="fl-hint" style={{ margin: "12px 0 0" }}>
+            <p style={{ margin: "12px 0 0", fontSize: "12px", color: "var(--muted-2)" }}>
               Drag to reorder. The top photo is the cover guests see first.
             </p>
           ) : null}
@@ -563,15 +704,18 @@ export function SendForm({
               ))}
             </div>
           ) : null}
-        </div>
+          <div style={{ display: "flex", marginTop: "18px" }}>
+            {backBtn(0)}
+            {continueBtn(1)}
+          </div>
+        </StepCard>
 
-        {/* Guest emails */}
-        <div className="fl-card">
-          <h3 style={h3}>Guest emails</h3>
-          <p className="fl-hint" style={{ margin: "0 0 14px" }}>
+        {/* Step 3: Guests */}
+        <StepCard {...cardProps(2)}>
+          <p style={{ margin: "0 0 12px", fontSize: "13px", color: "var(--muted)" }}>
             {capturedGuests.length
               ? "QR sign-ups for this trip loaded below. Add more emails in the box, any format."
-              : "Paste straight from the naturalist's notes. Line breaks, spaces, semicolons, it all works. No commas needed."}
+              : "Paste straight from the naturalist's notes. Line breaks, spaces, semicolons, it all works."}
           </p>
 
           {boat && !tripTime && (capturedByBoat[boat] ?? 0) > 0 ? (
@@ -579,7 +723,11 @@ export function SendForm({
               <span style={{ fontSize: "13px", color: "var(--text)", lineHeight: 1.45 }}>
                 <b>{capturedByBoat[boat]}</b>{" "}
                 {capturedByBoat[boat] === 1 ? "guest has" : "guests have"} signed up by QR for{" "}
-                {boats.find((b) => b.id === boat)?.name ?? "this boat"}. Pick the trip time above to load them.
+                {boatName ?? "this boat"}.{" "}
+                <button type="button" onClick={() => setStep(0)} style={inlineLink}>
+                  Pick the trip time
+                </button>{" "}
+                to load them.
               </span>
             </div>
           ) : null}
@@ -610,6 +758,7 @@ export function SendForm({
               </div>
             </div>
           ) : null}
+
           <div style={{ border: "1px solid var(--line-strong)", borderRadius: "12px", background: "var(--ink)", padding: "10px" }}>
             {parsed.valid.length || parsed.invalid.length ? (
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
@@ -629,7 +778,7 @@ export function SendForm({
               value={emailsRaw}
               onChange={(e) => setEmailsRaw(e.target.value)}
               placeholder="paste emails here, any format"
-              style={{ width: "100%", border: 0, background: "transparent", color: "var(--text)", font: "inherit", fontSize: "14px", minHeight: "46px", padding: "4px", outline: "none", resize: "vertical" }}
+              style={{ width: "100%", border: 0, background: "transparent", color: "var(--text)", font: "inherit", fontSize: "14px", minHeight: "56px", padding: "4px", outline: "none", resize: "vertical" }}
             />
           </div>
           <div style={{ display: "flex", gap: "14px", alignItems: "center", marginTop: "11px", fontSize: "12.5px", color: "var(--muted)", flexWrap: "wrap" }}>
@@ -646,8 +795,94 @@ export function SendForm({
             </span>
           </div>
 
+          <div style={{ borderTop: "1px solid var(--line)", marginTop: "16px", paddingTop: "12px" }}>
+            <button type="button" onClick={() => setNoteOpen((o) => !o)} aria-expanded={noteOpen} style={noteToggle}>
+              <span className="fl-label-text" style={{ margin: 0 }}>Personal note · optional</span>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--muted)"
+                strokeWidth="2"
+                aria-hidden="true"
+                style={{ transform: noteOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }}
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+            {noteOpen ? (
+              <textarea
+                className="fl-textarea"
+                style={{ minHeight: "60px", marginTop: "10px" }}
+                placeholder={defaultMessage || "Overrides your default message for this send."}
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+              />
+            ) : null}
+          </div>
+
+          <div style={{ display: "flex", marginTop: "18px" }}>
+            {backBtn(1)}
+            {continueBtn(2, "Review send")}
+          </div>
+        </StepCard>
+
+        {/* Step 4: Review & send */}
+        <StepCard {...cardProps(3)}>
+          <div>
+            {[
+              { label: "Trip", value: tripSummary || "Not set", color: tripSummary ? "var(--text)" : "var(--bad)", edit: 0 },
+              { label: "Sightings", value: speciesSummary || "None recorded", color: speciesSummary ? "var(--text)" : "var(--muted)", edit: 0 },
+              { label: "Crew", value: aboard.length ? aboard.join(", ") : "No crew credited", color: aboard.length ? "var(--text)" : "var(--muted)", edit: 0 },
+              { label: "Photos", value: files.length ? `${files.length} ${files.length === 1 ? "photo" : "photos"} · "${files[0].name}" is the cover` : "No photos yet", color: files.length ? "var(--text)" : "var(--bad)", edit: 1 },
+              { label: "Guests", value: allValid.length ? `${allValid.length} ready${capturedGuests.length ? ` · ${capturedGuests.length} from QR sign-ups` : ""}` : "No guests yet", color: allValid.length ? "var(--text)" : "var(--bad)", edit: 2 },
+              { label: "Note", value: customMessage.trim() ? `"${customMessage.trim()}"` : "Your default message", color: customMessage.trim() ? "var(--text)" : "var(--muted)", edit: 2 },
+            ].map((row) => (
+              <div
+                key={row.label}
+                style={{ display: "flex", alignItems: "baseline", gap: "14px", padding: "12px 0", borderBottom: "1px solid var(--line)" }}
+              >
+                <span style={{ flex: "0 0 88px", fontSize: "12.5px", fontWeight: 600, color: "var(--muted)" }}>
+                  {row.label}
+                </span>
+                <span style={{ flex: "1 1 auto", minWidth: 0, fontSize: "13.5px", color: row.color, overflowWrap: "anywhere" }}>
+                  {row.value}
+                </span>
+                <button type="button" onClick={() => setStep(row.edit)} style={editLink}>
+                  Edit
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {thumbUrls.length ? (
+            <div style={{ display: "flex", gap: "6px", marginTop: "14px" }}>
+              {thumbUrls.map((url, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: "69px",
+                    height: "52px",
+                    borderRadius: "6px",
+                    backgroundColor: "var(--ink-2)",
+                    backgroundImage: `url(${url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {!ready ? (
+            <p style={{ color: "var(--bad)", fontSize: "12.5px", margin: "14px 0 0" }}>
+              Before this can go out: {missing.join(", ")}.
+            </p>
+          ) : null}
+
           {error ? (
-            <p style={{ color: "var(--bad)", fontSize: "13px", margin: "12px 0 0" }}>
+            <p style={{ color: "var(--bad)", fontSize: "13px", margin: "14px 0 0" }}>
               {error}
               {upgrade ? (
                 <>
@@ -660,17 +895,140 @@ export function SendForm({
             </p>
           ) : null}
 
-          <div style={{ marginTop: "16px", display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-            <button type="submit" disabled={!allValid.length || !files.length} className="fl-btn" style={{ padding: "11px 18px", fontSize: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", marginTop: "18px" }}>
+            {backBtn(2)}
+            <button
+              type="submit"
+              disabled={!ready}
+              className="fl-btn"
+              style={{ marginLeft: "auto", padding: "13px 26px", fontSize: "14.5px", fontWeight: 600, opacity: ready ? 1 : 0.4 }}
+            >
               Send to {allValid.length} {allValid.length === 1 ? "guest" : "guests"}
             </button>
-            <span style={{ fontSize: "12px", color: "var(--muted-2)" }}>
-              review asks go out as guests download
-            </span>
           </div>
-        </div>
+          <p style={{ margin: "10px 0 0", fontSize: "12px", color: "var(--muted-2)", textAlign: "right" }}>
+            review asks go out as guests download
+          </p>
+        </StepCard>
       </div>
     </form>
+  );
+}
+
+/*
+  One cascade card: the always visible header row (status circle, title, live
+  summary, action word) and the animated body. The grid-rows trick animates
+  height without measuring: 1fr when open, 0fr when closed. Top level so the
+  subtree identity is stable across the parent's renders.
+*/
+function StepCard({
+  index,
+  active,
+  done,
+  open,
+  summary,
+  summarySet,
+  onOpen,
+  children,
+}: {
+  index: number;
+  active: boolean;
+  done: boolean;
+  open: boolean;
+  summary: string;
+  summarySet: boolean;
+  onOpen: () => void;
+  children: React.ReactNode;
+}) {
+  const action = active ? "" : done ? "Edit" : open ? "Open" : "Locked";
+  const clickable = done || open;
+  return (
+    <section
+      style={{
+        background: "var(--panel)",
+        borderRadius: "16px",
+        border: `1px solid ${active ? "#1f6f9c55" : "var(--line)"}`,
+        boxShadow: active
+          ? "0 1px 2px rgba(14,26,24,.04), 0 12px 32px rgba(14,26,24,.07)"
+          : "none",
+        transition: "border-color .3s ease, box-shadow .3s ease",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-expanded={active}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "16px 20px",
+          background: "transparent",
+          border: 0,
+          font: "inherit",
+          textAlign: "left",
+          cursor: clickable ? "pointer" : "default",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: "26px",
+            height: "26px",
+            flex: "0 0 auto",
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+            fontSize: "12.5px",
+            fontWeight: 700,
+            background: done ? "var(--signal)" : "#fff",
+            border: `1.5px solid ${done || active ? "var(--signal)" : "var(--line-strong)"}`,
+            color: active ? "var(--signal)" : "var(--muted-2)",
+            transition: "all .3s ease",
+          }}
+        >
+          {done ? (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+              <path d="M4 12.5l5 5L20 6.5" />
+            </svg>
+          ) : (
+            index + 1
+          )}
+        </span>
+        <span style={{ fontSize: "14.5px", fontWeight: 600, flex: "0 0 auto" }}>
+          {STEP_TITLES[index]}
+        </span>
+        <span
+          style={{
+            flex: "1 1 auto",
+            minWidth: 0,
+            textAlign: "right",
+            fontSize: "12.5px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: summarySet ? "var(--text-2)" : "#a1a8a3",
+          }}
+        >
+          {active ? "" : summary}
+        </span>
+        <span style={{ flex: "0 0 auto", fontSize: "12.5px", fontWeight: 600, color: "var(--signal-2)" }}>
+          {action}
+        </span>
+      </button>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: active ? "1fr" : "0fr",
+          transition: `grid-template-rows .45s ${EASE}`,
+        }}
+      >
+        <div style={{ minHeight: 0, overflow: "hidden" }}>
+          <div style={{ padding: "2px 20px 22px 58px" }}>{children}</div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -687,8 +1045,6 @@ function Grip() {
   );
 }
 
-const h3: React.CSSProperties = { margin: "0 0 2px", fontSize: "15px", fontWeight: 600 };
-const field: React.CSSProperties = { display: "block", marginBottom: "14px" };
 const captureBox: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -701,8 +1057,8 @@ const captureBox: React.CSSProperties = {
 };
 const dropzone: React.CSSProperties = {
   border: "1.5px dashed var(--line-strong)",
-  borderRadius: "13px",
-  padding: "18px",
+  borderRadius: "14px",
+  padding: "30px 18px",
   textAlign: "center",
   color: "var(--muted)",
   fontSize: "13.5px",
@@ -779,7 +1135,63 @@ const fileRemove: React.CSSProperties = {
   fontSize: "13px",
   lineHeight: 1,
 };
-const crewToggle: React.CSSProperties = {
+const crewRow = (on: boolean): React.CSSProperties => ({
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  padding: "9px 11px",
+  borderRadius: "10px",
+  border: `1px solid ${on ? "var(--signal)" : "var(--line)"}`,
+  background: on ? "rgba(31,111,156,.10)" : "var(--ink)",
+  cursor: "pointer",
+  minWidth: 0,
+});
+// Species pills are small: the list can be long.
+const speciesPill = (on: boolean): React.CSSProperties => ({
+  font: "inherit",
+  fontSize: "12px",
+  border: `1px solid ${on ? "var(--signal)" : "var(--line-strong)"}`,
+  background: on ? "var(--signal)" : "#fff",
+  color: on ? "var(--signal-ink)" : "var(--muted)",
+  borderRadius: "999px",
+  padding: "4px 10px",
+  cursor: "pointer",
+  fontWeight: on ? 600 : 400,
+});
+const countInput: React.CSSProperties = {
+  font: "inherit",
+  fontSize: "12.5px",
+  width: "74px",
+  flex: "0 0 auto",
+  background: "var(--ink)",
+  color: "inherit",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "8px",
+  padding: "5px 8px",
+};
+const primaryBtn: React.CSSProperties = {
+  font: "inherit",
+  fontSize: "13.5px",
+  fontWeight: 600,
+  color: "#fff",
+  background: "var(--signal)",
+  border: 0,
+  borderRadius: "11px",
+  padding: "11px 22px",
+  cursor: "pointer",
+};
+const ghostBtn: React.CSSProperties = {
+  font: "inherit",
+  fontSize: "13.5px",
+  fontWeight: 500,
+  color: "var(--muted)",
+  background: "transparent",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "10px",
+  padding: "10px 16px",
+  cursor: "pointer",
+};
+const noteToggle: React.CSSProperties = {
   width: "100%",
   display: "flex",
   alignItems: "center",
@@ -791,38 +1203,28 @@ const crewToggle: React.CSSProperties = {
   cursor: "pointer",
   font: "inherit",
 };
-const crewRow = (on: boolean): React.CSSProperties => ({
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-  padding: "9px 11px",
-  borderRadius: "10px",
-  border: `1px solid ${on ? "var(--signal)" : "var(--line)"}`,
-  background: on ? "rgba(31,111,156,.10)" : "var(--ink)",
-  cursor: "pointer",
-});
-// Species pills are small: the list can be long.
-const speciesPill = (on: boolean): React.CSSProperties => ({
+const inlineLink: React.CSSProperties = {
   font: "inherit",
-  fontSize: "11.5px",
-  border: `1px solid ${on ? "var(--signal)" : "var(--line-strong)"}`,
-  background: on ? "var(--signal)" : "var(--ink)",
-  color: on ? "var(--signal-ink)" : "var(--muted)",
-  borderRadius: "999px",
-  padding: "4px 9px",
+  fontSize: "13px",
+  fontWeight: 600,
+  color: "var(--signal-2)",
+  background: "none",
+  border: 0,
+  padding: 0,
   cursor: "pointer",
-  fontWeight: on ? 600 : 400,
-});
-const countInput: React.CSSProperties = {
+  textDecoration: "underline",
+  textUnderlineOffset: "2px",
+};
+const editLink: React.CSSProperties = {
+  flex: "0 0 auto",
   font: "inherit",
   fontSize: "12.5px",
-  width: "96px",
-  flex: "0 0 auto",
-  background: "var(--ink)",
-  color: "inherit",
-  border: "1px solid var(--line-strong)",
-  borderRadius: "8px",
-  padding: "6px 9px",
+  fontWeight: 600,
+  color: "var(--signal-2)",
+  background: "none",
+  border: 0,
+  padding: 0,
+  cursor: "pointer",
 };
 const waterRing: React.CSSProperties = {
   position: "relative",
