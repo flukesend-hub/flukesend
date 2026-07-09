@@ -23,6 +23,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
+import { buildReminderEmail } from "@/lib/reminder-email";
 import { incrementRecipientsUsed } from "@/lib/usage";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
@@ -75,6 +76,8 @@ export async function GET(request: Request) {
     errors: [] as string[],
     recoveredList: [] as string[],
     manualList: [] as string[],
+    // Temporary make-good pass; see the block at the bottom.
+    makeGood: { eligible: 0, sent: 0, list: [] as string[] },
   };
 
   // Everything runs inside one guard: a single bad row, or an unexpected throw
@@ -256,6 +259,75 @@ export async function GET(request: Request) {
      const who = `${(cap.email as string) ?? "?"} (${(cap.trip_date as string) ?? "?"})`;
      summary.errors.push(`row failed for ${who}: ${rowErr instanceof Error ? rowErr.message : String(rowErr)}`);
    }
+  }
+
+  // ---- TEMPORARY make-good pass, remove once it reports 0 candidates. ----
+  // Expiring-soon reminders sent while the crons still built links on the
+  // deployment host (before the canonical origin fix) carried links guests
+  // could not open. Re-nudge everyone from that window whose gallery is still
+  // live and who has still not downloaded, with a corrected link and copy that
+  // owns the miss. Self-terminating: each send bumps reminder_sent_at past the
+  // window, so a guest can get this at most once.
+  try {
+    const BROKEN_FROM = "2026-07-01T00:00:00Z";
+    const BROKEN_UNTIL = "2026-07-09T16:15:00Z"; // canonical origin fix live
+    const { data: broken, error: brokenErr } = await admin
+      .from("recipients")
+      .select("id, email, name, token, email_status, deliveries!inner(operator_id, expires_at)")
+      .gte("reminder_sent_at", BROKEN_FROM)
+      .lt("reminder_sent_at", BROKEN_UNTIL)
+      .gt("deliveries.expires_at", new Date(now).toISOString());
+    if (brokenErr) {
+      summary.errors.push(`make-good scan failed: ${brokenErr.message}`);
+    } else if (broken?.length) {
+      // Skip anyone who downloaded since; the broken reminder cost them
+      // nothing. An undercount here only risks a harmless extra nudge.
+      const { data: dlEvents } = await admin
+        .from("events")
+        .select("recipient_id")
+        .eq("type", "downloaded")
+        .in("recipient_id", broken.map((r) => r.id));
+      const downloaded = new Set((dlEvents ?? []).map((e) => e.recipient_id));
+
+      for (const r of broken) {
+        const del = (r as unknown as { deliveries: { operator_id: string; expires_at: string } }).deliveries;
+        if (downloaded.has(r.id)) continue;
+        if (r.email_status === "bounced" || r.email_status === "complained") continue;
+        summary.makeGood.eligible++;
+        if (dry) {
+          summary.makeGood.list.push(r.email as string);
+          continue;
+        }
+        const ctx = await loadCtx(del.operator_id);
+        const hoursLeft = (new Date(del.expires_at).getTime() - now) / 3600000;
+        const { subject, html } = buildReminderEmail({
+          operatorName: ctx.operatorName,
+          brandColor: ctx.brandColor,
+          logoUrl: ctx.logoUrl,
+          recipientName: (r.name as string | null) ?? null,
+          expiresWhen: hoursLeft <= 24 ? "today" : "tomorrow",
+          galleryUrl: `${baseUrl}/g/${r.token}`,
+          social: ctx.social,
+          variant: "fixed-link",
+        });
+        const result = await sendEmail(r.email as string, subject, html, ctx.from, ctx.replyTo);
+        if (result.status === "sent") {
+          const { error: stampErr } = await admin
+            .from("recipients")
+            .update({ reminder_sent_at: new Date().toISOString(), resend_email_id: result.ids[0] ?? null })
+            .eq("id", r.id);
+          if (stampErr) {
+            summary.errors.push(`make-good stamp failed for ${r.id}: ${stampErr.message}`);
+          }
+          summary.makeGood.sent++;
+          summary.makeGood.list.push(r.email as string);
+        } else if (result.status === "error") {
+          summary.errors.push(`make-good send failed for ${r.email}: ${result.error}`);
+        }
+      }
+    }
+  } catch (mgErr) {
+    summary.errors.push(`make-good pass failed: ${mgErr instanceof Error ? mgErr.message : String(mgErr)}`);
   }
 
   return Response.json(summary);

@@ -21,17 +21,33 @@ export type ReminderEmailInput = {
   expiresWhen: string;
   galleryUrl: string;
   social: SocialLinks;
+  // "expiring" is the normal nudge. "fixed-link" is the make-good sent after
+  // a reminder went out with a link that did not work: same button, new copy
+  // owning the miss.
+  variant?: "expiring" | "fixed-link";
 };
 
 export function buildReminderEmail(input: ReminderEmailInput): {
   subject: string;
   html: string;
 } {
-  const subject = "Don't let the whale slip away";
+  const fixedLink = input.variant === "fixed-link";
+  const subject = fixedLink
+    ? "Your photo link may not have worked, here is a fresh one"
+    : "Don't let the whale slip away";
   const brand = escapeHtml(input.brandColor);
   const name = escapeHtml(input.operatorName);
   const url = escapeHtml(input.galleryUrl);
   const when = escapeHtml(input.expiresWhen);
+  const headline = fixedLink
+    ? "That link may not have worked. This one does."
+    : "Don't let the whale slip away";
+  const bodyText = fixedLink
+    ? `The button in our last email was not working for some guests. Here is a fresh link straight to your photos from the trip. Your gallery closes ${when}, so save them to your phone while it is up.`
+    : `The photos from your trip are still waiting, but not for much longer. Your gallery closes ${when}. Make sure to download your photos to your phone before it does.`;
+  const preheader = fixedLink
+    ? "A fresh, working link to your trip photos. Save them before the gallery closes."
+    : "Your trip photos are still waiting. Save them before the gallery closes.";
   // Greeting line only when we know the guest's name; no filler otherwise.
   const hiRow = input.recipientName
     ? `<p style="font-size:15px;line-height:1.55;margin:0 0 6px;color:#33464a">Hi ${escapeHtml(input.recipientName)},</p>`
@@ -53,7 +69,7 @@ export function buildReminderEmail(input: ReminderEmailInput): {
     <style>:root { color-scheme: light only; }</style>
   </head>
   <body style="margin:0;padding:0;background:#ffffff;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1c2b2e">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0">Your trip photos are still waiting. Save them before the gallery closes.</div>
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0">${preheader}</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
         <td align="center" style="padding:30px 16px">
@@ -63,9 +79,9 @@ export function buildReminderEmail(input: ReminderEmailInput): {
             </tr>
             <tr>
               <td style="padding:30px 28px 6px">
-                <h1 style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:#16241f">Don't let the whale slip away</h1>
+                <h1 style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:#16241f">${headline}</h1>
                 ${hiRow}
-                <p style="font-size:15px;line-height:1.55;margin:0 0 8px;color:#33464a">The photos from your trip are still waiting, but not for much longer. Your gallery closes ${when}. Make sure to download your photos to your phone before it does.</p>
+                <p style="font-size:15px;line-height:1.55;margin:0 0 8px;color:#33464a">${bodyText}</p>
               </td>
             </tr>
             <tr>
