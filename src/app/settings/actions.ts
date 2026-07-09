@@ -298,6 +298,91 @@ async function deleteNamed(table: "boats" | "crew_members", formData: FormData) 
   revalidatePath("/send");
 }
 
+// Team invites. A teammate is invited by email and joins under this same
+// operator (shared branding, one bill). Invites are owner only, and written with
+// the admin client because operator_invites has no client write policy; reads
+// use RLS. The join itself lands in the next step.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function resolveMember() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const { data: membership } = await supabase
+    .from("operator_members")
+    .select("operator_id, role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership) {
+    redirect("/onboarding");
+  }
+  return {
+    operatorId: membership.operator_id as string,
+    userId: user.id,
+    isOwner: (membership.role as string) === "owner",
+  };
+}
+
+export async function createInvite(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
+  const { operatorId, userId, isOwner } = await resolveMember();
+  if (!isOwner) {
+    return { error: "Only the account owner can invite teammates." };
+  }
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) {
+    return { error: "Enter a valid email." };
+  }
+
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("operator_invites")
+    .select("id")
+    .eq("operator_id", operatorId)
+    .ilike("email", email)
+    .is("accepted_at", null)
+    .maybeSingle();
+  if (existing) {
+    return { error: "That email is already invited." };
+  }
+
+  const { error } = await admin.from("operator_invites").insert({
+    operator_id: operatorId,
+    email,
+    role: "member",
+    created_by: userId,
+  });
+  if (error) {
+    return { error: "Could not create the invite. Try again." };
+  }
+  revalidatePath("/settings");
+  return { ok: "Invited. They join with this email address." };
+}
+
+export async function revokeInvite(formData: FormData): Promise<void> {
+  const { operatorId, isOwner } = await resolveMember();
+  if (!isOwner) {
+    return;
+  }
+  const id = String(formData.get("id") ?? "");
+  if (!id) {
+    return;
+  }
+  const admin = createAdminClient();
+  await admin
+    .from("operator_invites")
+    .delete()
+    .eq("id", id)
+    .eq("operator_id", operatorId);
+  revalidatePath("/settings");
+}
+
 export async function addBoat(_prev: SettingsState, formData: FormData) {
   // Boats are unlimited on every plan, so there is no gate here anymore.
   return addNamed("boats", formData);
