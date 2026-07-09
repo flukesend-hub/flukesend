@@ -155,10 +155,12 @@ export async function acceptInvite(formData: FormData): Promise<void> {
     redirect("/send");
   }
 
+  // A teammate joins as crew (the only member role besides owner). Crew have
+  // full operational access by membership; only the owner manages the team.
   const { error: memberError } = await admin.from("operator_members").insert({
     operator_id: invite.operator_id,
     user_id: user.id,
-    role: (invite.role as string) || "member",
+    role: "crew",
   });
   if (memberError) {
     redirect("/onboarding");

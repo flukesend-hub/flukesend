@@ -357,7 +357,7 @@ export async function createInvite(
   const { error } = await admin.from("operator_invites").insert({
     operator_id: operatorId,
     email,
-    role: "member",
+    role: "crew",
     created_by: userId,
   });
   if (error) {
