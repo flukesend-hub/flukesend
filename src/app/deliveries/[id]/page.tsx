@@ -102,6 +102,16 @@ export default async function DeliveryPage({
   const crew = (delivery.crew_names ?? []) as string[];
   const guests = recipients?.length ?? 0;
   const photos = photoCount ?? 0;
+  // Guests whose email failed (bounced or marked spam) float to the top of the
+  // list (the analytics bounce chip links here, so the guest it points at must
+  // be the first thing seen), then everyone else alphabetically so a long list
+  // scans predictably.
+  const emailFailed = (s: string | null) => s === "bounced" || s === "complained";
+  const sortedRecipients = [...(recipients ?? [])].sort((a, b) => {
+    const aBad = emailFailed(a.email_status as string | null) ? 0 : 1;
+    const bBad = emailFailed(b.email_status as string | null) ? 0 : 1;
+    return aBad - bBad || (a.email as string).localeCompare(b.email as string);
+  });
   // Deep link to the Social page, opened on this trip's day so the operator can
   // build a story, slideshow, or post from it.
   const tripDay = delivery.trip_datetime
@@ -220,7 +230,7 @@ export default async function DeliveryPage({
           <div className="fl-card" style={{ marginTop: "16px" }}>
             <h3 style={h3}>Guests ({guests})</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {recipients?.map((r) => {
+              {sortedRecipients.map((r) => {
                 const ev = eventsByRecipient.get(r.id);
                 return (
                   <GuestRow

@@ -56,8 +56,19 @@ export function GuestRow({
     }
   }
 
+  // A bounced guest's card is tinted red so it cannot hide in a long list;
+  // the analytics bounce chip links straight to this page to get it fixed.
+  const alert = STATUS_META[status].tone === "bad";
+
   return (
-    <div style={card}>
+    <div
+      style={{
+        ...card,
+        ...(alert
+          ? { border: "1px solid rgba(194,83,63,.45)", background: "rgba(194,83,63,.06)" }
+          : {}),
+      }}
+    >
       <div style={top}>
         {editing ? (
           <div style={{ display: "flex", gap: "8px", flex: 1, flexWrap: "wrap" }}>
