@@ -5,7 +5,6 @@
 */
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -15,6 +14,7 @@ import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { getTrialUsage, getPlan } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -210,10 +210,8 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     .eq("operator_id", d.operator_id)
     .maybeSingle();
 
-  const hdrs = await headers();
-  const host = hdrs.get("host");
-  const proto = hdrs.get("x-forwarded-proto") ?? "https";
-  const baseUrl = host ? `${proto}://${host}` : "";
+  // Canonical domain, never the operator's browsing host. See base-url.ts.
+  const baseUrl = CANONICAL_ORIGIN;
 
   const { subject, html } = buildDeliveryEmail({
     operatorName: operator?.name ?? "your crew",

@@ -11,7 +11,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
@@ -24,6 +23,7 @@ import {
   removeSenderDomain,
   resolveFromAddress,
 } from "@/lib/sender-domain";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
 export type AdminState = { error?: string; ok?: string } | undefined;
 
@@ -268,10 +268,8 @@ export async function adminFixBouncedEmail(
       .maybeSingle(),
   ]);
 
-  const hdrs = await headers();
-  const host = hdrs.get("host");
-  const proto = hdrs.get("x-forwarded-proto") ?? "https";
-  const baseUrl = host ? `${proto}://${host}` : "";
+  // Canonical domain, never the admin's browsing host. See base-url.ts.
+  const baseUrl = CANONICAL_ORIGIN;
 
   const { subject, html } = buildDeliveryEmail({
     operatorName: operator?.name ?? "your crew",

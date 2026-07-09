@@ -6,7 +6,7 @@
   No em dashes anywhere.
 */
 import Link from "next/link";
-import { headers } from "next/headers";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 import { notFound } from "next/navigation";
 import { requireOperator } from "@/lib/operator-session";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -67,7 +67,7 @@ export default async function DeliveryPage({
 
   // Wave two: the reads that needed wave one's results, again together.
   const recipientIds = (recipients ?? []).map((r) => r.id);
-  const [{ data: events }, previewUrl, hdrs] = await Promise.all([
+  const [{ data: events }, previewUrl] = await Promise.all([
     recipientIds.length
       ? supabase.from("events").select("recipient_id, type").in("recipient_id", recipientIds)
       : Promise.resolve({ data: [] as { recipient_id: string; type: string }[] }),
@@ -78,7 +78,6 @@ export default async function DeliveryPage({
           .createSignedUrl(firstPhoto.storage_key, 60 * 60)
           .then(({ data: signed }) => signed?.signedUrl ?? null)
       : Promise.resolve(null),
-    headers(),
   ]);
 
   // Fold each guest's events into download/open flags for the status chip.
@@ -89,7 +88,9 @@ export default async function DeliveryPage({
     if (e.type === "opened") cur.open = true;
     eventsByRecipient.set(e.recipient_id, cur);
   }
-  const baseUrl = `${hdrs.get("x-forwarded-proto") ?? "https"}://${hdrs.get("host") ?? ""}`;
+  // Guest links (Copy link hands these to guests) live on the canonical
+  // domain, never the operator's browsing host. See base-url.ts.
+  const baseUrl = CANONICAL_ORIGIN;
   // Preview mode: the crew checking their own send must not write opened or
   // downloaded events, or guest number one gets a review ask for a gallery
   // they never saw.
