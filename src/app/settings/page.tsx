@@ -2,9 +2,9 @@
   Operator settings, dark workspace with the persistent nav. Edit branding and
   manage review links. Reads go through the RLS client.
 */
-import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { requireOperator } from "@/lib/operator-session";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOperatorCaptureToken } from "@/lib/capture";
 import { OperatorNav } from "@/app/_ui/operator-nav";
@@ -26,7 +26,7 @@ export default async function SettingsPage() {
   // Independent reads all fire at once; the page waits for the slowest one,
   // not the sum. The capture link is the one lazy-creating call and is safe
   // to run alongside the reads.
-  const [{ data: branding }, { data: links }, { data: boats }, { data: crew }, captureToken, hdrs] =
+  const [{ data: branding }, { data: links }, { data: boats }, { data: crew }, captureToken] =
     await Promise.all([
       supabase
         .from("branding")
@@ -52,12 +52,10 @@ export default async function SettingsPage() {
         .order("sort_order", { ascending: true }),
       // One standing, operator wide capture link, rendered as a single QR.
       getOperatorCaptureToken(operatorId),
-      headers(),
     ]);
-  const host = hdrs.get("host");
-  const proto = hdrs.get("x-forwarded-proto") ?? "https";
-  const baseUrl = host ? `${proto}://${host}` : "";
-  const captureUrl = captureToken && baseUrl ? `${baseUrl}/j/${captureToken}` : null;
+  // The QR gets printed and lives on the boat for years: it must carry the
+  // canonical domain, never the host the operator happened to browse on.
+  const captureUrl = captureToken ? `${CANONICAL_ORIGIN}/j/${captureToken}` : null;
   // A PNG data URL (not SVG) so it renders as a real image the operator can save
   // to their phone's photos, and downloads as a .png. 512px stays crisp when
   // shown small on screen or printed larger.

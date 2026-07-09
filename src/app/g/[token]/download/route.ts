@@ -14,6 +14,7 @@ import { after } from "next/server";
 import { getGalleryByToken, isExpired } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendReviewAskAfterDownload } from "@/lib/review-ask";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
 export async function GET(
   request: Request,
@@ -71,9 +72,9 @@ export async function GET(
       );
     }
     // The instant review ask, after the response so the redirect is never
-    // slowed. Idempotent inside, so ten photo taps send one email.
-    const origin = new URL(request.url).origin;
-    after(() => sendReviewAskAfterDownload(data.recipient.id, origin));
+    // slowed. Idempotent inside, so ten photo taps send one email. Its links
+    // live on the canonical domain (see base-url.ts).
+    after(() => sendReviewAskAfterDownload(data.recipient.id, CANONICAL_ORIGIN));
   }
 
   // Straight to Supabase for the bytes. no-store so the redirect itself is
@@ -111,8 +112,7 @@ export async function POST(
         `share download event insert failed for recipient ${data.recipient.id}: ${error.message}`,
       );
     }
-    const origin = new URL(request.url).origin;
-    after(() => sendReviewAskAfterDownload(data.recipient.id, origin));
+    after(() => sendReviewAskAfterDownload(data.recipient.id, CANONICAL_ORIGIN));
   }
   return new Response(null, { status: 204 });
 }

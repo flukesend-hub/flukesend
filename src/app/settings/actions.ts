@@ -9,7 +9,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, escapeHtml } from "@/lib/email";
@@ -19,6 +18,7 @@ import { isCrewRole } from "@/lib/roles";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
 import { normalizeSpecies } from "@/lib/species";
 import { TRIP_TIME_SLOTS } from "@/lib/trip-times";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
 export type SettingsState =
   | { error?: string; ok?: string; upgrade?: boolean }
@@ -373,10 +373,8 @@ export async function createInvite(
       admin.from("branding").select("reply_to_email").eq("operator_id", operatorId).maybeSingle(),
     ]);
     const opName = (op?.name as string) || "your team";
-    const hdrs = await headers();
-    const host = hdrs.get("host");
-    const proto = hdrs.get("x-forwarded-proto") ?? "https";
-    const baseUrl = host ? `${proto}://${host}` : "";
+    // Canonical domain, never the inviter's browsing host. See base-url.ts.
+    const baseUrl = CANONICAL_ORIGIN;
     // White label the invite like the operator's other emails: from their own
     // sending identity (their verified domain, or their name at flukesend.com),
     // replying to their own inbox.

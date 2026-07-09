@@ -11,7 +11,6 @@
 */
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -22,6 +21,7 @@ import { getTrialUsage, getPlan, TRIAL_TRANSFERS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
 import { deliveryExpiresAt } from "@/lib/retention";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
 const PHOTO_TYPES = [
   "image/png",
@@ -382,15 +382,15 @@ export async function createSend(
     .eq("id", operatorId)
     .maybeSingle();
 
-  const hdrs = await headers();
-  const host = hdrs.get("host");
-  const proto = hdrs.get("x-forwarded-proto") ?? "https";
-  const baseUrl = host ? `${proto}://${host}` : "";
+  // Guest links always live on the canonical domain, never the host the
+  // operator happens to be browsing (a preview URL would email dead links).
+  const baseUrl = CANONICAL_ORIGIN;
   const message = input.customMessage || branding?.default_message || "";
 
   let emailed = 0;
   const failed: string[] = [];
-  if (baseUrl) {
+  // Scope block: everything below builds and sends the guest emails.
+  {
     const deliveryFrom = await resolveFromAddress(operatorId, operator?.name ?? "your crew");
     const deliveryReplyTo = branding?.reply_to_email ?? null;
     const messages: BatchEmail[] = recipients.map((r) => {

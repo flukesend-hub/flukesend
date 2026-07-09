@@ -17,6 +17,7 @@ import { after } from "next/server";
 import { getGalleryByToken, isExpired } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendReviewAskAfterDownload } from "@/lib/review-ask";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
 export const maxDuration = 120;
 
@@ -215,8 +216,7 @@ export async function GET(
         `zip download event insert failed for recipient ${data.recipient.id}: ${evErr.message}`,
       );
     }
-    const origin = new URL(request.url).origin;
-    after(() => sendReviewAskAfterDownload(data.recipient.id, origin));
+    after(() => sendReviewAskAfterDownload(data.recipient.id, CANONICAL_ORIGIN));
   }
 
   const names = entryNames(photos);
