@@ -24,6 +24,7 @@ import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { incrementRecipientsUsed } from "@/lib/usage";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
 export const maxDuration = 300;
 
@@ -57,7 +58,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const dry = url.searchParams.get("dry") === "1";
   const onlyOperator = url.searchParams.get("operator");
-  const baseUrl = url.origin;
+  // Not request.url's origin: Vercel invokes crons on the deployment URL,
+  // which guests cannot open (deployment protection). See base-url.ts.
+  const baseUrl = CANONICAL_ORIGIN;
   const admin = createAdminClient();
   const now = Date.now();
   const today = new Date(now).toISOString().slice(0, 10); // UTC date; never touch >= today

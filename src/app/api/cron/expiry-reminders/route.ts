@@ -20,6 +20,7 @@ import { sendEmail } from "@/lib/email";
 import { buildReminderEmail } from "@/lib/reminder-email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { PLANS } from "@/lib/plans";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
 export const maxDuration = 300;
 
@@ -44,7 +45,9 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
   const dry = new URL(request.url).searchParams.get("dry") === "1";
-  const baseUrl = new URL(request.url).origin;
+  // Not request.url's origin: Vercel invokes crons on the deployment URL,
+  // which guests cannot open (deployment protection). See base-url.ts.
+  const baseUrl = CANONICAL_ORIGIN;
 
   const admin = createAdminClient();
   const now = Date.now();

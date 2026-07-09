@@ -21,6 +21,7 @@ import {
 } from "@/lib/review-email";
 import { type SocialLinks } from "@/lib/social";
 import { resolveFromAddress } from "@/lib/sender-domain";
+import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
 type OperatorContext = {
   operatorName: string;
@@ -47,9 +48,10 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const cutoff = reviewDelayCutoffISO();
-  // The deployment origin, used to build the tracked review link back to this
-  // app. The cron is called at the deployment URL, so its own origin is right.
-  const baseUrl = new URL(request.url).origin;
+  // The canonical origin, used to build the tracked review link back to this
+  // app. Not request.url's origin: Vercel invokes crons on the deployment URL,
+  // which guests cannot open (deployment protection). See base-url.ts.
+  const baseUrl = CANONICAL_ORIGIN;
 
   // Pending recipients that have at least one downloaded event.
   const { data: recips, error } = await admin
