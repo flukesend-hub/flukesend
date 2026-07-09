@@ -12,6 +12,11 @@ import { ImageResponse } from "next/og";
 export const STORY_W = 1080;
 export const STORY_H = 1920;
 
+// Instagram overlays the top of a story with its own chrome (the avatar,
+// username, and timestamp), which was landing right on top of the operator's
+// logo. Reserve a safe band at the top so everything starts below it.
+const SAFE_TOP = 180;
+
 const INK = "#f7f6f3";
 const SOFT = "rgba(247,246,243,0.72)";
 
@@ -105,6 +110,10 @@ export function storyCardImage(input: StoryCardInput): ImageResponse {
   return new ImageResponse(
     (
       <div style={{ width: STORY_W, height: STORY_H, display: "flex", flexDirection: "column", background: brand, color: INK, fontFamily }}>
+        {/* Safe band for Instagram's own header, so its username does not cover
+            the operator's logo. Same brand color, so it reads as one field. */}
+        <div style={{ height: SAFE_TOP, flex: "0 0 auto", display: "flex" }} />
+
         {/* Operator logo banner, on the brand color where their logo is built to sit. */}
         <div style={{ height: 268, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 60px" }}>
           {input.logoUrl ? (

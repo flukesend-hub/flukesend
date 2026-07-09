@@ -30,7 +30,7 @@ export type StoryDay = {
 
 // Bumped when the card design changes, so a plain reload fetches the new render
 // instead of the browser's 10 minute cached copy of the same URL.
-const CARD_V = 4;
+const CARD_V = 5;
 const MAX_POST = 10; // Instagram carousel limit.
 const MAX_SLIDES = 10;
 const MAX_VIDEO_SECONDS = 15; // hard cap on the slideshow length
