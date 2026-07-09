@@ -3,9 +3,9 @@
 /*
   The Team section: who shares this operator account, and the owner's controls to
   invite a teammate by email or revoke a pending invite. Everyone here logs in
-  separately but works under the same operator (shared branding, one bill). The
-  join flow that turns an invite into a member lands in the next step; for now
-  this is the owner-facing management.
+  separately but works under the same operator (shared branding, one bill).
+  Inviting emails the teammate; they join by signing up with that same email and
+  accepting on the onboarding screen.
 */
 import { useActionState } from "react";
 import { createInvite, revokeInvite, type SettingsState } from "./actions";
