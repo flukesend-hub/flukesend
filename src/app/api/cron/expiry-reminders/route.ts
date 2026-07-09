@@ -1,16 +1,15 @@
 /*
-  Expiring-soon reminders (Offshore and Fleet). Daily sweep for recipients
-  whose gallery closes within the window, who never downloaded, and who have
-  not been nudged before. One reminder per guest, ever. Every recovered
-  download fires the instant review ask downstream, so this cron directly
-  feeds the review engine.
+  Expiring-soon reminders. Daily sweep for recipients whose gallery closes
+  within the window, who never downloaded, and who have not been nudged before.
+  One reminder per guest, ever. Every recovered download fires the instant
+  review ask downstream, so this cron directly feeds the review engine.
 
   Eligibility, all of which must hold:
   - delivery expires within REMINDER_WINDOW_HOURS but has not expired yet
   - the recipient has no downloaded event
   - reminder_sent_at is null (never double nudge)
   - the email did not bounce (never nudge a dead address)
-  - the operator's plan includes the reminder (Offshore, Fleet)
+  - the operator is on the paid plan (which includes the reminder)
 
   ?dry=1 reports who would be nudged without sending anything.
 */
@@ -20,7 +19,7 @@ import { fetchAllRows } from "@/lib/db-page";
 import { sendEmail } from "@/lib/email";
 import { buildReminderEmail } from "@/lib/reminder-email";
 import { resolveFromAddress } from "@/lib/sender-domain";
-import { PLANS, type PlanKey } from "@/lib/plans";
+import { PLANS } from "@/lib/plans";
 
 export const maxDuration = 300;
 
@@ -94,10 +93,12 @@ export async function GET(request: Request) {
         .eq("operator_id", operatorId)
         .maybeSingle(),
     ]);
-    const tier = ((sub?.tier as PlanKey) ?? "single") as PlanKey;
+    // One paid plan, which includes reminders. Operators actually on it have a
+    // tier set; trials and canceled (null tier) do not, and stay excluded.
+    const onPlan = Boolean(sub?.tier);
     const name = operator?.name ?? "your crew";
     const ctx: OperatorContext = {
-      allowed: PLANS[tier]?.expiryReminder ?? false,
+      allowed: onPlan && PLANS.fleet.expiryReminder,
       operatorName: name,
       from: await resolveFromAddress(operatorId, name),
       brandColor: branding?.brand_color ?? "#0b5563",

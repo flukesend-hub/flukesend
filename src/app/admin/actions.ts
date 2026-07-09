@@ -4,9 +4,9 @@
   with the service role, since it writes other operators' rows across RLS.
 
   Plans: "trial" removes the subscription row (they fall back to the free trial
-  and can subscribe in app); single/two/fleet comp them at that tier with no
-  Stripe ids. Changing the plan is refused when a real Stripe customer exists,
-  so a paying subscription is never orphaned.
+  and can subscribe in app); "fleet" comps them on the paid plan with no Stripe
+  ids. Changing the plan is refused when a real Stripe customer exists, so a
+  paying subscription is never orphaned.
 */
 "use server";
 
@@ -27,7 +27,7 @@ import {
 
 export type AdminState = { error?: string; ok?: string } | undefined;
 
-const PLANS = ["trial", "canceled", "single", "two", "fleet"] as const;
+const PLANS = ["trial", "canceled", "fleet"] as const;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 export async function setPlan(operatorId: string, plan: string): Promise<AdminState> {

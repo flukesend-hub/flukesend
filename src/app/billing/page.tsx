@@ -32,7 +32,7 @@ export default async function BillingPage({
   // Emails remaining this month, shown for operators on a paid plan.
   let quotaNote: string | null = null;
   if (status === "active" && sub?.tier) {
-    const plan = PLANS[sub.tier as "single" | "two" | "fleet"];
+    const plan = PLANS.fleet;
     const q = monthlyQuota(used, plan.emailsPerMonth);
     quotaNote =
       q.remaining === null
@@ -70,7 +70,7 @@ export default async function BillingPage({
 
         <BillingClient
           status={status}
-          tier={(sub?.tier as "single" | "two" | "fleet" | null) ?? null}
+          tier={sub?.tier ? "fleet" : null}
           cycle={(sub?.billing_cycle as "monthly" | "yearly" | null) ?? null}
         />
       </main>

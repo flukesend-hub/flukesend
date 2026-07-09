@@ -1,41 +1,18 @@
 /*
-  Story Builder (Fleet). Pick a trip day and build a branded photo-of-the-day
-  story: the sightings across that day's trips, and a hero of your choice. The
-  page lists the operator's recent trip days (last 30, only those with photos);
-  the client does the day selection, hero pick, live preview, and download.
-  Non-Fleet operators get an upsell instead.
+  Story Builder. Pick a trip day and build a branded photo-of-the-day story: the
+  sightings across that day's trips, and a hero of your choice. The page lists
+  the operator's recent trip days (last 30, only those with photos); the client
+  does the day selection, hero pick, live preview, and download. Part of the
+  single plan, so every operator has it.
 */
-import Link from "next/link";
 import { requireOperator } from "@/lib/operator-session";
 import { OperatorNav } from "@/app/_ui/operator-nav";
-import { getPlan } from "@/lib/trial";
-import { PLANS } from "@/lib/plans";
 import { StoryBuilder, type StoryDay } from "./story-builder";
 
 export const dynamic = "force-dynamic";
 
 export default async function StoryPage() {
   const { supabase, operatorId, operatorName } = await requireOperator();
-  const tier = (await getPlan(supabase, operatorId)).tier;
-  const allowed = PLANS[tier]?.storyBuilder ?? false;
-
-  if (!allowed) {
-    return (
-      <>
-        <OperatorNav operatorName={operatorName ?? "Operator"} />
-        <main style={{ maxWidth: "620px", margin: "0 auto", padding: "44px 22px 80px" }}>
-          <div className="fl-eyebrow">Social</div>
-          <h1 className="fl-h1" style={{ fontSize: "30px" }}>Ready-to-post social from every day on the water</h1>
-          <p style={{ color: "var(--muted)", fontSize: "14.5px", lineHeight: 1.6, maxWidth: "54ch", margin: "10px 0 0" }}>
-            Turn a day of trips into a branded photo-of-the-day story, or grab a set of the day's best shots for a regular Instagram post. Your own colors and logo, sized for Instagram. Social is part of the Fleet plan.
-          </p>
-          <Link href="/billing" className="fl-btn" style={{ display: "inline-block", marginTop: 22, textDecoration: "none", padding: "13px 22px" }}>
-            See the Fleet plan
-          </Link>
-        </main>
-      </>
-    );
-  }
 
   // Last 30 days of trips, grouped by UTC day. Only days that have photos can
   // become a card, since the card needs a hero.
