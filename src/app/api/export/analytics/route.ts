@@ -1,11 +1,9 @@
 /*
-  Analytics CSV export, full plans only (Offshore and Fleet). One row per send
-  with its guest count, opens, downloads, and review asks. Reads go through the
-  RLS server client, so the download only ever contains this operator's data.
+  Analytics CSV export. One row per send with its guest count, opens, downloads,
+  and review asks. Reads go through the RLS server client, so the download only
+  ever contains this operator's data.
 */
 import { createClient } from "@/lib/supabase/server";
-import { getPlan } from "@/lib/trial";
-import { PLANS } from "@/lib/plans";
 import { getDeliveryRows } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
@@ -38,11 +36,6 @@ export async function GET() {
     return new Response("No operator.", { status: 403 });
   }
   const operatorId = membership.operator_id as string;
-
-  const plan = PLANS[(await getPlan(supabase, operatorId)).tier];
-  if (plan.analytics !== "full") {
-    return new Response("CSV export is on the Offshore and Fleet plans.", { status: 403 });
-  }
 
   const rows = await getDeliveryRows(supabase, operatorId);
 
