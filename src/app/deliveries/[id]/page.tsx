@@ -106,10 +106,10 @@ export default async function DeliveryPage({
   // list (the analytics bounce chip links here, so the guest it points at must
   // be the first thing seen), then everyone else alphabetically so a long list
   // scans predictably.
-  const failed = (s: string | null) => s === "bounced" || s === "complained";
+  const emailFailed = (s: string | null) => s === "bounced" || s === "complained";
   const sortedRecipients = [...(recipients ?? [])].sort((a, b) => {
-    const aBad = failed(a.email_status as string | null) ? 0 : 1;
-    const bBad = failed(b.email_status as string | null) ? 0 : 1;
+    const aBad = emailFailed(a.email_status as string | null) ? 0 : 1;
+    const bBad = emailFailed(b.email_status as string | null) ? 0 : 1;
     return aBad - bBad || (a.email as string).localeCompare(b.email as string);
   });
   // Deep link to the Social page, opened on this trip's day so the operator can
