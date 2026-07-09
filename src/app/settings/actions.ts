@@ -13,6 +13,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, escapeHtml } from "@/lib/email";
+import { resolveFromAddress } from "@/lib/sender-domain";
 import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { isCrewRole } from "@/lib/roles";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
@@ -367,20 +368,25 @@ export async function createInvite(
   // Email the invite. Best effort: the invite already exists, so a mail hiccup
   // must not fail the action. The teammate joins by signing up with this email.
   try {
-    const { data: op } = await admin
-      .from("operators")
-      .select("name")
-      .eq("id", operatorId)
-      .maybeSingle();
+    const [{ data: op }, { data: brand }] = await Promise.all([
+      admin.from("operators").select("name").eq("id", operatorId).maybeSingle(),
+      admin.from("branding").select("reply_to_email").eq("operator_id", operatorId).maybeSingle(),
+    ]);
     const opName = (op?.name as string) || "your team";
     const hdrs = await headers();
     const host = hdrs.get("host");
     const proto = hdrs.get("x-forwarded-proto") ?? "https";
     const baseUrl = host ? `${proto}://${host}` : "";
+    // White label the invite like the operator's other emails: from their own
+    // sending identity (their verified domain, or their name at flukesend.com),
+    // replying to their own inbox.
+    const from = await resolveFromAddress(operatorId, opName);
     await sendEmail(
       email,
-      `Join ${opName} on Flukesend`,
+      `You're invited to join ${opName}`,
       inviteEmailHtml(opName, email, baseUrl),
+      from,
+      (brand?.reply_to_email as string | null) ?? null,
     );
   } catch (mailErr) {
     console.error(`invite email failed for ${email}: ${String(mailErr)}`);
@@ -398,7 +404,7 @@ function inviteEmailHtml(opName: string, email: string, baseUrl: string): string
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:30px 16px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e6e9e8;border-radius:18px;overflow:hidden">
         <tr><td style="padding:30px 28px 6px">
-          <h1 style="font-size:23px;line-height:1.25;margin:0 0 14px;color:#16241f">Join ${name} on Flukesend</h1>
+          <h1 style="font-size:23px;line-height:1.25;margin:0 0 14px;color:#16241f">Join the ${name} team</h1>
           <p style="font-size:15px;line-height:1.55;margin:0 0 8px;color:#33464a">You have been added as a team member for ${name}. Create your account with this email address, <strong>${escapeHtml(email)}</strong>, and you can join and start sending trip photos.</p>
         </td></tr>
         <tr><td style="padding:16px 28px 8px">
