@@ -8,7 +8,7 @@
   numbers are bold and dark, labels are small and quiet, rates are chips.
   Boats have no table of their own; each Recent sends row carries its boat.
 */
-import type { Analytics, DeliveryRow, Funnel, GroupRow, TrendPoint } from "@/lib/analytics";
+import type { Analytics, BouncedGuest, DeliveryRow, Funnel, GroupRow, TrendPoint } from "@/lib/analytics";
 
 function pct(part: number, whole: number): number {
   return whole > 0 ? Math.round((part / whole) * 100) : 0;
@@ -32,7 +32,7 @@ export function AnalyticsView({
 }) {
   return (
     <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
-      <FunnelBars month={data.month} />
+      <FunnelBars month={data.month} bouncedGuests={data.bouncedGuests} />
 
       <RecentSends rows={recentSends} />
       <div style={twoCol}>
@@ -54,7 +54,7 @@ export function AnalyticsView({
 // The month at a glance: two small side stats, then the guest funnel drawn as
 // shrinking bars. Each stage shows its count and its share of the stage above,
 // so the leak between any two steps reads without any mental math.
-function FunnelBars({ month }: { month: Funnel }) {
+function FunnelBars({ month, bouncedGuests }: { month: Funnel; bouncedGuests: BouncedGuest[] }) {
   // No "Review asks sent" step: the ask fires automatically on download, so it
   // just echoes the downloaded number and adds no signal. The real guest
   // journey is four steps across three systems (email, gallery, review).
@@ -117,11 +117,38 @@ function FunnelBars({ month }: { month: Funnel }) {
           })}
         </div>
         {month.bounced > 0 ? (
-          <p style={{ margin: "14px 0 0", fontSize: "12.5px", color: "var(--bad)", lineHeight: 1.5 }}>
-            {month.bounced} {month.bounced === 1 ? "email" : "emails"} bounced this
-            month and never reached anyone. Open that send to see who and fix the
-            address.
-          </p>
+          // Each bounced address links straight to its send, where the edit
+          // and resend controls live, so fixing it is one tap, not a hunt.
+          <div style={{ margin: "14px 0 0" }}>
+            <p style={{ margin: "0 0 8px", fontSize: "12.5px", color: "var(--bad)", lineHeight: 1.5 }}>
+              {month.bounced} {month.bounced === 1 ? "email" : "emails"} bounced this
+              month and never reached anyone. Tap one to fix the address or resend.
+            </p>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {bouncedGuests.map((g) => (
+                <a
+                  key={`${g.deliveryId}:${g.email}`}
+                  href={`/deliveries/${g.deliveryId}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "12.5px",
+                    color: "var(--bad)",
+                    border: "1px solid rgba(194,83,63,.4)",
+                    background: "rgba(194,83,63,.08)",
+                    borderRadius: "999px",
+                    padding: "4px 11px",
+                    textDecoration: "none",
+                  }}
+                >
+                  <span style={{ fontWeight: 600 }}>{g.email}</span>
+                  <span style={{ color: "var(--muted)" }}>{g.tripLabel}</span>
+                  <span aria-hidden="true">{"→"}</span>
+                </a>
+              ))}
+            </div>
+          </div>
         ) : null}
       </div>
     </div>
