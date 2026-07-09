@@ -1,8 +1,8 @@
 /*
-  The expiring-soon reminder (Offshore and Fleet). One nudge to a guest who
-  has their gallery link but has not downloaded, sent shortly before the
-  gallery expires. Every recovered download fires the review ask, so this
-  email directly buys the operator more reviews.
+  The expiring-soon reminder. One nudge to a guest who has their gallery link
+  but has not downloaded, sent shortly before the gallery expires. Every
+  recovered download fires the review ask, so this email directly buys the
+  operator more reviews.
 
   Same visual language as the delivery email: brand colored header band with
   the logo, one headline, one button. Light only, inline styled, no em dashes.

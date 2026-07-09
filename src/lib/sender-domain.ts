@@ -1,15 +1,16 @@
 /*
-  White label sending domains (Fleet tier). An operator verifies their own
-  domain with Resend by adding DNS records, and from then on their delivery
-  and review emails send from photos@theirdomain.com instead of the shared
-  slug@flukesend.com. Their brand in the inbox, their domain's reputation.
+  White label sending domains, part of the single plan. An operator verifies
+  their own domain with Resend by adding DNS records, and from then on their
+  delivery and review emails send from photos@theirdomain.com instead of the
+  shared slug@flukesend.com. Their brand in the inbox, their domain's
+  reputation.
 
   Resend's DNS records live on a return-path subdomain (send.theirdomain.com)
   plus a DKIM selector record, so nothing about the operator's existing email
   (their own SPF or MX on the root) is touched. Safe to tell operators that.
 
   All writes go through the Resend API with our key, service role in the
-  database. Callers gate on the Fleet plan before invoking.
+  database. Setup is concierge only, through the admin support page.
 */
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";

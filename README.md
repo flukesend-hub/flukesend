@@ -7,8 +7,10 @@ photos, logs in, creates a send, and drops the photos in. Each guest opens a pri
 branded gallery and downloads. The moment they download, they get an automatic,
 branded ask to leave a review.
 
-The source of truth for scope is `docs/spec.md`. The database schema is `docs/0001_init.sql`
-plus the later numbered migrations in `docs/` (through `0022_*` at time of writing).
+The source of truth for scope is `docs/spec.md` (written at kickoff; the product has
+grown past it in places). The current product state and idea backlog live in
+`docs/state.md`. The database schema is `docs/0001_init.sql` plus the later numbered
+migrations in `docs/` (through `0025_*` at time of writing).
 
 Standing rules for this repo: no em dashes anywhere in copy or comments; the operator
 is always the tenant (multi tenant with Row Level Security by operator); the Supabase
@@ -43,12 +45,13 @@ Auth:
 - `/auth/callback` exchanges the OAuth or recovery code for a session.
 
 Operator app (requires an operator):
-- `/send` the home screen: create a send (trip details, photos, guest emails), with QR-captured guests preloaded by trip time.
-- `/deliveries/[id]` the send confirmation, WeTransfer finished-send style: per-guest status, add a guest, fix or resend a bounce, delete the send.
+- `/send` the home screen: create a send (trip details, photos, guest emails, per-species head counts), with QR-captured guests preloaded by trip time.
+- `/deliveries/[id]` the send confirmation, WeTransfer finished-send style: per-guest status, add a guest, fix or resend a bounce, delete the send, and a "Make a story" link into the Social page for that trip day.
+- `/story` the Social page: build a branded story card, a slideshow video, or a photo set for a regular post from any recent trip day. See the Social section below.
 - `/analytics` the funnel dashboard: reached, opened, downloaded, review clicks, recent sends, trend, per-photographer breakdown, CSV export.
-- `/settings` branding, trip times, website and social links, species list, boats and employees, review links, and the white-label sending domain.
+- `/settings` branding, trip times, website and social links, species list, boats and employees, the team (invite teammates), review links.
 - `/billing` Stripe checkout and customer portal.
-- `/onboarding` first-run operator setup. `/dashboard` redirects to `/send`.
+- `/onboarding` first-run operator setup, or the join screen when a team invite is waiting. `/dashboard` redirects to `/send`.
 
 Admin (platform owner only, gated by email allowlist):
 - `/admin` the support console: fleet KPIs for the month, a triage queue of operators needing attention, and a brand-colored card per operator (their logo, live health, plan control, invite link).
@@ -61,7 +64,8 @@ Guest (tokened, no account):
 API:
 - `/api/cron/review-emails` the review sweep, safety net for the instant ask (Bearer `CRON_SECRET`).
 - `/api/cron/expiry-reminders` reminds guests whose gallery is about to expire.
-- `/api/cron/cleanup` removes storage for expired sends.
+- `/api/cron/cleanup` removes storage for expired sends (09:00 UTC, which is 2 AM Pacific).
+- `/api/cron/reconcile-captures` every 15 minutes, catches QR sign-ups that arrived after their trip's send went out and emails them their gallery.
 - `/api/webhooks/stripe` Stripe webhook (signature verified).
 - `/api/webhooks/resend` Resend bounce and complaint webhook (writes `email_status`).
 - `/api/export/recipients` CSV of the operator's guest emails. `/api/export/analytics` CSV of every send with its funnel.
@@ -97,8 +101,39 @@ named twice in the email. See `src/lib/roles.ts`.
 Each operator keeps their own species list (`branding.species_options`), chosen from a
 built-in US West Coast catalog or typed in, and their own trip times
 (`branding.trip_times`). The send form and the QR sign-up both read the trip times; the
-send form shows the species list as pills. See `src/lib/species.ts` and
+send form shows the species list as pills, each with an optional head count
+(`deliveries.species_counts`, migration `0024`). See `src/lib/species.ts` and
 `src/lib/trip-times.ts`.
+
+## Social (the Story Builder)
+
+`/story` turns a trip day into ready-to-post content in the operator's brand
+(`src/app/story/story-builder.tsx`, shared renderer `src/lib/story-card.tsx`):
+
+- Story, single: a 1080x1920 "Photo of the day" card with the operator's logo on the
+  brand color, a hero photo, the date and trip time, the species sighted, and the
+  website. With head counts recorded, sightings show as number plus name; across a
+  multi-trip day the count per species is the highest single-trip count, not the sum,
+  since the same animals are usually seen on more than one trip.
+- Story, slideshow: the chosen photos encoded client side into one branded .mp4
+  (WebCodecs plus mp4-muxer, `src/app/story/make-video.ts`), 15 seconds max, with a
+  Fast, Medium, Slow speed control. Frames are labeled "Photos from today".
+- Post: pick up to 10 photos and download them as a set for a regular carousel post.
+
+The card reserves a 180px top band so Instagram's own story header (avatar, username)
+never covers the logo. `CARD_V` in the builder versions the card preview URLs; bump it
+whenever the card design changes, since the browser caches a rendered card for 10
+minutes per URL.
+
+## Team
+
+One operator, several logins. The owner invites a teammate by email in Settings
+(`operator_invites`, migration `0025`); the invite email is white labeled as the
+operator. When the invited person signs up with that email, onboarding shows only a
+"Join {Operator}" screen and binds them as `crew` (the roles CHECK allows only owner
+and crew). Crew have full operational access by membership; only the owner manages the
+team. One login belongs to one operator by design; a photographer working for two
+companies uses two work emails.
 
 ## Branding and theme
 
@@ -113,10 +148,12 @@ Two separate color systems, do not confuse them:
 
 ## Email
 
-- Guest emails (gallery delivery and the review ask) are built in `src/lib/delivery-email.ts`
-  and `src/lib/review-email.ts` and sent through Resend. They are white labeled as the
-  operator: the From is `"Operator Name" <slug@flukesend.com>` and the Reply-To is the
-  operator's reply-to address set in Settings.
+- Guest emails (gallery delivery, the review ask, the expiry reminder) and team invites
+  are built in `src/lib/delivery-email.ts`, `src/lib/review-email.ts`,
+  `src/lib/reminder-email.ts`, and `src/app/settings/actions.ts`, and sent through
+  Resend. They are white labeled as the operator: the From is
+  `"Operator Name" <slug@flukesend.com>` and the Reply-To is the operator's reply-to
+  address set in Settings.
 - White-label sending domains: an operator can send from their own domain instead of
   the shared `flukesend.com` sender once it is verified. `resolveFromAddress`
   (`src/lib/sender-domain.ts`) picks the verified operator domain when present. This is
@@ -136,23 +173,34 @@ Two separate color systems, do not confuse them:
 
 `/analytics` (`src/lib/analytics.ts`) is the operator's funnel: guests reached, opened,
 downloaded, and review clicks for the current month, drawn as shrinking bars, plus
-recent sends, a monthly trend, a per-photographer breakdown, and CSV export. Basic
-plans see the month totals; full plans get the trends, breakdowns, and export.
+recent sends, a monthly trend, a per-photographer breakdown, and CSV export. The single
+plan includes all of it.
 
 ## Billing and plans
 
-- Plans are single (Inshore, 1 boat's worth of sending), two (Offshore), and fleet
-  (Fleet, unlimited), monthly or yearly. Catalog and price IDs live in `src/lib/stripe.ts`.
-- New operators are on a free trial: `TRIAL_TRANSFERS` (3) or `TRIAL_EMAILS` (30),
-  whichever comes first (`src/lib/trial.ts`). Past the wall, sending is blocked with an
-  upgrade prompt.
-- Boat count and per-send and per-month email caps are gated by plan (`src/lib/plans.ts`).
+- One paid plan, everything included: $300 a month or $3,000 a year (two months free).
+  Unlimited emails a month, up to 100 per send, unlimited boats, full analytics, the
+  Social page, white label sending, expiry reminders. The internal plan key is still
+  `fleet` (so no data migration was needed when the tiers collapsed); the display name
+  lives in `src/lib/plans.ts`. Price IDs live in `src/lib/stripe.ts`.
+- New operators are on a free trial: `TRIAL_TRANSFERS` (3) free transfers, each
+  reaching as many guests as they like (`src/lib/trial.ts`). Past the wall, sending is
+  blocked with an upgrade prompt.
 - Subscription state lives in the `subscriptions` table (status trial, active, or
   canceled; tier; billing cycle). No row reads as trial. Canceled means no plan, so
   sending is blocked until they subscribe.
-- Comping: the admin sets an operator to active with a tier and no Stripe ids, which is
-  unlimited free use. Removing a comp drops them back to the trial so they can subscribe
-  normally.
+- Comping: the admin sets an operator to active with no Stripe ids, which is unlimited
+  free use. Removing a comp drops them back to the trial so they can subscribe normally.
+
+## Retention and cleanup
+
+Every delivery stamps `expires_at` when created: whole local days, not hours. A send on
+July 1 with 7 day retention stays live through all of July 8 and expires at midnight
+Pacific, so every send on a day expires together and the guest keeps the full final
+day (`src/lib/retention.ts`, anchored to `America/Los_Angeles` until per operator time
+zones exist). The nightly cleanup cron (2 AM Pacific) then removes the storage objects
+for expired sends; delivery rows, photo rows, and events stay for history and
+analytics.
 
 ## Admin
 
@@ -199,7 +247,7 @@ production Supabase project, so server actions and the review job run against re
 ## Migrations
 
 SQL migrations are numbered files in `docs/` (`0001_init.sql` onward, currently through
-`0022_*`). They are applied to the Supabase project. When you change the schema, add the
+`0025_*`). They are applied to the Supabase project. When you change the schema, add the
 next numbered file and apply it.
 
 ## Deployment

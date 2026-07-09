@@ -1,8 +1,8 @@
 /*
-  Analytics presentation. The current month funnel shows for everyone, drawn as
-  shrinking bars so the drop off between stages is visible at a glance. Recent
-  sends, trend, the photographer table, and CSV export are full plan only;
-  basic plans see an upgrade card in their place.
+  Analytics presentation. The current month funnel, drawn as shrinking bars so
+  the drop off between stages is visible at a glance, then recent sends, the
+  trend, the photographer table, and CSV export. The single plan includes all
+  of it, so there is no gated variant.
 
   Styling rule of thumb, so this reads as a dashboard and not a spreadsheet:
   numbers are bold and dark, labels are small and quiet, rates are chips.
@@ -26,49 +26,27 @@ function fmtDay(iso: string): string {
 export function AnalyticsView({
   data,
   recentSends,
-  isFull,
-  planName,
 }: {
   data: Analytics;
   recentSends: DeliveryRow[];
-  isFull: boolean;
-  planName: string;
 }) {
   return (
     <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
       <FunnelBars month={data.month} />
 
-      {isFull ? (
-        <>
-          <RecentSends rows={recentSends} />
-          <div style={twoCol}>
-            <Trend trend={data.trend} months={data.windowMonths} />
-            <Photographers rows={data.byPhotographer} last={data.windowMonths} />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <a href="/api/export/analytics" className="fl-btn" style={{ textDecoration: "none" }}>
-              Export CSV
-            </a>
-            <span style={{ fontSize: "12.5px", color: "var(--muted-2)" }}>
-              Every send with its guests, opens, downloads, and review asks.
-            </span>
-          </div>
-        </>
-      ) : (
-        <div className="fl-card" style={{ borderColor: "rgba(31,111,156,.45)", background: "rgba(31,111,156,.10)" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: 600 }}>
-            See trends and breakdowns
-          </h3>
-          <p style={{ margin: "0 0 12px", fontSize: "13.5px", color: "var(--muted)", lineHeight: 1.5 }}>
-            Your {planName} plan shows this month&apos;s totals. Upgrade to Offshore
-            for month by month trends, per send and per photographer breakdowns,
-            and CSV export.
-          </p>
-          <a href="/billing" className="fl-btn" style={{ textDecoration: "none" }}>
-            See plans
-          </a>
-        </div>
-      )}
+      <RecentSends rows={recentSends} />
+      <div style={twoCol}>
+        <Trend trend={data.trend} months={data.windowMonths} />
+        <Photographers rows={data.byPhotographer} last={data.windowMonths} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <a href="/api/export/analytics" className="fl-btn" style={{ textDecoration: "none" }}>
+          Export CSV
+        </a>
+        <span style={{ fontSize: "12.5px", color: "var(--muted-2)" }}>
+          Every send with its guests, opens, downloads, and review asks.
+        </span>
+      </div>
     </div>
   );
 }
