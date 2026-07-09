@@ -11,7 +11,7 @@ export const metadata = { title: "Pricing - Flukesend" };
 const FAQ: QA[] = [
   {
     q: "Is there a free trial?",
-    a: "Yes. Your first 3 transfers or 30 guest emails are free, whichever comes first. No card required to start.",
+    a: "Yes. Your first 3 transfers are free, with as many guest emails as you like on each. No card required to start.",
   },
   {
     q: "What do I need to use Flukesend?",
@@ -61,8 +61,8 @@ export default function PricingPage() {
           single six-passenger boat to a full fleet.
         </p>
         <div style={trial}>
-          Free trial: your first <strong>3 transfers or 30 guest emails</strong>,
-          on us. No card required.
+          Free trial: your first <strong>3 transfers</strong>, on us, with as
+          many guest emails as you like on each. No card required.
         </div>
       </section>
 

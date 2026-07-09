@@ -12,7 +12,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
-import { getTrialUsage, getPlan, TRIAL_EMAILS } from "@/lib/trial";
+import { getTrialUsage, getPlan } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
 
@@ -69,14 +69,10 @@ export async function addRecipient(
       upgrade: true,
     };
   }
-  if (usage.status !== "active") {
-    if (usage.emails + 1 > TRIAL_EMAILS) {
-      return {
-        error: `Adding a guest would pass your ${TRIAL_EMAILS} free trial guest emails. Upgrade to add more.`,
-        upgrade: true,
-      };
-    }
-  } else {
+  // Trial has no per guest limit, only a transfer count, and adding a guest to
+  // an existing send is not a new transfer. So only active operators, held to
+  // their plan's caps, are checked here.
+  if (usage.status === "active") {
     const plan = PLANS[(await getPlan(supabase, operatorId)).tier];
     const { count: onSend } = await supabase
       .from("recipients")
