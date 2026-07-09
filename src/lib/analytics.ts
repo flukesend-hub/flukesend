@@ -51,10 +51,20 @@ export type GroupRow = {
   downloaded: number;
 };
 
+// A bounced guest with enough context to jump straight to the send that holds
+// them, where the fix address and resend tools live.
+export type BouncedGuest = {
+  email: string;
+  deliveryId: string;
+  tripLabel: string;
+};
+
 export type Analytics = {
   monthKey: string;
   monthLabel: string;
   month: Funnel;
+  // The actual bounced addresses behind month.bounced, each linking to its send.
+  bouncedGuests: BouncedGuest[];
   trend: TrendPoint[];
   byPhotographer: GroupRow[];
   windowMonths: number;
@@ -64,11 +74,13 @@ export type Analytics = {
 type RecipientRow = {
   id: string;
   delivery_id: string;
+  email: string;
   review_email_status: string;
   email_status: string | null;
   deliveries: {
     operator_id: string;
     created_at: string;
+    trip_datetime: string | null;
     boat_name: string | null;
     captain_name: string | null;
     naturalist_name: string | null;
@@ -155,7 +167,7 @@ export async function getAnalytics(
       supabase
         .from("recipients")
         .select(
-          "id, delivery_id, review_email_status, email_status, deliveries!inner(operator_id, created_at, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
+          "id, delivery_id, email, review_email_status, email_status, deliveries!inner(operator_id, created_at, trip_datetime, boat_name, captain_name, naturalist_name, photographer_name, crew_names)",
         )
         .eq("deliveries.operator_id", operatorId)
         .gte("deliveries.created_at", windowStart)
@@ -210,17 +222,29 @@ export async function getAnalytics(
   const monthRecs = recipients.filter((r) => delById.get(r.delivery_id)!.key === currentKey);
   // Bounced emails never reached anyone, so they come out of "reached". A null
   // status (legacy or not yet reported) is not a bounce, so it stays counted.
-  const monthBounced = monthRecs.filter((r) => r.email_status === "bounced").length;
+  const monthBouncedRecs = monthRecs.filter((r) => r.email_status === "bounced");
   const month: Funnel = {
     sends,
-    reached: monthRecs.length - monthBounced,
+    reached: monthRecs.length - monthBouncedRecs.length,
     opened: monthRecs.filter((r) => opened.has(r.id)).length,
     downloaded: monthRecs.filter((r) => downloaded.has(r.id)).length,
     reviewAsks: monthRecs.filter((r) => r.review_email_status === "sent").length,
     reviewClicks: monthRecs.filter((r) => reviewClicked.has(r.id)).length,
     captured: capturedByMonth.get(currentKey) ?? 0,
-    bounced: monthBounced,
+    bounced: monthBouncedRecs.length,
   };
+  // Each bounced address, labeled by its trip and linked (in the view) to the
+  // send that holds it, where fix address and resend live.
+  const bouncedGuests: BouncedGuest[] = monthBouncedRecs.map((r) => {
+    const trip = r.deliveries.trip_datetime;
+    return {
+      email: r.email,
+      deliveryId: r.delivery_id,
+      tripLabel: trip
+        ? new Date(trip).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+        : "recent send",
+    };
+  });
 
   // Trend by month across the window.
   const trend: TrendPoint[] = keys.map((k) => {
@@ -245,6 +269,7 @@ export async function getAnalytics(
     monthKey: currentKey,
     monthLabel: monthLabel(currentKey),
     month,
+    bouncedGuests,
     trend,
     byPhotographer,
     windowMonths: WINDOW_MONTHS,
