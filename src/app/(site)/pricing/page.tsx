@@ -1,7 +1,7 @@
 /*
-  Public pricing page. Free trial, then per operator pricing by number of boats,
-  with a monthly / yearly toggle. Display only: billing and trial enforcement
-  live in the app, this page just shows the plans.
+  Public pricing page. Free trial, then one flat per operator price, with a
+  monthly / yearly toggle. Display only: billing and trial enforcement live in
+  the app, this page just shows the plan.
 */
 import { Faq, type QA } from "@/app/_ui/faq";
 import { PricingTable } from "./pricing-table";
@@ -57,8 +57,8 @@ export default function PricingPage() {
       <section style={{ maxWidth: "1080px", margin: "0 auto", padding: "56px 24px 20px", textAlign: "center" }}>
         <h1 style={hero}>Simple pricing, per operator</h1>
         <p style={lede}>
-          Start free, then pick the plan that fits your fleet. Every plan
-          includes the full review engine.
+          Start free, then one flat price with everything included, from a
+          single six-passenger boat to a full fleet.
         </p>
         <div style={trial}>
           Free trial: your first <strong>3 transfers or 30 guest emails</strong>,

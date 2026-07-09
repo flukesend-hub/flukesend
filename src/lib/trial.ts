@@ -56,6 +56,9 @@ export async function getPlan(
     .maybeSingle();
   return {
     status: (data?.status as Plan["status"]) ?? "trial",
-    tier: (data?.tier as Tier) ?? "single",
+    // One plan today, so the tier is always "fleet" regardless of what a row
+    // stores (a canceled row has a null tier). Feature and cap gating reads the
+    // single plan; access itself is gated by status and the trial allowance.
+    tier: "fleet",
   };
 }

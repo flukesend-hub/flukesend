@@ -3,15 +3,19 @@
   product enforces lives here, keyed by the internal plan key. Stripe price IDs
   stay in stripe.ts; this file is the shape of what each plan is allowed to do.
 
+  There is one paid plan now: a single flat price with everything on. The key
+  stays "fleet" so existing subscription rows (all already on it) need no data
+  migration; the customer facing name lives in displayName. If tiers ever return,
+  add keys here and the rest of the app follows.
+
   The cap that matters is on recipients, meaning guest addresses on a send, one
   per guest. The customer facing word is "emails", but the unit here is
-  recipients: a monthly cap of 250 means 250 guests reached in a period, even
-  though Flukesend sends roughly twice that many raw emails (a delivery email
-  now and a review ask later). A null limit means unlimited. Boats are unlimited
-  on every plan.
+  recipients: even an unlimited monthly plan sends roughly twice that many raw
+  emails (a delivery email now and a review ask later). A null limit means
+  unlimited. Boats are unlimited.
 */
 
-export type PlanKey = "single" | "two" | "fleet";
+export type PlanKey = "fleet";
 export type AnalyticsTier = "basic" | "full";
 
 export type Plan = {
@@ -35,33 +39,9 @@ export type Plan = {
 };
 
 export const PLANS: Record<PlanKey, Plan> = {
-  single: {
-    key: "single",
-    displayName: "Inshore",
-    emailsPerSend: 25,
-    emailsPerMonth: 250,
-    boats: null,
-    analytics: "basic",
-    video: false,
-    whiteLabel: false,
-    expiryReminder: false,
-    storyBuilder: false,
-  },
-  two: {
-    key: "two",
-    displayName: "Offshore",
-    emailsPerSend: 50,
-    emailsPerMonth: 500,
-    boats: null,
-    analytics: "full",
-    video: false,
-    whiteLabel: false,
-    expiryReminder: true,
-    storyBuilder: false,
-  },
   fleet: {
     key: "fleet",
-    displayName: "Fleet",
+    displayName: "Standard",
     emailsPerSend: 100,
     emailsPerMonth: null,
     boats: null,
@@ -73,8 +53,8 @@ export const PLANS: Record<PlanKey, Plan> = {
   },
 };
 
-// Cheapest to most expensive, the order plans are shown in.
-export const PLAN_ORDER: PlanKey[] = ["single", "two", "fleet"];
+// The order plans are shown in. One plan today.
+export const PLAN_ORDER: PlanKey[] = ["fleet"];
 
 export function planFor(key: PlanKey): Plan {
   return PLANS[key];

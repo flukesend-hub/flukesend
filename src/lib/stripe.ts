@@ -21,24 +21,14 @@ export const TIERS: { key: Tier; name: string; boats: string }[] = PLAN_ORDER.ma
 );
 
 export const PRICE_IDS: Record<Tier, Record<Cycle, string>> = {
-  single: {
-    monthly: process.env.STRIPE_PRICE_SINGLE_MONTHLY || "price_1Tnp6yIteijzuz6UAGQ0tYkx",
-    yearly: process.env.STRIPE_PRICE_SINGLE_YEARLY || "price_1Tnp6yIteijzuz6U7WZnfwqU",
-  },
-  two: {
-    monthly: process.env.STRIPE_PRICE_TWO_MONTHLY || "price_1Tnp6zIteijzuz6URdGGRDkt",
-    yearly: process.env.STRIPE_PRICE_TWO_YEARLY || "price_1Tnp6zIteijzuz6UFrRDSSSK",
-  },
   fleet: {
     monthly: process.env.STRIPE_PRICE_FLEET_MONTHLY || "price_1Tnp6zIteijzuz6UbqyiBuZ3",
     yearly: process.env.STRIPE_PRICE_FLEET_YEARLY || "price_1Tnp6zIteijzuz6UH3L8Y9za",
   },
 };
 
-// Display prices (cents). Yearly is two months free (monthly times ten).
+// Display prices (dollars). Yearly is two months free (monthly times ten).
 export const DISPLAY: Record<Tier, { monthly: number; yearlyTotal: number; yearlyMonthly: number }> = {
-  single: { monthly: 150, yearlyTotal: 1500, yearlyMonthly: 125 },
-  two: { monthly: 250, yearlyTotal: 2500, yearlyMonthly: 208 },
   fleet: { monthly: 300, yearlyTotal: 3000, yearlyMonthly: 250 },
 };
 

@@ -1,8 +1,8 @@
 /*
-  Operator analytics, dark workspace. Basic plans (Inshore) see the current
-  month funnel only. Full plans (Offshore, Fleet) also get the trend, per boat
-  and per employee breakdowns, and a CSV export. Reads go through the RLS server
-  client, so the numbers are always this operator's own.
+  Operator analytics, dark workspace. The single plan includes full analytics:
+  the month funnel, the trend, per boat and per employee breakdowns, and a CSV
+  export. Reads go through the RLS server client, so the numbers are always this
+  operator's own. The isFull switch stays so a lighter tier could return later.
 */
 import { requireOperator } from "@/lib/operator-session";
 import { OperatorNav } from "@/app/_ui/operator-nav";
