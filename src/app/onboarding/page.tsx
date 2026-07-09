@@ -104,41 +104,37 @@ export default async function OnboardingPage() {
         </form>
       </div>
       {showInvite ? (
-        <div
-          style={{
-            marginBottom: "30px",
-            padding: "22px 24px",
-            borderRadius: "16px",
-            border: "1px solid var(--hairline, #e7e0d4)",
-            background: "var(--surface, #f6f4ef)",
-          }}
-        >
+        // Invited: just the one thing they came to do. No create-your-own noise;
+        // the banner above still lets them sign out if it is the wrong account.
+        <>
           <div className="fl-eyebrow">Team invite</div>
-          <h1 className="fl-h1" style={{ fontSize: "28px", margin: "2px 0 8px" }}>
+          <h1 className="fl-h1" style={{ fontSize: "32px" }}>
             Join {inviteOperatorName} on Flukesend
           </h1>
-          <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "58ch", margin: "0 0 18px" }}>
+          <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "60ch", margin: "0 0 26px" }}>
             You have been invited to join {inviteOperatorName} as a team member.
             You will share their account and branding, with your own login.
           </p>
           <form action={acceptInvite}>
             <input type="hidden" name="inviteId" value={String(invite?.id ?? "")} />
-            <button type="submit" className="fl-btn" style={{ padding: "13px 24px" }}>
+            <button type="submit" className="fl-btn" style={{ padding: "14px 26px", fontSize: "15px" }}>
               Join {inviteOperatorName}
             </button>
           </form>
-        </div>
-      ) : null}
-
-      <div className="fl-eyebrow">{showInvite ? "Or start your own" : "One time setup"}</div>
-      <h1 className="fl-h1" style={{ fontSize: showInvite ? "24px" : "32px" }}>
-        {showInvite ? "Set up your own operation" : "Set up your workspace"}
-      </h1>
-      <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "62ch", margin: 0 }}>
-        Set this once. Every send reuses it, so your galleries and the nightly
-        review asks always look like you and point to the right places.
-      </p>
-      <OnboardingForm />
+        </>
+      ) : (
+        <>
+          <div className="fl-eyebrow">One time setup</div>
+          <h1 className="fl-h1" style={{ fontSize: "32px" }}>
+            Set up your workspace
+          </h1>
+          <p style={{ color: "var(--muted)", fontSize: "14.5px", maxWidth: "62ch", margin: 0 }}>
+            Set this once. Every send reuses it, so your galleries and the nightly
+            review asks always look like you and point to the right places.
+          </p>
+          <OnboardingForm />
+        </>
+      )}
     </main>
   );
 }
