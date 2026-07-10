@@ -15,13 +15,15 @@ export type CopyOverrides = Record<string, string>;
 
 // ---- Tokens ----
 
+// label is the plain English name shown on the picker chips; example is what
+// the fill-in might become, for the explainer line.
 export const COPY_TOKENS = [
-  { token: "{operator_name}", hint: "your company name" },
-  { token: "{first_name}", hint: "the guest's first name" },
-  { token: "{species}", hint: "what the trip saw" },
-  { token: "{date}", hint: "the trip date" },
-  { token: "{photographer_name}", hint: "the photographer" },
-  { token: "{crew}", hint: "captain and crew" },
+  { token: "{operator_name}", label: "Company name", example: "Enocean Tours" },
+  { token: "{first_name}", label: "Guest's first name", example: "Alex" },
+  { token: "{species}", label: "What the trip saw", example: "Humpback whales" },
+  { token: "{date}", label: "Trip date", example: "July 10" },
+  { token: "{photographer_name}", label: "Photographer", example: "Jordan" },
+  { token: "{crew}", label: "Captain and crew", example: "Captain Ray, Maya" },
 ] as const;
 
 export type TokenContext = {

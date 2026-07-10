@@ -105,19 +105,25 @@ export function BrandingWorkbench({
   );
   const [intro, setIntro] = useState(initial.defaultMessage);
 
-  // Token chips insert into the last focused copy field, at the caret.
+  // Fill-in chips insert into the last focused copy field, at the caret.
+  // Until the operator has clicked into a field the chips stay inert, so a
+  // stray tap can never dump a token somewhere surprising.
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
   const [focused, setFocused] = useState<string | null>(null);
   const insertToken = (token: string) => {
-    const key = focused ?? "delivery.signoff";
-    const el = fieldRefs.current[key];
-    const current = copy[key] ?? "";
+    if (!focused) return;
+    const el = fieldRefs.current[focused];
+    const current = copy[focused] ?? "";
     const at = el ? (el.selectionStart ?? current.length) : current.length;
-    const next = `${current.slice(0, at)}${token}${current.slice(at)}`;
-    setCopy((c) => ({ ...c, [key]: next }));
+    // Pad with spaces so a mid-sentence drop reads as a word, not a squeeze.
+    const before = current.slice(0, at);
+    const after = current.slice(at);
+    const piece = `${before && !/\s$/.test(before) ? " " : ""}${token}${after && !/^\s/.test(after) ? " " : ""}`;
+    const next = `${before}${piece}${after}`;
+    setCopy((c) => ({ ...c, [focused]: next }));
     requestAnimationFrame(() => {
       el?.focus();
-      el?.setSelectionRange(at + token.length, at + token.length);
+      el?.setSelectionRange(before.length + piece.length, before.length + piece.length);
     });
   };
 
@@ -291,7 +297,7 @@ export function BrandingWorkbench({
                   />
                   <span style={{ fontSize: "13px", color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{headerText.toUpperCase()}</span>
                   {headerText.toLowerCase() !== "#ffffff" ? (
-                    <button type="button" onClick={() => setHeaderText("#ffffff")} style={resetLink}>Reset</button>
+                    <button type="button" onClick={() => setHeaderText("#ffffff")} style={resetLink}>Restore default</button>
                   ) : null}
                 </div>
               </div>
@@ -399,21 +405,31 @@ export function BrandingWorkbench({
                   className="fl-textarea"
                   value={intro}
                   onChange={(e) => setIntro(e.target.value)}
+                  onFocus={() => setFocused(null)}
                 />
               </label>
 
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "16px" }}>
-                {COPY_TOKENS.map((t) => (
-                  <button
-                    key={t.token}
-                    type="button"
-                    onClick={() => insertToken(t.token)}
-                    title={t.hint}
-                    style={tokenChip}
-                  >
-                    {t.token}
-                  </button>
-                ))}
+              <div style={{ background: "var(--ink-2)", border: "1px solid var(--line)", borderRadius: "11px", padding: "12px 13px", marginBottom: "16px" }}>
+                <div style={{ fontSize: "12.5px", fontWeight: 600, marginBottom: "3px" }}>Fill-ins</div>
+                <p className="fl-hint" style={{ margin: "0 0 9px" }}>
+                  {focused
+                    ? "Tap one to drop it into the field you are editing. On every send we swap it for the real thing, so Guest's first name becomes Alex, and What the trip saw becomes Humpback whales. Watch the preview to see it filled in."
+                    : "Click into a field above first, then tap one to drop it in. On every send we swap it for the real thing, so Guest's first name becomes Alex, and What the trip saw becomes Humpback whales."}
+                </p>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  {COPY_TOKENS.map((t) => (
+                    <button
+                      key={t.token}
+                      type="button"
+                      onClick={() => insertToken(t.token)}
+                      disabled={!focused}
+                      title={`${t.token} becomes something like "${t.example}"`}
+                      style={{ ...tokenChip, opacity: focused ? 1 : 0.45, cursor: focused ? "pointer" : "default" }}
+                    >
+                      + {t.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {copyState?.error ? <p style={errText}>{copyState.error}</p> : null}
@@ -484,8 +500,13 @@ function CopyInput({
       <span style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
         <span className="fl-label-text">{field.label}</span>
         {changed ? (
-          <button type="button" onClick={() => onChange(field.default)} style={resetLink}>
-            Reset
+          <button
+            type="button"
+            onClick={() => onChange(field.default)}
+            title="Put back the standard Flukesend wording"
+            style={resetLink}
+          >
+            Restore default
           </button>
         ) : null}
         <span style={{ marginLeft: "auto", fontSize: "11px", color: over ? "var(--bad)" : "var(--muted)" }}>
