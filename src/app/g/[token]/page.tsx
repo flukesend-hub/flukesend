@@ -177,6 +177,7 @@ export default async function GalleryPage({
               photos={photos}
               reviewLinks={reviewLinks}
               tip={tip}
+              reviewUnderTip={Boolean(tip && data.operator.tips_show_review)}
               preview={preview}
             />
           ) : (

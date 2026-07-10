@@ -1,9 +1,10 @@
 /*
-  The branded review ask, styled from the design handoff. Built and sent by the
-  nightly job. Same brand color and trip details as the gallery, a warm line,
-  and one button per review link (first solid, the rest outlined). No review
-  gating: every guest who downloads is asked. The tip jar is a later Stripe bolt
-  on and is deliberately not in this email yet.
+  The branded review ask. Built and sent the moment a guest downloads, with the
+  nightly job as the retry net. Shares the delivery email's shell so the two
+  read as one brand: white body, a bordered card, the brand colored header band
+  with the operator's logo, and the social links in a footer below the card. A
+  warm line and one button per review link (first solid, the rest outlined). No
+  review gating: every guest who downloads is asked.
 */
 import "server-only";
 import { escapeHtml, sendEmail } from "@/lib/email";
@@ -89,6 +90,13 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   const hi = input.recipientName ? `Hi ${escapeHtml(input.recipientName)}, we` : "We";
   const seen = escapeHtml(speciesSentence(input.species));
 
+  // Same shell as the delivery email so the two reads as one brand: white
+  // body, a bordered card, the brand colored header band with the logo, and
+  // the social links pushed down into a footer below the card.
+  const header = input.logoUrl
+    ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:block" />`
+    : `<div style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:19px;color:#ffffff">${name}</div>`;
+
   const socialRow = socialFooterHtml(input.social);
 
   const buttons = input.reviewLinks
@@ -100,22 +108,50 @@ export function buildReviewEmail(input: ReviewEmailInput): {
     .join("");
 
   const html = `<!doctype html>
-<html>
-  <body style="margin:0;background:#faf8f4;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1c2b2e">
-    <div style="max-width:560px;margin:0 auto;background:#faf8f4;border-radius:18px;overflow:hidden">
-      <div style="height:7px;background:${brand}"></div>
-      <div style="padding:28px 26px 30px">
-        <div style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:17px;color:${brand}">${name}</div>
-        <div style="font-family:'Fraunces',Georgia,serif;font-size:22px;margin:16px 0 14px;line-height:1.25">So glad you got your photos</div>
-        <p style="font-size:14px;color:#46555a;margin:0 0 14px;line-height:1.6">${hi} hope you had an amazing time out on the water with us.${seen}</p>
-        <p style="font-size:14px;color:#46555a;margin:0 0 18px;line-height:1.6">If you have a moment, we would love to hear about your experience. A quick review helps us, and helps others find the whales.</p>
-        <div style="display:flex;flex-direction:column;gap:9px">${buttons}</div>
-        ${socialRow ? `<div style="margin:20px 0 0">${socialRow}</div>` : ""}
-        <p style="font-size:14px;color:#46555a;margin:20px 0 2px;line-height:1.6">Thanks for joining us. Hope to see you on the water again soon.</p>
-        <p style="font-size:13px;color:#6b7a7d;margin:0">The crew at ${name}</p>
-        ${input.tripLine ? `<p style="font-size:11.5px;color:#9aa6a8;margin:14px 0 0">${escapeHtml(input.tripLine)}</p>` : ""}
-      </div>
-    </div>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <style>:root { color-scheme: light only; }</style>
+  </head>
+  <body style="margin:0;padding:0;background:#ffffff;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1c2b2e">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding:30px 16px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e6e9e8;border-radius:18px;overflow:hidden">
+            <tr>
+              <td style="background:${brand};padding:20px 28px">${header}</td>
+            </tr>
+            <tr>
+              <td style="padding:30px 28px 6px">
+                <h1 style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:#16241f">So glad you got your photos</h1>
+                <p style="font-size:15px;color:#33464a;margin:0 0 14px;line-height:1.55">${hi} hope you had an amazing time out on the water with us.${seen}</p>
+                <p style="font-size:15px;color:#33464a;margin:0 0 18px;line-height:1.55">If you have a moment, we would love to hear about your experience. A quick review helps us, and helps others find the whales.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px 6px">
+                <div style="display:flex;flex-direction:column;gap:9px">${buttons}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px 28px">
+                <p style="font-size:12.5px;line-height:1.5;color:#8ba4ac;margin:0 0 2px">Thanks for joining us. Hope to see you on the water again soon. The crew at ${name}.</p>
+                ${input.tripLine ? `<p style="font-size:11.5px;color:#9aa6a8;margin:8px 0 0">${escapeHtml(input.tripLine)}</p>` : ""}
+              </td>
+            </tr>
+          </table>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
+            ${socialRow ? `<tr><td align="center" style="padding:18px 8px 4px">${socialRow}</td></tr>` : ""}
+            <tr><td align="center" style="padding:${socialRow ? "4px" : "16px"} 8px 0">
+              <p style="font-size:11px;color:#9aa6a8;margin:0">Sent by ${name}, delivered with Flukesend</p>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>`;
 

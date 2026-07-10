@@ -95,7 +95,7 @@ export default async function SettingsPage() {
       .from("operator_members")
       .select("user_id, role, display_name, tip_provider, tip_handle")
       .eq("operator_id", operatorId),
-    admin.from("operators").select("tips_enabled").eq("id", operatorId).maybeSingle(),
+    admin.from("operators").select("tips_enabled, tips_show_review").eq("id", operatorId).maybeSingle(),
   ]);
   const members = await Promise.all(
     (memberRows ?? []).map(async (m) => {
@@ -107,6 +107,7 @@ export default async function SettingsPage() {
 
   // Tips: the operator switch and this member's own link, for the two sections.
   const tipsEnabled = Boolean(op?.tips_enabled);
+  const tipsShowReview = Boolean(op?.tips_show_review);
   const myMember = (memberRows ?? []).find((m) => m.user_id === userId);
   const myTip = {
     displayName: (myMember?.display_name as string | null) ?? null,
@@ -242,10 +243,16 @@ export default async function SettingsPage() {
 
             <SettingsSection
               title="Tips"
-              summary={tipsEnabled ? "On, guests can tip their photographer" : "Off"}
+              summary={
+                tipsEnabled
+                  ? tipsShowReview
+                    ? "On, with a review shown under the tip"
+                    : "On, guests can tip their photographer"
+                  : "Off"
+              }
               chip={tipsEnabled ? doneChip : { label: "Off", tone: "muted" }}
             >
-              <TipsToggle enabled={tipsEnabled} isOwner={isOwner} />
+              <TipsToggle enabled={tipsEnabled} showReview={tipsShowReview} isOwner={isOwner} />
             </SettingsSection>
 
             <SettingsSection
