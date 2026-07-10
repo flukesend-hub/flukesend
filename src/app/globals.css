@@ -322,12 +322,40 @@ input[type="color"]::-webkit-color-swatch {
   }
 }
 
-@keyframes fl-wave {
+/* Send upload animation: two rotating rounded squares whose corners sweep the
+   waterline, and the fluke surfacing at 100%. See src/app/send/send-form.tsx. */
+@keyframes fl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fl-surface {
   0% {
-    transform: translateX(0);
+    opacity: 0;
+    transform: translateY(34px) scale(0.9);
+  }
+  60% {
+    opacity: 1;
   }
   100% {
-    transform: translateX(-50%);
+    opacity: 1;
+    transform: none;
+  }
+}
+.fl-water-back {
+  animation: fl-spin 13s linear infinite reverse;
+}
+.fl-water-front {
+  animation: fl-spin 9s linear infinite;
+}
+.fl-fluke {
+  animation: fl-surface 0.7s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fl-water-back,
+  .fl-water-front,
+  .fl-fluke {
+    animation: none !important;
   }
 }
 @keyframes fl-rise {

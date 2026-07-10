@@ -400,35 +400,68 @@ export function SendForm({
     return (
       <div style={{ maxWidth: "520px", margin: "34px auto 0", textAlign: "center" }}>
         <div style={waterRing}>
+          {/* Two rotating rounded squares. Their top edge is the waterline;
+              the rounded corners sweeping past it make the rolling wave. They
+              rise as progress climbs, and their corners round to a flat 50%
+              circle (calming the water) the instant we hit 100% / saving. */}
           <div
+            className="fl-water-back"
             style={{
               position: "absolute",
-              left: 0,
-              bottom: 0,
-              width: "100%",
-              height: `${progress}%`,
-              background: `linear-gradient(180deg,${brandColor},var(--ink))`,
-              transition: "height .12s linear",
+              left: "50%",
+              top: `calc(${100 - progress}% - 14px)`,
+              width: "440px",
+              height: "440px",
+              marginLeft: "-220px",
+              borderRadius: progress >= 100 ? "50%" : "38%",
+              background: "#5aa7cf",
+              transition: "border-radius 1.2s ease, top .25s linear",
             }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: "-12px",
-                left: 0,
-                width: "200%",
-                height: "18px",
-                animation: "fl-wave 2.4s linear infinite",
-                background: `radial-gradient(circle at 12.5% 0,transparent 11px,${brandColor} 12px) repeat-x`,
-                backgroundSize: "50px 18px",
-              }}
-            />
-          </div>
-          <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-            <span className="fl-display" style={{ fontSize: "40px", color: "#fff", textShadow: "0 1px 8px rgba(0,0,0,.4)" }}>
-              {progress}%
-            </span>
-          </div>
+          />
+          <div
+            className="fl-water-front"
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: `calc(${100 - progress}% - 8px)`,
+              width: "440px",
+              height: "440px",
+              marginLeft: "-220px",
+              borderRadius: progress >= 100 ? "50%" : "41%",
+              background: "#1e6f9c",
+              transition: "border-radius 1.2s ease, top .25s linear",
+            }}
+          />
+          {progress >= 100 ? (
+            <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="fl-fluke" src="/brand/fluke-white.png" alt="" width={96} style={{ height: "auto", display: "block" }} />
+            </div>
+          ) : (
+            <>
+              {/* The number twice: navy above the waterline, white below it via
+                  a clip that tracks the fill, so it stays legible at any level. */}
+              <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+                <span className="fl-display" style={{ fontSize: "40px", color: "var(--text)" }}>
+                  {progress}%
+                </span>
+              </div>
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "grid",
+                  placeItems: "center",
+                  clipPath: `inset(calc(${100 - progress}% - 4px) 0 0 0)`,
+                  transition: "clip-path .25s linear",
+                }}
+              >
+                <span className="fl-display" style={{ fontSize: "40px", color: "#fff" }}>
+                  {progress}%
+                </span>
+              </div>
+            </>
+          )}
         </div>
         <div className="fl-display" style={{ fontSize: "20px", margin: "20px 0 4px" }}>
           {status === "saving" ? "Creating the send" : "Uploading photos"}
@@ -1291,9 +1324,8 @@ const waterRing: React.CSSProperties = {
   margin: "0 auto",
   borderRadius: "50%",
   overflow: "hidden",
-  border: "1px solid var(--line-strong)",
-  background: "var(--ink)",
-  boxShadow: "inset 0 0 30px rgba(0,0,0,.4)",
+  border: "1px solid var(--line)",
+  background: "#f7f9f9",
 };
 const chipOk: React.CSSProperties = {
   display: "inline-flex",
