@@ -166,11 +166,13 @@ export function buildReviewEmail(input: ReviewEmailInput): {
         </td></tr>`
       : "";
 
+  // Every review button is the same solid accent, full width. A plain stack of
+  // block anchors (not flex) so they render identically in the inbox and in the
+  // preview; the margin gives the spacing flex used to.
   const buttons = input.reviewLinks
-    .map((l, i) =>
-      i === 0
-        ? `<a href="${escapeHtml(l.href)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:${accent};color:#ffffff;padding:13px;border-radius:11px">${escapeHtml(l.label)}</a>`
-        : `<a href="${escapeHtml(l.href)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:transparent;color:${accent};border:1px solid ${accent};padding:12px;border-radius:11px">${escapeHtml(l.label)}</a>`,
+    .map(
+      (l, i) =>
+        `<a href="${escapeHtml(l.href)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:${accent};color:#ffffff;padding:14px;border-radius:11px;margin-top:${i === 0 ? "0" : "9px"}">${escapeHtml(l.label)}</a>`,
     )
     .join("");
 
@@ -200,9 +202,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
             </tr>
             ${crewRow}
             <tr>
-              <td style="padding:0 28px 6px">
-                <div style="display:flex;flex-direction:column;gap:9px">${buttons}</div>
-              </td>
+              <td style="padding:0 28px 6px">${buttons}</td>
             </tr>
             <tr>
               <td style="padding:18px 28px 26px;text-align:center">
