@@ -182,7 +182,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
             </tr>
             <tr>
               <td style="padding:14px 28px 26px;text-align:center">
-                <p style="font-size:13px;line-height:1.55;font-weight:500;color:${tone.quiet};margin:0">Your gallery is up for ${input.retentionDays} days, save your photos while it lasts. ${copy["delivery.signoff"]}</p>
+                <p style="font-size:14.5px;line-height:1.6;font-weight:500;color:${tone.mid};margin:0">Your gallery is up for ${input.retentionDays} days, save your photos while it lasts. ${copy["delivery.signoff"]}</p>
               </td>
             </tr>
           </table>
