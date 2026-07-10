@@ -36,6 +36,7 @@ export function GalleryPhotos({
   retentionDays,
   photos,
   reviewLinks,
+  tip = null,
   preview = false,
 }: {
   token: string;
@@ -43,6 +44,9 @@ export function GalleryPhotos({
   retentionDays: number;
   photos: Photo[];
   reviewLinks: { label: string; href: string }[];
+  // When set, the tip block is the primary ask in the post-save slot, in place
+  // of the review links. Resolved server side (both flags already checked).
+  tip?: { firstName: string; verb: string; href: string } | null;
   preview?: boolean;
 }) {
   const [downloaded, setDownloaded] = useState(false);
@@ -200,11 +204,35 @@ export function GalleryPhotos({
 
       {downloaded ? (
         <div className="fl-reveal" style={{ marginTop: "18px", borderTop: "1px solid #e7e0d4", paddingTop: "18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: reviewLinks.length ? "12px" : "0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: tip || reviewLinks.length ? "14px" : "0" }}>
             <span style={{ ...check, background: brand }}>✓</span>
             <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#1c2b2e" }}>Saved to your phone.</span>
           </div>
-          {reviewLinks.length ? (
+          {tip ? (
+            // The tip is the primary ask for this operator. One human, one
+            // button; the payment provider is only a small grey cue, never a
+            // logo, so the operator's brand stays the hero.
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px" }}>
+              <span style={{ ...avatar, background: brand }}>
+                {(tip.firstName.trim()[0] ?? "?").toUpperCase()}
+              </span>
+              <p style={{ fontSize: "14px", lineHeight: 1.55, color: "#46555a", margin: 0, maxWidth: "34ch" }}>
+                Loved your trip? Your photos were shot by{" "}
+                <strong style={{ color: "#1c2b2e" }}>{tip.firstName}</strong>.
+              </p>
+              <a
+                href={tip.href}
+                target="_blank"
+                rel="noreferrer"
+                style={{ ...reviewBtn, background: brand, color: "#fff", width: "100%", maxWidth: "320px" }}
+              >
+                Tip {tip.firstName}
+              </a>
+              <span style={{ fontSize: "12px", color: "#8a938f" }}>
+                {tip.verb} · goes straight to {tip.firstName}
+              </span>
+            </div>
+          ) : reviewLinks.length ? (
             <>
               <p style={{ fontSize: "13.5px", lineHeight: 1.55, color: "#46555a", margin: "0 0 12px" }}>
                 Loved the trip? A quick review means a lot to a small crew like ours.
@@ -304,4 +332,14 @@ const reviewBtn: React.CSSProperties = {
   fontSize: "14px",
   padding: "13px",
   borderRadius: "11px",
+};
+const avatar: React.CSSProperties = {
+  width: "46px",
+  height: "46px",
+  borderRadius: "50%",
+  color: "#fff",
+  display: "grid",
+  placeItems: "center",
+  fontWeight: 700,
+  fontSize: "19px",
 };

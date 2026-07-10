@@ -5,7 +5,7 @@
   lived signed URLs. The interactive grid and downloads are in GalleryPhotos.
 */
 import { notFound } from "next/navigation";
-import { getGalleryByToken, isExpired } from "@/lib/gallery";
+import { getGalleryByToken, isExpired, resolveGalleryTip } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TrackOpen } from "./track-open";
 import { GalleryPhotos } from "./gallery-photos";
@@ -50,6 +50,20 @@ export default async function GalleryPage({
     label: l.label as string,
     href: `/g/${token}/review?d=${l.id}`,
   }));
+
+  // The tip, when both flags line up (operator tips on, this send's
+  // photographer has a link). When present it becomes the primary ask in the
+  // post-save slot, in place of the review links; never both at once. The
+  // button links through the tracked /tip route, so the payment URL stays server
+  // side and a tap is counted.
+  const tipInfo = await resolveGalleryTip(data);
+  const tip = tipInfo
+    ? {
+        firstName: tipInfo.firstName,
+        verb: tipInfo.verb,
+        href: `/g/${token}/tip${preview ? "?preview=1" : ""}`,
+      }
+    : null;
 
   let photos: { id: string; name: string; url: string; thumbUrl: string; size: number }[] = [];
   if (!expired) {
@@ -162,6 +176,7 @@ export default async function GalleryPage({
               retentionDays={retentionDaysLeft(delivery.expires_at)}
               photos={photos}
               reviewLinks={reviewLinks}
+              tip={tip}
               preview={preview}
             />
           ) : (
