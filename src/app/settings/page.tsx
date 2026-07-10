@@ -9,6 +9,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOperatorCaptureToken } from "@/lib/capture";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { TeamManager } from "./team";
+import { TipsToggle } from "./tips-toggle";
+import { TipLinkForm } from "./tip-link-form";
+import { isTipProvider, type TipProvider } from "@/lib/tips";
 import { BrandingForm } from "./branding-form";
 import { ReviewLinks } from "./review-links";
 import { SocialLinksForm } from "./social-links-form";
@@ -87,10 +90,13 @@ export default async function SettingsPage() {
   // Team: members with their emails (emails live in auth, so the service role
   // reads them; the roster is small) and any pending invites.
   const admin = createAdminClient();
-  const { data: memberRows } = await admin
-    .from("operator_members")
-    .select("user_id, role")
-    .eq("operator_id", operatorId);
+  const [{ data: memberRows }, { data: op }] = await Promise.all([
+    admin
+      .from("operator_members")
+      .select("user_id, role, display_name, tip_provider, tip_handle")
+      .eq("operator_id", operatorId),
+    admin.from("operators").select("tips_enabled").eq("id", operatorId).maybeSingle(),
+  ]);
   const members = await Promise.all(
     (memberRows ?? []).map(async (m) => {
       const { data } = await admin.auth.admin.getUserById(m.user_id as string);
@@ -98,6 +104,16 @@ export default async function SettingsPage() {
     }),
   );
   const isOwner = (memberRows ?? []).some((m) => m.user_id === userId && (m.role as string) === "owner");
+
+  // Tips: the operator switch and this member's own link, for the two sections.
+  const tipsEnabled = Boolean(op?.tips_enabled);
+  const myMember = (memberRows ?? []).find((m) => m.user_id === userId);
+  const myTip = {
+    displayName: (myMember?.display_name as string | null) ?? null,
+    provider: (isTipProvider(myMember?.tip_provider as string) ? (myMember?.tip_provider as TipProvider) : null),
+    handle: (myMember?.tip_handle as string | null) ?? null,
+  };
+  const myTipSet = Boolean(myTip.provider && myTip.handle);
   const { data: inviteRows } = await supabase
     .from("operator_invites")
     .select("id, email")
@@ -222,6 +238,22 @@ export default async function SettingsPage() {
               chip={members.length > 1 ? doneChip : { label: "Just you", tone: "muted" }}
             >
               <TeamManager members={members} invites={invites} isOwner={isOwner} />
+            </SettingsSection>
+
+            <SettingsSection
+              title="Tips"
+              summary={tipsEnabled ? "On, guests can tip their photographer" : "Off"}
+              chip={tipsEnabled ? doneChip : { label: "Off", tone: "muted" }}
+            >
+              <TipsToggle enabled={tipsEnabled} isOwner={isOwner} />
+            </SettingsSection>
+
+            <SettingsSection
+              title="Your tip link"
+              summary={myTipSet ? "Set, tips go straight to you" : "Not set"}
+              chip={myTipSet ? doneChip : { label: "Optional", tone: "muted" }}
+            >
+              <TipLinkForm displayName={myTip.displayName} provider={myTip.provider} handle={myTip.handle} />
             </SettingsSection>
           </div>
 

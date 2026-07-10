@@ -19,6 +19,7 @@ import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
 import { normalizeSpecies } from "@/lib/species";
 import { TRIP_TIME_SLOTS } from "@/lib/trip-times";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
+import { isTipProvider, normalizeTipHandle } from "@/lib/tips";
 
 export type SettingsState =
   | { error?: string; ok?: string; upgrade?: boolean }
@@ -451,4 +452,68 @@ export async function addCrew(_prev: SettingsState, formData: FormData) {
 }
 export async function deleteCrew(formData: FormData) {
   return deleteNamed("crew_members", formData);
+}
+
+// ---- Photographer tip jar ----
+
+// The operator level switch: tipping allowed, yes or no. Owner only, since it is
+// a policy decision. The existing operators update policy is any-member, so the
+// owner check is enforced here and the write goes through the admin client.
+export async function setTipsEnabled(enabled: boolean): Promise<SettingsState> {
+  const { operatorId, isOwner } = await resolveMember();
+  if (!isOwner) {
+    return { error: "Only the account owner can change this." };
+  }
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("operators")
+    .update({ tips_enabled: enabled })
+    .eq("id", operatorId);
+  if (error) {
+    return { error: "Could not save that. Try again." };
+  }
+  revalidatePath("/settings");
+  return { ok: enabled ? "Tips are on." : "Tips are off." };
+}
+
+// A photographer's own tip link and display name. Scoped to the caller's own
+// membership row (user_id = auth.uid()); it only ever writes the tip columns, so
+// there is no way to touch role or another person's link. Blank clears it.
+export async function updateMyTipLink(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
+  const { operatorId, userId } = await resolveMember();
+
+  const displayName = String(formData.get("display_name") ?? "").trim().slice(0, 60) || null;
+  const providerRaw = String(formData.get("tip_provider") ?? "").trim();
+  const handleRaw = String(formData.get("tip_handle") ?? "");
+  const handle = normalizeTipHandle(handleRaw);
+
+  // Clearing: no handle means no link, whatever the provider says.
+  if (!handle) {
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from("operator_members")
+      .update({ display_name: displayName, tip_provider: null, tip_handle: null })
+      .eq("operator_id", operatorId)
+      .eq("user_id", userId);
+    if (error) return { error: "Could not save. Try again." };
+    revalidatePath("/settings");
+    return { ok: "Saved. Your tip link is cleared." };
+  }
+
+  if (!isTipProvider(providerRaw)) {
+    return { error: "Pick where tips should go." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("operator_members")
+    .update({ display_name: displayName, tip_provider: providerRaw, tip_handle: handle })
+    .eq("operator_id", operatorId)
+    .eq("user_id", userId);
+  if (error) return { error: "Could not save. Try again." };
+  revalidatePath("/settings");
+  return { ok: "Saved. Your tip link is set." };
 }
