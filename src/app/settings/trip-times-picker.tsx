@@ -67,7 +67,7 @@ export function TripTimesPicker({ selected }: { selected: string[] }) {
       ) : null}
 
       <button type="button" onClick={save} disabled={pending} className="fl-btn">
-        {pending ? "Saving..." : count ? `Save ${count} trip ${count === 1 ? "time" : "times"}` : "Save (show all times)"}
+        {pending ? "Saving..." : count ? `Save ${count} ${count === 1 ? "departure" : "departures"}` : "Save (show all departures)"}
       </button>
     </div>
   );
