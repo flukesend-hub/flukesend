@@ -28,10 +28,10 @@ export const metadata: Metadata = {
       "Branded photo delivery and review engine for whale watch operators. Guests scan a QR aboard, photos land in their camera roll, reviews roll in.",
     images: [
       {
-        url: "/og.png",
+        url: "/og",
         width: 1200,
         height: 630,
-        alt: "A surfacing humpback whale above the Flukesend wordmark",
+        alt: "Flukesend: photo galleries that turn into reviews",
       },
     ],
   },
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     title: "Flukesend - branded photo galleries that turn into reviews",
     description:
       "Branded photo delivery and review engine for whale watch operators.",
-    images: ["/og.png"],
+    images: ["/og"],
   },
 };
 
