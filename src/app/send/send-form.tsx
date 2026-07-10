@@ -104,6 +104,9 @@ export function SendForm({
   const [noteOpen, setNoteOpen] = useState(false);
   // Index of the file row being dragged, for reordering. Null when not dragging.
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  // True while a file is being dragged over the dropzone from the desktop, for
+  // the highlight. Separate from dragIdx, which is the internal reorder drag.
+  const [dropActive, setDropActive] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [uploaded, setUploaded] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -144,6 +147,23 @@ export function SendForm({
     setTripDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
   }, []);
 
+  // A photo dropped anywhere outside the dropzone would otherwise make the
+  // browser navigate to that file and wipe the in-progress send. Swallow those
+  // stray file drops at the window; the dropzone's own handlers still run and
+  // add the photos. Internal row reorder drags carry no files, so they pass
+  // through untouched.
+  useEffect(() => {
+    const swallow = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("Files")) e.preventDefault();
+    };
+    window.addEventListener("dragover", swallow);
+    window.addEventListener("drop", swallow);
+    return () => {
+      window.removeEventListener("dragover", swallow);
+      window.removeEventListener("drop", swallow);
+    };
+  }, []);
+
   // Auto load the guests captured for the chosen boat, day, and trip time. Runs
   // whenever the selection changes. Read only, so switching trips never strands
   // anyone; the rows are consumed only when the send lands.
@@ -169,7 +189,7 @@ export function SendForm({
     };
   }, [boat, tripDate, tripTime]);
 
-  function addFiles(list: FileList | null) {
+  function addFiles(list: FileList | File[] | null) {
     if (!list) return;
     const incoming = Array.from(list);
     setFiles((prev) => {
@@ -177,6 +197,16 @@ export function SendForm({
       const have = new Set(prev.map(key));
       return [...prev, ...incoming.filter((f) => !have.has(key(f)))];
     });
+  }
+
+  // Photos dropped onto the dropzone. Filter to images (a desktop drop skips
+  // the file input's accept list); an empty type is kept, since HEIC from an
+  // iPhone often reports none. The server validates the rest.
+  function dropFiles(dt: DataTransfer) {
+    const imgs = Array.from(dt.files).filter(
+      (f) => f.type === "" || f.type.startsWith("image/"),
+    );
+    if (imgs.length) addFiles(imgs);
   }
 
   function removeFile(idx: number) {
@@ -641,8 +671,36 @@ export function SendForm({
 
         {/* Step 2: Photos */}
         <StepCard {...cardProps(1)}>
-          <label style={{ display: "block" }}>
-            <div style={{ ...dropzone, background: `${brandColor}16` }}>Drop photos here, or browse</div>
+          <label
+            style={{ display: "block" }}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes("Files")) return;
+              e.preventDefault();
+              setDropActive(true);
+            }}
+            onDragLeave={(e) => {
+              // Ignore leaving into a child element; only clear when the
+              // pointer actually exits the dropzone.
+              if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+              setDropActive(false);
+            }}
+            onDrop={(e) => {
+              if (!e.dataTransfer.types.includes("Files")) return;
+              e.preventDefault();
+              setDropActive(false);
+              dropFiles(e.dataTransfer);
+            }}
+          >
+            <div
+              style={{
+                ...dropzone,
+                background: dropActive ? `${brandColor}2b` : `${brandColor}16`,
+                borderColor: dropActive ? "var(--signal)" : "var(--line-strong)",
+                color: dropActive ? "var(--signal-2)" : "var(--muted)",
+              }}
+            >
+              {dropActive ? "Drop to add these photos" : "Drop photos here, or browse"}
+            </div>
             <input
               type="file"
               multiple
