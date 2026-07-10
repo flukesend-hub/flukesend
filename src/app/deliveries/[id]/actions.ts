@@ -1,10 +1,13 @@
 /*
   Per guest actions on the Send created page: fix a guest's email, and resend
   the gallery delivery email to a guest. Both go through the RLS client, so an
-  operator can only touch recipients on their own deliveries.
+  operator can only touch recipients on their own deliveries. updateTripDetails
+  corrects the trip metadata (species, boat, crew, time) after a send has gone
+  out; it is operator side only and never re-emails guests.
 */
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -265,4 +268,60 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     return { error: "Email service is not configured yet." };
   }
   return { error: "Could not resend. Try again." };
+}
+
+// The trip fields as the client already resolved them: species, per-species
+// counts, boat, and each crew role credited to one name (the picker computes
+// this from who was aboard, the same as a new send).
+export type UpdateTripInput = {
+  tripDatetime: string | null;
+  species: string[];
+  speciesCounts: Record<string, number>;
+  boatName: string | null;
+  captainName: string | null;
+  naturalistName: string | null;
+  photographerName: string | null;
+  crewNames: string[];
+};
+
+// Correct a send's trip details after it has gone out. Operator side only: this
+// updates the delivery record (what the operator sees and what analytics count)
+// and never re-emails anyone. RLS scopes the update to the operator's own
+// deliveries, so a foreign id simply matches no row.
+export async function updateTripDetails(
+  deliveryId: string,
+  input: UpdateTripInput,
+): Promise<RowResult> {
+  const supabase = await createClient();
+
+  // Sanitize species and counts exactly as a new send does: trimmed names, and
+  // positive whole numbers only, dropped to null when nothing was counted.
+  const species = input.species.map((s) => s.trim()).filter(Boolean);
+  const counts: Record<string, number> = {};
+  for (const name of species) {
+    const n = Math.floor(Number(input.speciesCounts?.[name]));
+    if (Number.isFinite(n) && n > 0) counts[name] = n;
+  }
+
+  const { error, count } = await supabase
+    .from("deliveries")
+    .update(
+      {
+        trip_datetime: input.tripDatetime,
+        species,
+        species_counts: Object.keys(counts).length ? counts : null,
+        boat_name: input.boatName,
+        captain_name: input.captainName,
+        naturalist_name: input.naturalistName,
+        photographer_name: input.photographerName,
+        crew_names: input.crewNames,
+      },
+      { count: "exact" },
+    )
+    .eq("id", deliveryId);
+  if (error) return { error: "Could not update the trip details. Try again." };
+  if (!count) return { error: "Send not found." };
+
+  revalidatePath(`/deliveries/${deliveryId}`);
+  return { ok: true };
 }

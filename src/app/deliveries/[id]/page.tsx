@@ -14,8 +14,11 @@ import { OperatorNav } from "@/app/_ui/operator-nav";
 import { GuestRow } from "./guest-row";
 import { AddGuest } from "./add-guest";
 import { DeleteSend } from "./delete-send";
+import { EditTripDetails } from "./edit-trip";
 import { Reveal } from "./reveal";
 import { recipientStatus } from "@/lib/recipient-status";
+import { speciesForSend } from "@/lib/species";
+import { tripTimesFor } from "@/lib/trip-times";
 
 function fmtDateTime(value: string | null) {
   if (!value) return "Not set";
@@ -35,16 +38,23 @@ export default async function DeliveryPage({
 }) {
   const { id } = await params;
   const { emailed, failed } = await searchParams;
-  const { supabase, operatorName } = await requireOperator();
+  const { supabase, operatorId, operatorName } = await requireOperator();
 
   // Wave one: everything keyed by the route id fires together. RLS scopes the
   // delivery to this operator, so a foreign id just comes back empty.
-  const [{ data: delivery }, { count: photoCount }, { data: firstPhoto }, { data: recipients }] =
-    await Promise.all([
+  const [
+    { data: delivery },
+    { count: photoCount },
+    { data: firstPhoto },
+    { data: recipients },
+    { data: branding },
+    { data: rosterBoats },
+    { data: rosterCrew },
+  ] = await Promise.all([
       supabase
         .from("deliveries")
         .select(
-          "id, operator_id, trip_datetime, species, captain_name, naturalist_name, photographer_name, crew_names, boat_name, expires_at",
+          "id, operator_id, trip_datetime, species, species_counts, captain_name, naturalist_name, photographer_name, crew_names, boat_name, expires_at",
         )
         .eq("id", id)
         .maybeSingle(),
@@ -60,6 +70,16 @@ export default async function DeliveryPage({
         .from("recipients")
         .select("id, email, token, review_email_status, email_status")
         .eq("delivery_id", id),
+      // The roster, for the Edit trip details form: species list and trip times
+      // (branding), plus boats and crew. Keyed by operator, so they ride along
+      // in the same parallel wave.
+      supabase
+        .from("branding")
+        .select("species_options, trip_times")
+        .eq("operator_id", operatorId)
+        .maybeSingle(),
+      supabase.from("boats").select("id, name").eq("operator_id", operatorId).order("sort_order", { ascending: true }),
+      supabase.from("crew_members").select("name, roles").eq("operator_id", operatorId).order("sort_order", { ascending: true }),
     ]);
   if (!delivery) {
     notFound();
@@ -206,10 +226,29 @@ export default async function DeliveryPage({
 
         <Reveal label="Transfer details">
           <div className="fl-card">
-            <h3 style={h3}>Trip</h3>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "12px" }}>
+              <h3 style={{ ...h3, margin: 0 }}>Trip</h3>
+              {/* Correct a misclicked species, boat, or crew after the fact.
+                  Operator side only: it never re-emails guests. */}
+              <EditTripDetails
+                deliveryId={delivery.id}
+                tripDatetime={delivery.trip_datetime}
+                species={species}
+                speciesCounts={(delivery.species_counts ?? {}) as Record<string, number>}
+                boatName={delivery.boat_name}
+                captainName={delivery.captain_name}
+                naturalistName={delivery.naturalist_name}
+                photographerName={delivery.photographer_name}
+                crewNames={crew}
+                boats={(rosterBoats ?? []).map((b) => ({ id: b.id as string, name: b.name as string }))}
+                crew={(rosterCrew ?? []).map((c) => ({ name: c.name as string, roles: (c.roles ?? []) as string[] }))}
+                speciesOptions={speciesForSend(branding?.species_options as string[] | null)}
+                tripTimes={tripTimesFor(branding?.trip_times as string[] | null)}
+              />
+            </div>
             {/* Only the fields that were actually filled in. An untagged
                 naturalist or empty crew list is not worth a "Not set" row. */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "14px" }}>
               {delivery.trip_datetime ? (
                 <Row label="Date">{fmtDateTime(delivery.trip_datetime)}</Row>
               ) : null}
