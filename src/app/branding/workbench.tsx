@@ -30,6 +30,7 @@ import {
   DELIVERY_COPY,
   REVIEW_COPY,
   GALLERY_COPY,
+  GALLERY_THANKS_DEFAULT,
   renderTokens,
   type CopyOverrides,
   type CopyField,
@@ -218,7 +219,7 @@ export function BrandingWorkbench({
     crew: "Captain Ray",
   };
   const galleryReviewAsk = renderTokens(copy["gallery.review_ask"] ?? "", galleryCtx);
-  const galleryThanks = renderTokens(copy["gallery.thanks"] ?? "", galleryCtx);
+  const galleryThanks = GALLERY_THANKS_DEFAULT;
 
   // Scale the 600px email to the preview column.
   const previewBox = useRef<HTMLDivElement | null>(null);
@@ -620,19 +621,26 @@ export function BrandingWorkbench({
               <div style={cardTitle}>Gallery wording</div>
               <p className="fl-hint" style={{ margin: "0 0 14px" }}>
                 The gallery headline and trip details are written from each
-                send. What you can shape here is the moment after a guest saves
-                their photos.
-              </p>
-              <p className="fl-hint" style={{ margin: "0 0 14px" }}>
-                {showTip
-                  ? `Right now that moment shows the tip button (tips are on and you have a tip link)${tips.showReview ? " with your review links under it" : ""}, so the review ask below only shows for sends by teammates without a tip link.`
-                  : reviewLinks.length
-                    ? "Right now that moment shows your review buttons."
-                    : "Right now that moment shows the thank-you line, because there are no review links and tips are off."}
+                send. These are the words you can shape, top to bottom the way a
+                guest reads them.
               </p>
 
+              <label style={{ display: "block", marginBottom: "14px" }}>
+                <span className="fl-label-text">Intro message</span>
+                <p className="fl-hint" style={{ margin: "0 0 6px" }}>
+                  The note right above your photos, and the same line at the top
+                  of your delivery email. Each send can still overwrite it.
+                </p>
+                <textarea
+                  name="default_message"
+                  className="fl-textarea"
+                  value={intro}
+                  onChange={(e) => setIntro(e.target.value)}
+                  onFocus={() => setFocused(null)}
+                />
+              </label>
+
               {copyField("gallery.review_ask")}
-              {copyField("gallery.thanks")}
               {fillIns}
               {galleryState?.error ? <p style={errText}>{galleryState.error}</p> : null}
               {galleryState?.ok ? <p style={okText}>{galleryState.ok}</p> : null}

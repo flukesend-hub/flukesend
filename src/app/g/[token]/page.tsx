@@ -8,7 +8,7 @@ import { notFound } from "next/navigation";
 import { getGalleryByToken, isExpired, resolveGalleryTip } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fontPack, googleFontsHref } from "@/lib/brand-fonts";
-import { GALLERY_COPY, copyValue, renderTokens } from "@/lib/brand-copy";
+import { GALLERY_COPY, GALLERY_THANKS_DEFAULT, copyValue, renderTokens } from "@/lib/brand-copy";
 import { TrackOpen } from "./track-open";
 import { GalleryPhotos } from "./gallery-photos";
 
@@ -205,7 +205,7 @@ export default async function GalleryPage({
               photos={photos}
               reviewLinks={reviewLinks}
               reviewAskText={galleryCopy["gallery.review_ask"]}
-              thanksText={galleryCopy["gallery.thanks"]}
+              thanksText={GALLERY_THANKS_DEFAULT}
               tip={tip}
               reviewUnderTip={Boolean(tip && data.operator.tips_show_review)}
               preview={preview}

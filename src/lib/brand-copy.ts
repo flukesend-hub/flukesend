@@ -132,15 +132,13 @@ export const GALLERY_COPY: CopyField[] = [
     limit: 140,
     multiline: true,
   },
-  {
-    key: "gallery.thanks",
-    label: "Thank-you line",
-    hint: "Shown after saving when there is no review or tip to ask for.",
-    default: "Thanks for spending the day on the water with us.",
-    limit: 140,
-    multiline: true,
-  },
 ];
+
+// The gallery's no-ask fallback, shown only in the rare case where an operator
+// has no review links and tips are off. Not worth an editor field (operators
+// always have a review or a tip), but kept as a constant so the slot never
+// renders empty.
+export const GALLERY_THANKS_DEFAULT = "Thanks for spending the day on the water with us.";
 
 // The override when one is set, the template default otherwise.
 export function copyValue(

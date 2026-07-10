@@ -213,7 +213,10 @@ export async function saveGalleryCopy(
   _prev: BrandingState,
   formData: FormData,
 ): Promise<BrandingState> {
-  return saveCopyFields(GALLERY_COPY, formData);
+  // The gallery's intro is the same default_message shown atop the delivery
+  // email; editable from either surface, saved to the one column.
+  const intro = String(formData.get("default_message") ?? "").trim();
+  return saveCopyFields(GALLERY_COPY, formData, { default_message: intro });
 }
 
 // ---- Test send ----
