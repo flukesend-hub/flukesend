@@ -98,6 +98,50 @@ export const DELIVERY_COPY: CopyField[] = [
   },
 ];
 
+export const REVIEW_COPY: CopyField[] = [
+  {
+    key: "review.headline",
+    label: "Headline",
+    default: "So glad you got your photos",
+    limit: 60,
+  },
+  {
+    key: "review.ask",
+    label: "The ask",
+    hint: "The line that asks for the review, right above the buttons.",
+    default:
+      "If you have a moment, we would love to hear about your experience. A quick review helps us, and helps others find the whales.",
+    limit: 240,
+    multiline: true,
+  },
+  {
+    key: "review.signoff",
+    label: "Sign-off",
+    default: "Thanks for joining us. Hope to see you on the water again soon. The crew at {operator_name}.",
+    limit: 240,
+    multiline: true,
+  },
+];
+
+export const GALLERY_COPY: CopyField[] = [
+  {
+    key: "gallery.review_ask",
+    label: "Review ask",
+    hint: "Shown right after a guest saves their photos, above your review buttons.",
+    default: "Loved the trip? A quick review means a lot to a small crew like ours.",
+    limit: 140,
+    multiline: true,
+  },
+  {
+    key: "gallery.thanks",
+    label: "Thank-you line",
+    hint: "Shown after saving when there is no review or tip to ask for.",
+    default: "Thanks for spending the day on the water with us.",
+    limit: 140,
+    multiline: true,
+  },
+];
+
 // The override when one is set, the template default otherwise.
 export function copyValue(
   overrides: CopyOverrides | null | undefined,

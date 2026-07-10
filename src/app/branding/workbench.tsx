@@ -2,14 +2,17 @@
 
 /*
   The Branding workbench. Left column: the brand identity card (logo, colors,
-  font pack) and the active surface's copy editor. Right column: a sticky live
-  preview, rendered by the exact builder the real sends use, so what the
-  operator sees is what the guest gets. Editing is override, never required;
-  every field resets to today's default.
+  font pack, text darkness) and the active surface's editor, one sub tab per
+  guest facing surface. Right column: a sticky live preview. The two emails
+  render through the exact builders real sends use; the gallery preview is a
+  faithful miniature that mirrors the real post-save logic, including whether
+  this operator's guests see the tip button, the review buttons, or the plain
+  thanks line. Editing is override, never required; every field restores to
+  today's default.
 
-  The preview is the real email HTML in a sandboxed iframe, scaled to fit its
-  column. Fonts inside the iframe load through the @import line the builder
-  emits, the same one Apple Mail honors. No em dashes anywhere.
+  The email previews are the real HTML in a sandboxed iframe, scaled to fit.
+  Fonts inside the iframes load through the @import the builders emit, the
+  same one Apple Mail honors. No em dashes anywhere.
 */
 import {
   useActionState,
@@ -20,19 +23,28 @@ import {
   useTransition,
 } from "react";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
+import { buildReviewEmail } from "@/lib/review-email";
 import { FONT_PACKS, fontPack, TEXT_TONES, textTone } from "@/lib/brand-fonts";
 import {
   COPY_TOKENS,
   DELIVERY_COPY,
+  REVIEW_COPY,
+  GALLERY_COPY,
+  renderTokens,
   type CopyOverrides,
   type CopyField,
+  type TokenContext,
 } from "@/lib/brand-copy";
 import { type SocialLinks } from "@/lib/social";
 import { Swatches } from "@/app/_ui/controls";
+import { SocialLinksForm } from "@/app/settings/social-links-form";
 import {
   saveBrandLook,
   saveDeliveryCopy,
+  saveReviewCopy,
+  saveGalleryCopy,
   sendTestDelivery,
+  sendTestReview,
   type BrandingState,
 } from "./actions";
 
@@ -49,6 +61,14 @@ type Initial = {
   sampleSpecies: string[];
   social: SocialLinks;
 };
+
+type Tips = {
+  enabled: boolean;
+  showReview: boolean;
+  myTip: { firstName: string; verb: string } | null;
+};
+
+const ALL_FIELDS: CopyField[] = [...DELIVERY_COPY, ...REVIEW_COPY, ...GALLERY_COPY];
 
 // All pack families in one stylesheet so the font picker can show real
 // specimens without loading fonts one by one.
@@ -74,17 +94,21 @@ function contrast(a: string, b: string): number {
 }
 
 const SURFACES = [
-  { key: "delivery", label: "Delivery email", ready: true },
-  { key: "review", label: "Review email", ready: false },
-  { key: "gallery", label: "Gallery", ready: false },
-  { key: "links", label: "Website and social", ready: false },
+  { key: "delivery", label: "Delivery email" },
+  { key: "review", label: "Review email" },
+  { key: "gallery", label: "Gallery" },
+  { key: "links", label: "Website and social" },
 ] as const;
 
 export function BrandingWorkbench({
   operatorName,
+  reviewLinks,
+  tips,
   initial,
 }: {
   operatorName: string;
+  reviewLinks: { label: string }[];
+  tips: Tips;
   initial: Initial;
 }) {
   // ---- Brand identity state ----
@@ -99,10 +123,10 @@ export function BrandingWorkbench({
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const shownLogo = logoPreview ?? initial.logoUrl;
 
-  // ---- Copy state, initialized to override or default ----
+  // ---- Copy state across all surfaces, initialized to override or default ----
   const [copy, setCopy] = useState<Record<string, string>>(() =>
     Object.fromEntries(
-      DELIVERY_COPY.map((f) => [f.key, initial.copyOverrides[f.key] ?? f.default]),
+      ALL_FIELDS.map((f) => [f.key, initial.copyOverrides[f.key] ?? f.default]),
     ),
   );
   const [intro, setIntro] = useState(initial.defaultMessage);
@@ -129,9 +153,16 @@ export function BrandingWorkbench({
     });
   };
 
-  // ---- The live preview: the real builder, the operator's real data ----
+  const [surface, setSurface] = useState<string>("delivery");
+
+  // ---- Live previews: the real builders, the operator's real data ----
   const effectiveAccent = accentOn ? accent : brand;
-  const previewHtml = useMemo(() => {
+  const sampleSpecies = initial.sampleSpecies.length
+    ? initial.sampleSpecies
+    : ["Humpback whales"];
+  const today = new Date().toLocaleDateString("en-US", { dateStyle: "long" });
+
+  const deliveryHtml = useMemo(() => {
     return buildDeliveryEmail({
       operatorName,
       brandColor: brand,
@@ -142,17 +173,52 @@ export function BrandingWorkbench({
       copyOverrides: copy,
       logoUrl: shownLogo,
       recipientName: "Alex Rivera",
-      tripDate: new Date().toLocaleDateString("en-US", { dateStyle: "long" }),
+      tripDate: today,
       captainName: "Ray",
       naturalistName: "Maya",
       photographerName: "Jordan",
-      species: initial.sampleSpecies.length ? initial.sampleSpecies : ["Humpback whales"],
+      species: sampleSpecies,
       message: intro,
       galleryUrl: "#",
       retentionDays: initial.retentionDays,
       social: initial.social,
     }).html;
-  }, [operatorName, brand, accentOn, accent, headerText, font, tone, copy, shownLogo, intro, initial]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operatorName, brand, accentOn, accent, headerText, font, tone, copy, shownLogo, intro, initial, today]);
+
+  const reviewHtml = useMemo(() => {
+    const links = reviewLinks.length ? reviewLinks : [{ label: "Leave a Google review" }];
+    return buildReviewEmail({
+      operatorName,
+      brandColor: brand,
+      accentColor: accentOn ? accent : null,
+      headerTextColor: headerText,
+      fontKey: font,
+      textTone: tone,
+      copyOverrides: copy,
+      logoUrl: shownLogo,
+      recipientName: "Alex",
+      tripLine: `${today} with Captain Ray`,
+      tripDate: today,
+      captainName: "Ray",
+      species: sampleSpecies,
+      reviewLinks: links.map((l) => ({ label: l.label, href: "#" })),
+      social: initial.social,
+    }).html;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operatorName, brand, accentOn, accent, headerText, font, tone, copy, shownLogo, reviewLinks, initial, today]);
+
+  // The gallery preview's fill-ins, rendered with the same sample trip.
+  const galleryCtx: TokenContext = {
+    operatorName,
+    firstName: "Alex",
+    species: sampleSpecies.join(" and "),
+    date: today,
+    photographerName: "Jordan",
+    crew: "Captain Ray",
+  };
+  const galleryReviewAsk = renderTokens(copy["gallery.review_ask"] ?? "", galleryCtx);
+  const galleryThanks = renderTokens(copy["gallery.thanks"] ?? "", galleryCtx);
 
   // Scale the 600px email to the preview column.
   const previewBox = useRef<HTMLDivElement | null>(null);
@@ -183,30 +249,38 @@ export function BrandingWorkbench({
     saveDeliveryCopy,
     undefined,
   );
+  const [reviewState, reviewAction, reviewPending] = useActionState<BrandingState, FormData>(
+    saveReviewCopy,
+    undefined,
+  );
+  const [galleryState, galleryAction, galleryPending] = useActionState<BrandingState, FormData>(
+    saveGalleryCopy,
+    undefined,
+  );
   const [testPending, startTest] = useTransition();
   const [testNote, setTestNote] = useState<BrandingState>(undefined);
-  const runTest = () => {
+  const lookDraft = {
+    brandColor: brand,
+    accentColor: accentOn ? accent : null,
+    headerTextColor: headerText === "#ffffff" ? null : headerText,
+    fontKey: font as string | null,
+    textTone: tone as string | null,
+  };
+  const runTest = (which: "delivery" | "review") => {
     setTestNote(undefined);
     startTest(async () => {
-      const res = await sendTestDelivery({
-        brandColor: brand,
-        accentColor: accentOn ? accent : null,
-        headerTextColor: headerText === "#ffffff" ? null : headerText,
-        fontKey: font,
-        textTone: tone,
-        copy,
-        message: intro,
-      });
+      const res =
+        which === "delivery"
+          ? await sendTestDelivery({ ...lookDraft, copy, message: intro })
+          : await sendTestReview({ ...lookDraft, copy });
       setTestNote(res);
     });
   };
 
-  const [surface, setSurface] = useState<string>("delivery");
-
-  // One copy field by key, so the editor can lay fields out in the same order
-  // they appear in the email rather than the schema's order.
+  // One copy field by key, so each editor can lay fields out in the same
+  // order they appear on the surface itself.
   const copyField = (key: string) => {
-    const f = DELIVERY_COPY.find((x) => x.key === key);
+    const f = ALL_FIELDS.find((x) => x.key === key);
     if (!f) return null;
     return (
       <CopyInput
@@ -222,10 +296,54 @@ export function BrandingWorkbench({
     );
   };
 
+  const fillIns = (
+    <div style={{ background: "var(--ink-2)", border: "1px solid var(--line)", borderRadius: "11px", padding: "12px 13px", marginBottom: "16px" }}>
+      <div style={{ fontSize: "12.5px", fontWeight: 600, marginBottom: "3px" }}>Fill-ins</div>
+      <p className="fl-hint" style={{ margin: "0 0 9px" }}>
+        {focused
+          ? "Tap one to drop it into the field you are editing. On every send we swap it for the real thing, so Guest's first name becomes Alex, and What the trip saw becomes Humpback whales. Watch the preview to see it filled in."
+          : "Click into a field above first, then tap one to drop it in. On every send we swap it for the real thing, so Guest's first name becomes Alex, and What the trip saw becomes Humpback whales."}
+      </p>
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+        {COPY_TOKENS.map((t) => (
+          <button
+            key={t.token}
+            type="button"
+            onClick={() => insertToken(t.token)}
+            disabled={!focused}
+            title={`${t.token} becomes something like "${t.example}"`}
+            style={{ ...tokenChip, opacity: focused ? 1 : 0.45, cursor: focused ? "pointer" : "default" }}
+          >
+            + {t.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const testRow = (which: "delivery" | "review", saving: boolean, saveLabel: string) => (
+    <>
+      <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+        <button type="submit" disabled={saving} className="fl-btn">
+          {saving ? "Saving..." : saveLabel}
+        </button>
+        <button type="button" onClick={() => runTest(which)} disabled={testPending} className="fl-btn-ghost">
+          {testPending ? "Sending..." : "Send test to myself"}
+        </button>
+      </div>
+      {testNote?.error ? <p style={{ ...errText, marginTop: "10px" }}>{testNote.error}</p> : null}
+      {testNote?.ok ? <p style={{ ...okText, marginTop: "10px" }}>{testNote.ok}</p> : null}
+    </>
+  );
+
+  // What the gallery preview's post-save slot will actually show, mirroring
+  // resolveGalleryTip: tip when tips are on and this member has a link.
+  const showTip = tips.enabled && tips.myTip;
+  const pack = fontPack(font);
+
   return (
     <div>
-      {/* Font specimens for the picker. The preview iframe loads its own. */}
-      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      {/* Font specimens for the picker and the gallery mini preview. */}
       <link rel="stylesheet" href={ALL_FAMILIES_HREF} />
       <style>{`
         .fl-brandgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 440px); gap: 18px; align-items: start; }
@@ -415,38 +533,34 @@ export function BrandingWorkbench({
               <button
                 key={s.key}
                 type="button"
-                disabled={!s.ready}
-                onClick={() => s.ready && setSurface(s.key)}
+                onClick={() => setSurface(s.key)}
                 style={{
                   font: "inherit",
                   fontSize: "13px",
                   fontWeight: surface === s.key ? 600 : 500,
                   padding: "8px 14px",
                   borderRadius: "999px",
-                  cursor: s.ready ? "pointer" : "default",
+                  cursor: "pointer",
                   background: surface === s.key ? "var(--signal)" : "transparent",
-                  color: surface === s.key ? "var(--signal-ink)" : s.ready ? "var(--text)" : "var(--muted)",
+                  color: surface === s.key ? "var(--signal-ink)" : "var(--text)",
                   border: `1px solid ${surface === s.key ? "var(--signal)" : "var(--line-strong)"}`,
-                  opacity: s.ready ? 1 : 0.6,
                 }}
               >
                 {s.label}
-                {!s.ready ? <span style={{ fontSize: "10.5px", marginLeft: "6px", opacity: 0.8 }}>soon</span> : null}
               </button>
             ))}
           </div>
 
-          {/* ---- Delivery email copy ---- */}
+          {/* ---- Delivery email wording ---- */}
           {surface === "delivery" ? (
             <form action={copyAction} className="fl-card" style={{ padding: "18px" }}>
               <div style={cardTitle}>Delivery email wording</div>
               <p className="fl-hint" style={{ margin: "0 0 14px" }}>
                 The email each guest gets with their gallery link. Plain words
-                plus the tokens below; we swap them in at send time.
+                plus the fill-ins below; we swap them in at send time.
               </p>
 
-              {/* Fields in the order they appear in the email itself:
-                  headline, intro, button, sign-off. */}
+              {/* Fields in the order they appear in the email itself. */}
               {copyField("delivery.headline")}
 
               <label style={{ display: "block", marginBottom: "14px" }}>
@@ -466,43 +580,78 @@ export function BrandingWorkbench({
 
               {copyField("delivery.button")}
               {copyField("delivery.signoff")}
-
-              <div style={{ background: "var(--ink-2)", border: "1px solid var(--line)", borderRadius: "11px", padding: "12px 13px", marginBottom: "16px" }}>
-                <div style={{ fontSize: "12.5px", fontWeight: 600, marginBottom: "3px" }}>Fill-ins</div>
-                <p className="fl-hint" style={{ margin: "0 0 9px" }}>
-                  {focused
-                    ? "Tap one to drop it into the field you are editing. On every send we swap it for the real thing, so Guest's first name becomes Alex, and What the trip saw becomes Humpback whales. Watch the preview to see it filled in."
-                    : "Click into a field above first, then tap one to drop it in. On every send we swap it for the real thing, so Guest's first name becomes Alex, and What the trip saw becomes Humpback whales."}
-                </p>
-                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                  {COPY_TOKENS.map((t) => (
-                    <button
-                      key={t.token}
-                      type="button"
-                      onClick={() => insertToken(t.token)}
-                      disabled={!focused}
-                      title={`${t.token} becomes something like "${t.example}"`}
-                      style={{ ...tokenChip, opacity: focused ? 1 : 0.45, cursor: focused ? "pointer" : "default" }}
-                    >
-                      + {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+              {fillIns}
               {copyState?.error ? <p style={errText}>{copyState.error}</p> : null}
               {copyState?.ok ? <p style={okText}>{copyState.ok}</p> : null}
-              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                <button type="submit" disabled={copyPending} className="fl-btn">
-                  {copyPending ? "Saving..." : "Save wording"}
-                </button>
-                <button type="button" onClick={runTest} disabled={testPending} className="fl-btn-ghost">
-                  {testPending ? "Sending..." : "Send test to myself"}
-                </button>
-              </div>
-              {testNote?.error ? <p style={{ ...errText, marginTop: "10px" }}>{testNote.error}</p> : null}
-              {testNote?.ok ? <p style={{ ...okText, marginTop: "10px" }}>{testNote.ok}</p> : null}
+              {testRow("delivery", copyPending, "Save wording")}
             </form>
+          ) : null}
+
+          {/* ---- Review email wording ---- */}
+          {surface === "review" ? (
+            <form action={reviewAction} className="fl-card" style={{ padding: "18px" }}>
+              <div style={cardTitle}>Review email wording</div>
+              <p className="fl-hint" style={{ margin: "0 0 14px" }}>
+                The follow-up that asks for a review after a guest saves their
+                photos. The buttons are your review links, exactly as you named
+                them; edit those under Settings.
+              </p>
+              {!reviewLinks.length ? (
+                <p style={{ ...warnText, margin: "0 0 14px" }}>
+                  You have no review links yet, so guests are not asked for
+                  reviews at all. Add your Google or Tripadvisor link in
+                  Settings; the preview shows a sample button until then.
+                </p>
+              ) : null}
+
+              {copyField("review.headline")}
+              {copyField("review.ask")}
+              {copyField("review.signoff")}
+              {fillIns}
+              {reviewState?.error ? <p style={errText}>{reviewState.error}</p> : null}
+              {reviewState?.ok ? <p style={okText}>{reviewState.ok}</p> : null}
+              {testRow("review", reviewPending, "Save wording")}
+            </form>
+          ) : null}
+
+          {/* ---- Gallery wording ---- */}
+          {surface === "gallery" ? (
+            <form action={galleryAction} className="fl-card" style={{ padding: "18px" }}>
+              <div style={cardTitle}>Gallery wording</div>
+              <p className="fl-hint" style={{ margin: "0 0 14px" }}>
+                The gallery headline and trip details are written from each
+                send. What you can shape here is the moment after a guest saves
+                their photos.
+              </p>
+              <p className="fl-hint" style={{ margin: "0 0 14px" }}>
+                {showTip
+                  ? `Right now that moment shows the tip button (tips are on and you have a tip link)${tips.showReview ? " with your review links under it" : ""}, so the review ask below only shows for sends by teammates without a tip link.`
+                  : reviewLinks.length
+                    ? "Right now that moment shows your review buttons."
+                    : "Right now that moment shows the thank-you line, because there are no review links and tips are off."}
+              </p>
+
+              {copyField("gallery.review_ask")}
+              {copyField("gallery.thanks")}
+              {fillIns}
+              {galleryState?.error ? <p style={errText}>{galleryState.error}</p> : null}
+              {galleryState?.ok ? <p style={okText}>{galleryState.ok}</p> : null}
+              <button type="submit" disabled={galleryPending} className="fl-btn">
+                {galleryPending ? "Saving..." : "Save wording"}
+              </button>
+            </form>
+          ) : null}
+
+          {/* ---- Website and social ---- */}
+          {surface === "links" ? (
+            <div className="fl-card" style={{ padding: "18px" }}>
+              <div style={cardTitle}>Website and social links</div>
+              <p className="fl-hint" style={{ margin: "0 0 14px" }}>
+                Shown as the small icon row under both emails. The preview picks
+                up changes after you save.
+              </p>
+              <SocialLinksForm links={initial.social} />
+            </div>
           ) : null}
         </div>
 
@@ -510,25 +659,54 @@ export function BrandingWorkbench({
         <div className="fl-brandprev">
           <div className="fl-card" style={{ padding: "14px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "0 2px 10px" }}>
-              <span style={{ fontSize: "13px", fontWeight: 600 }}>Live preview</span>
+              <span style={{ fontSize: "13px", fontWeight: 600 }}>
+                {surface === "review" ? "Review email" : surface === "gallery" ? "Gallery" : "Delivery email"} preview
+              </span>
               <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>sample trip data</span>
             </div>
-            <div ref={previewBox} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#fff", height: `${Math.round(980 * scale)}px` }}>
-              <iframe
-                title="Email preview"
-                sandbox=""
-                srcDoc={previewHtml}
-                style={{
-                  width: "600px",
-                  height: "980px",
-                  border: 0,
-                  transform: `scale(${scale})`,
-                  transformOrigin: "top left",
-                  pointerEvents: "none",
-                  background: "#fff",
-                }}
+
+            {surface === "gallery" ? (
+              <GalleryMini
+                operatorName={operatorName}
+                brand={brand}
+                accent={effectiveAccent}
+                displayStack={pack.displayStack}
+                logo={shownLogo}
+                intro={intro}
+                species={sampleSpecies}
+                reviewLinks={reviewLinks}
+                reviewAsk={galleryReviewAsk}
+                thanks={galleryThanks}
+                tips={tips}
               />
-            </div>
+            ) : (
+              <div ref={previewBox} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#fff", height: `${Math.round(980 * scale)}px` }}>
+                <iframe
+                  title="Email preview"
+                  sandbox=""
+                  srcDoc={surface === "review" ? reviewHtml : deliveryHtml}
+                  style={{
+                    width: "600px",
+                    height: "980px",
+                    border: 0,
+                    transform: `scale(${scale})`,
+                    transformOrigin: "top left",
+                    pointerEvents: "none",
+                    background: "#fff",
+                  }}
+                />
+              </div>
+            )}
+            {surface === "gallery" ? (
+              <p className="fl-hint" style={{ margin: "10px 2px 0" }}>
+                Shown as it lands after a guest saves their photos:{" "}
+                {showTip
+                  ? `the tip button${tips.showReview && reviewLinks.length ? " with the review links under it" : ""}, because tips are on and you have a tip link.`
+                  : reviewLinks.length
+                    ? "your review buttons, because tips are off for this send."
+                    : "the thank-you line, because there are no review links and tips are off."}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -536,8 +714,139 @@ export function BrandingWorkbench({
   );
 }
 
-// One labeled copy field with a live counter and a reset when it drifts from
-// the default.
+// A faithful miniature of the guest gallery: hero, intro, a few placeholder
+// photo tiles, and the real post-save slot logic (tip, review, or thanks).
+function GalleryMini({
+  operatorName,
+  brand,
+  accent,
+  displayStack,
+  logo,
+  intro,
+  species,
+  reviewLinks,
+  reviewAsk,
+  thanks,
+  tips,
+}: {
+  operatorName: string;
+  brand: string;
+  accent: string;
+  displayStack: string;
+  logo: string | null;
+  intro: string;
+  species: string[];
+  reviewLinks: { label: string }[];
+  reviewAsk: string;
+  thanks: string;
+  tips: Tips;
+}) {
+  const showTip = tips.enabled && tips.myTip;
+  const tipName = tips.myTip?.firstName ?? "Jordan";
+  const tiles = ["#b9cdd4", "#9db4bd", "#c7d6d0", "#a8bfc9"];
+  return (
+    <div style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#faf8f4", color: "#1c2b2e" }}>
+      <div style={{ background: brand, color: "#fff", padding: "18px 16px 16px" }}>
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt={operatorName} style={{ height: "26px" }} />
+        ) : (
+          <div style={{ fontFamily: displayStack, fontSize: "14px", opacity: 0.96 }}>{operatorName}</div>
+        )}
+        <div style={{ fontFamily: displayStack, fontWeight: 500, fontSize: "18px", lineHeight: 1.25, margin: "10px 0 5px", maxWidth: "18ch" }}>
+          Your 10:00 AM trip with Captain Ray
+        </div>
+        <div style={{ fontSize: "10.5px", opacity: 0.85 }}>
+          {species.join(" and ")} · photos by Jordan
+        </div>
+      </div>
+      <div style={{ padding: "14px" }}>
+        {intro ? (
+          <p style={{ fontSize: "11.5px", lineHeight: 1.55, margin: "0 0 12px", color: "#33464a" }}>{intro}</p>
+        ) : null}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+          {tiles.map((c, i) => (
+            <div key={i} style={{ position: "relative", aspectRatio: "4 / 3", borderRadius: "8px", background: `linear-gradient(135deg, ${c}, #e7e2d8)` }}>
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: 5,
+                  right: 5,
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: accent,
+                  color: "#fff",
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                }}
+              >
+                ↓
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: "12px", borderTop: "1px solid #e7e0d4", paddingTop: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
+            <span style={{ width: 16, height: 16, borderRadius: "50%", background: accent, color: "#fff", display: "grid", placeItems: "center", fontSize: "9px" }}>✓</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Saved to your phone.</span>
+          </div>
+          {showTip ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "8px" }}>
+              <span style={{ width: 32, height: 32, borderRadius: "50%", background: accent, color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: "14px" }}>
+                {(tipName[0] ?? "?").toUpperCase()}
+              </span>
+              <p style={{ fontSize: "10.5px", lineHeight: 1.5, color: "#46555a", margin: 0, maxWidth: "30ch" }}>
+                Loved your trip? Your photos were shot by <strong style={{ color: "#1c2b2e" }}>{tipName}</strong>.
+              </p>
+              <span style={{ ...miniBtn, background: accent }}>Tip {tipName}</span>
+              <span style={{ fontSize: "9.5px", color: "#8a938f" }}>
+                {tips.myTip?.verb ?? "opens Venmo"} · goes straight to {tipName}
+              </span>
+              {tips.showReview && reviewLinks.length ? (
+                <div style={{ fontSize: "10px", color: "#6b7a7d" }}>
+                  Loved it?{" "}
+                  {reviewLinks.map((l, i) => (
+                    <span key={l.label}>
+                      {i > 0 ? " · " : null}
+                      <span style={{ color: accent, fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "2px" }}>{l.label}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : reviewLinks.length ? (
+            <>
+              <p style={{ fontSize: "10.5px", lineHeight: 1.5, color: "#46555a", margin: "0 0 8px" }}>{reviewAsk}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {reviewLinks.map((l, i) => (
+                  <span
+                    key={l.label}
+                    style={
+                      i === 0
+                        ? { ...miniBtn, background: accent }
+                        : { ...miniBtn, background: "transparent", color: accent, border: `1px solid ${accent}` }
+                    }
+                  >
+                    {l.label}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p style={{ fontSize: "10.5px", color: "#46555a", margin: 0 }}>{thanks}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// One labeled copy field with a live counter and a restore link when it
+// drifts from the default.
 function CopyInput({
   field,
   value,
@@ -598,6 +907,7 @@ function CopyInput({
 const cardTitle: React.CSSProperties = { fontSize: "15px", fontWeight: 600, marginBottom: "4px" };
 const errText: React.CSSProperties = { color: "var(--bad)", fontSize: "13px", margin: "0 0 12px" };
 const okText: React.CSSProperties = { color: "var(--good)", fontSize: "13px", margin: "0 0 12px" };
+const warnText: React.CSSProperties = { color: "#b98a2f", fontSize: "12.5px" };
 const resetLink: React.CSSProperties = {
   font: "inherit",
   fontSize: "11.5px",
@@ -640,4 +950,15 @@ const replaceBox: React.CSSProperties = {
   fontSize: "12.5px",
   cursor: "pointer",
   flex: 1,
+};
+const miniBtn: React.CSSProperties = {
+  display: "block",
+  textAlign: "center",
+  fontWeight: 600,
+  fontSize: "10.5px",
+  padding: "8px",
+  borderRadius: "8px",
+  color: "#fff",
+  width: "100%",
+  boxSizing: "border-box",
 };

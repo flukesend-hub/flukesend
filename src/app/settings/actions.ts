@@ -99,6 +99,8 @@ export async function updateSocialLinks(
     return { error: "Could not save your links. Try again." };
   }
 
+  // The form lives on the Branding tab now; both paths stay fresh.
+  revalidatePath("/branding");
   revalidatePath("/settings");
   return { ok: "Links saved." };
 }

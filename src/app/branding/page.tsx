@@ -9,17 +9,55 @@ import { requireOperator } from "@/lib/operator-session";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { BrandingWorkbench } from "./workbench";
 import { type CopyOverrides } from "@/lib/brand-copy";
+import { isTipProvider, tipProviderVerb, type TipProvider } from "@/lib/tips";
 
 export default async function BrandingPage() {
-  const { supabase, operatorId, operatorName } = await requireOperator();
+  const { supabase, userId, operatorId, operatorName } = await requireOperator();
 
-  const { data: branding } = await supabase
-    .from("branding")
-    .select(
-      "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, copy_overrides, default_message, retention_days, species_options, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
-    )
-    .eq("operator_id", operatorId)
-    .maybeSingle();
+  // Branding row, the operator's review links, the tips switches, and the
+  // signed-in member's own tip link, all through RLS, all in one wave. The
+  // last three exist so the gallery preview mirrors the real post-save slot:
+  // tip when tips are on and this member has a link, review buttons
+  // otherwise, thanks line when neither.
+  const [{ data: branding }, { data: reviewRows }, { data: op }, { data: me }] =
+    await Promise.all([
+      supabase
+        .from("branding")
+        .select(
+          "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, copy_overrides, default_message, retention_days, species_options, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        )
+        .eq("operator_id", operatorId)
+        .maybeSingle(),
+      supabase
+        .from("review_destinations")
+        .select("label, sort_order")
+        .eq("operator_id", operatorId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("operators")
+        .select("tips_enabled, tips_show_review")
+        .eq("id", operatorId)
+        .maybeSingle(),
+      supabase
+        .from("operator_members")
+        .select("display_name, tip_provider, tip_handle")
+        .eq("operator_id", operatorId)
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
+
+  const myTipSet = Boolean(isTipProvider(me?.tip_provider as string) && me?.tip_handle);
+  const tips = {
+    enabled: Boolean(op?.tips_enabled),
+    showReview: Boolean(op?.tips_show_review),
+    myTip: myTipSet
+      ? {
+          firstName:
+            ((me?.display_name as string | null) ?? "").trim().split(/\s+/)[0] || "your photographer",
+          verb: tipProviderVerb(me?.tip_provider as TipProvider),
+        }
+      : null,
+  };
 
   return (
     <>
@@ -32,6 +70,8 @@ export default async function BrandingPage() {
         </p>
         <BrandingWorkbench
           operatorName={operatorName ?? "Operator"}
+          reviewLinks={(reviewRows ?? []).map((l) => ({ label: l.label as string }))}
+          tips={tips}
           initial={{
             logoUrl: (branding?.logo_url as string | null) ?? null,
             brandColor: (branding?.brand_color as string | null) ?? "#0b5563",

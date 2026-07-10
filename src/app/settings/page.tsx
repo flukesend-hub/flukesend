@@ -14,7 +14,6 @@ import { TipLinkForm } from "./tip-link-form";
 import { isTipProvider, type TipProvider } from "@/lib/tips";
 import { RetentionForm } from "./retention-form";
 import { ReviewLinks } from "./review-links";
-import { SocialLinksForm } from "./social-links-form";
 import { SpeciesPicker } from "./species-picker";
 import { TripTimesPicker } from "./trip-times-picker";
 import { SettingsSection } from "./settings-section";
@@ -33,9 +32,7 @@ export default async function SettingsPage() {
     await Promise.all([
       supabase
         .from("branding")
-        .select(
-          "logo_url, brand_color, default_message, retention_days, plan, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url, species_options, trip_times",
-        )
+        .select("logo_url, retention_days, species_options, trip_times")
         .eq("operator_id", operatorId)
         .maybeSingle(),
       supabase
@@ -68,15 +65,6 @@ export default async function SettingsPage() {
 
   // One line summaries so each collapsed section says what is set without
   // opening it. Most of this is set once; species is the part that changes.
-  const social = {
-    website_url: branding?.website_url ?? null,
-    facebook_url: branding?.facebook_url ?? null,
-    instagram_url: branding?.instagram_url ?? null,
-    tiktok_url: branding?.tiktok_url ?? null,
-    youtube_url: branding?.youtube_url ?? null,
-    x_url: branding?.x_url ?? null,
-  };
-  const socialCount = Object.values(social).filter(Boolean).length;
   const speciesList = (branding?.species_options ?? []) as string[];
   const tripTimes = (branding?.trip_times ?? []) as string[];
   const reviewCount = links?.length ?? 0;
@@ -182,8 +170,9 @@ export default async function SettingsPage() {
                   Brand look and messaging
                 </span>
                 <span style={{ display: "block", fontSize: "12.5px", color: "var(--muted)", marginTop: "3px" }}>
-                  {hasLogo ? "Logo set" : "No logo yet"}. Logo, colors, fonts, and
-                  email wording now live in the Branding tab.
+                  {hasLogo ? "Logo set" : "No logo yet"}. Logo, colors, fonts,
+                  email wording, and your website and social links now live in
+                  the Branding tab.
                 </span>
               </span>
               <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--signal-ink)", background: "var(--signal)", padding: "7px 12px", borderRadius: "9px", flex: "0 0 auto" }}>
@@ -197,14 +186,6 @@ export default async function SettingsPage() {
               chip={doneChip}
             >
               <RetentionForm retentionDays={retentionDays} />
-            </SettingsSection>
-
-            <SettingsSection
-              title="Website and social links"
-              summary={socialCount ? `${socialCount} ${plural(socialCount, "link", "links")} shown as email footer icons` : "None yet"}
-              chip={socialCount ? doneChip : { label: "Optional", tone: "muted" }}
-            >
-              <SocialLinksForm links={social} />
             </SettingsSection>
 
             <SettingsSection

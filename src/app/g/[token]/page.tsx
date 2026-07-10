@@ -7,6 +7,8 @@
 import { notFound } from "next/navigation";
 import { getGalleryByToken, isExpired, resolveGalleryTip } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fontPack, googleFontsHref } from "@/lib/brand-fonts";
+import { GALLERY_COPY, copyValue, renderTokens } from "@/lib/brand-copy";
 import { TrackOpen } from "./track-open";
 import { GalleryPhotos } from "./gallery-photos";
 
@@ -32,6 +34,25 @@ export default async function GalleryPage({
   }
   const { delivery, operator, branding } = data;
   const brand = branding?.brand_color ?? "#0b5563";
+  // The Branding tab look: accent paints the buttons (falls back to brand),
+  // the font pack sets the display type, and the post-save copy comes from
+  // copy_overrides with fill-ins rendered here (React escapes on output).
+  const accent = branding?.accent_color ?? brand;
+  const pack = fontPack(branding?.font_key);
+  const fontsHref = googleFontsHref(pack);
+  const tokenCtx = {
+    operatorName: operator.name,
+    firstName: data.recipient.name?.trim().split(/\s+/)[0] ?? null,
+    species: delivery.species?.length ? delivery.species.join(" and ") : null,
+    date: delivery.trip_datetime
+      ? new Date(delivery.trip_datetime).toLocaleDateString("en-US", { dateStyle: "long" })
+      : null,
+    photographerName: delivery.photographer_name,
+    crew: delivery.captain_name ? `Captain ${delivery.captain_name}` : null,
+  };
+  const galleryCopy = Object.fromEntries(
+    GALLERY_COPY.map((f) => [f.key, renderTokens(copyValue(branding?.copy_overrides, f), tokenCtx)]),
+  );
   const message = delivery.custom_message || branding?.default_message || "";
   const expired = isExpired(delivery.expires_at);
 
@@ -128,6 +149,12 @@ export default async function GalleryPage({
 
   return (
     <main style={{ minHeight: "100dvh", background: "var(--paper)", color: "var(--paper-ink)", padding: "0 0 60px" }}>
+      {fontsHref && pack.key !== "classic" ? (
+        // The operator picked a non default font pack; load it for the hero
+        // and headings. Classic already loads through the app layout.
+        // eslint-disable-next-line @next/next/no-page-custom-font
+        <link rel="stylesheet" href={fontsHref} />
+      ) : null}
       {preview ? null : <TrackOpen token={token} />}
       <div style={{ maxWidth: "560px", margin: "0 auto" }}>
         {preview ? (
@@ -143,11 +170,11 @@ export default async function GalleryPage({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={branding.logo_url} alt={operator.name} style={{ height: "40px" }} />
           ) : (
-            <div className="fl-display" style={{ fontSize: "20px", letterSpacing: ".02em", opacity: 0.96 }}>
+            <div className="fl-display" style={{ fontFamily: pack.displayStack, fontSize: "20px", letterSpacing: ".02em", opacity: 0.96 }}>
               {operator.name}
             </div>
           )}
-          <div className="fl-display" style={{ fontWeight: 500, fontSize: "26px", lineHeight: 1.2, margin: "16px 0 8px", maxWidth: "18ch" }}>
+          <div className="fl-display" style={{ fontFamily: pack.displayStack, fontWeight: 500, fontSize: "26px", lineHeight: 1.2, margin: "16px 0 8px", maxWidth: "18ch" }}>
             {title}
           </div>
           {facts.length ? (
@@ -173,9 +200,12 @@ export default async function GalleryPage({
             <GalleryPhotos
               token={token}
               brand={brand}
+              accent={accent}
               retentionDays={retentionDaysLeft(delivery.expires_at)}
               photos={photos}
               reviewLinks={reviewLinks}
+              reviewAskText={galleryCopy["gallery.review_ask"]}
+              thanksText={galleryCopy["gallery.thanks"]}
               tip={tip}
               reviewUnderTip={Boolean(tip && data.operator.tips_show_review)}
               preview={preview}

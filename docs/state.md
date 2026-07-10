@@ -62,6 +62,26 @@ internal plan key is still `fleet`; the customer facing display name is currentl
   after the send already went out.
 - Review engine: instant ask on download, cron as safety net, per destination click
   tracking.
+- Tip jar (link only): a "Tip your photographer" button in the gallery's post-save
+  slot, opening the photographer's own Venmo, Cash App, or PayPal.me link. Two flag
+  gate (operator switch, owner only, plus the photographer's own link). An optional
+  second switch also shows the review links as a quiet line under the tip. Flukesend
+  never touches the money.
+- Branding tab (new, July 2026): one place for look and voice, moved out of
+  Settings. Brand identity (logo, brand color, optional separate accent for
+  buttons, header text color, a five pack font picker, a three step text darkness
+  dial) plus per surface editable wording for the delivery email, review email,
+  and gallery post-save moment, each with a live preview (the emails render
+  through the exact production builders in a scaled iframe; the gallery preview
+  mirrors the real tip-or-review logic). Copy fields are curated with character
+  limits and fill-in tokens ({operator_name}, {first_name}, {species}, {date},
+  {photographer_name}, {crew}); validated on save, substituted then escaped at
+  send time; every field restores to default. Send-test-to-myself mails the
+  current draft. All overrides are nullable (branding.accent_color,
+  header_text_color, font_key, text_tone, copy_overrides jsonb; migrations 0028
+  and 0029), so an untouched operator renders exactly as before. Website and
+  social links also live here now; Settings keeps retention and links to
+  Branding.
 - Social page: story card (photo of the day, species counts, brand, safe band so
   Instagram's header does not cover the logo), slideshow mp4 (client side encode, 15
   second cap, speed control), post mode (up to 10 photos for a carousel).
@@ -80,12 +100,13 @@ internal plan key is still `fleet`; the customer facing display name is currentl
 1. Slideshow presets: a trip by trip recap (one branded frame per trip with that
    trip's own real counts), instead of hand picking photos. Founder explicitly said
    "I will add the presets later".
-2. Social customization: layout templates, typography, themes, maybe a short
-   operator name. Right now every operator's card looks the same except logo and
-   color, and the founder flagged that this will start to feel generic as more
-   operators join.
+2. Social customization: layout templates, themes, maybe a short operator name
+   for the story cards. The Branding tab now covers fonts, accent color, and
+   wording for emails and the gallery, but every operator's story card still
+   looks the same except logo and color.
 3. Plan display name: "Standard" is a placeholder awaiting the founder's call.
-4. Tip jar (Stripe Connect): in the original spec, not started.
+4. Tip jar payments upgrade (Stripe Connect, money through the product): the
+   link only tip jar is live; in-product payment is the someday version.
 5. FareHarbor webhook (auto import bookings as captured guests): in the original
    spec, not started.
 6. Capture rate stats (QR sign-ups versus passengers aboard): in the original spec,

@@ -33,18 +33,26 @@ const MAX_SHARE_BYTES = 250 * 1024 * 1024;
 export function GalleryPhotos({
   token,
   brand,
+  accent,
   retentionDays,
   photos,
   reviewLinks,
+  reviewAskText = "Loved the trip? A quick review means a lot to a small crew like ours.",
+  thanksText = "Thanks for spending the day on the water with us.",
   tip = null,
   reviewUnderTip = false,
   preview = false,
 }: {
   token: string;
   brand: string;
+  // Button and highlight color from the Branding tab; falls back to brand.
+  accent?: string;
   retentionDays: number;
   photos: Photo[];
   reviewLinks: { label: string; href: string }[];
+  // Post-save copy from the Branding tab, fill-ins already rendered.
+  reviewAskText?: string;
+  thanksText?: string;
   // When set, the tip block is the primary ask in the post-save slot, in place
   // of the review links. Resolved server side (both flags already checked).
   tip?: { firstName: string; verb: string; href: string } | null;
@@ -53,6 +61,7 @@ export function GalleryPhotos({
   reviewUnderTip?: boolean;
   preview?: boolean;
 }) {
+  const ui = accent || brand;
   const [downloaded, setDownloaded] = useState(false);
   const [canShareFiles, setCanShareFiles] = useState(false);
   const [save, setSave] = useState<SaveState>(null);
@@ -149,7 +158,7 @@ export function GalleryPhotos({
             <a
               href={downloadUrl(p.id)}
               onClick={() => setDownloaded(true)}
-              style={{ ...dlBtn, background: brand }}
+              style={{ ...dlBtn, background: ui }}
               aria-label={`Download ${p.name}`}
             >
               ↓
@@ -164,21 +173,21 @@ export function GalleryPhotos({
         </span>
         {shareable ? (
           save?.phase === "fetching" ? (
-            <button disabled style={{ ...allBtn, background: brand, opacity: 0.75 }}>
+            <button disabled style={{ ...allBtn, background: ui, opacity: 0.75 }}>
               Getting photo {save.done} of {save.total}...
             </button>
           ) : save?.phase === "ready" ? (
-            <button onClick={() => shareNow(save.files)} style={{ ...allBtn, background: brand }}>
+            <button onClick={() => shareNow(save.files)} style={{ ...allBtn, background: ui }}>
               Ready. Tap to save {save.files.length} photos
             </button>
           ) : save?.phase === "sharing" ? (
-            <button disabled style={{ ...allBtn, background: brand, opacity: 0.75 }}>
+            <button disabled style={{ ...allBtn, background: ui, opacity: 0.75 }}>
               Opening...
             </button>
           ) : (
             <button
               onClick={prepareShare}
-              style={{ ...allBtn, background: brand, opacity: downloaded ? 0.7 : 1 }}
+              style={{ ...allBtn, background: ui, opacity: downloaded ? 0.7 : 1 }}
             >
               {downloaded ? "Saved" : "Save all to Photos"}
             </button>
@@ -187,7 +196,7 @@ export function GalleryPhotos({
           <a
             href={zipUrl}
             onClick={() => setDownloaded(true)}
-            style={{ ...allBtn, background: brand, opacity: downloaded ? 0.7 : 1, textDecoration: "none", display: "inline-block" }}
+            style={{ ...allBtn, background: ui, opacity: downloaded ? 0.7 : 1, textDecoration: "none", display: "inline-block" }}
           >
             {downloaded ? "Downloaded" : "Download all photos"}
           </a>
@@ -209,7 +218,7 @@ export function GalleryPhotos({
       {downloaded ? (
         <div className="fl-reveal" style={{ marginTop: "18px", borderTop: "1px solid #e7e0d4", paddingTop: "18px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: tip || reviewLinks.length ? "14px" : "0" }}>
-            <span style={{ ...check, background: brand }}>✓</span>
+            <span style={{ ...check, background: ui }}>✓</span>
             <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#1c2b2e" }}>Saved to your phone.</span>
           </div>
           {tip ? (
@@ -217,7 +226,7 @@ export function GalleryPhotos({
             // button; the payment provider is only a small grey cue, never a
             // logo, so the operator's brand stays the hero.
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px" }}>
-              <span style={{ ...avatar, background: brand }}>
+              <span style={{ ...avatar, background: ui }}>
                 {(tip.firstName.trim()[0] ?? "?").toUpperCase()}
               </span>
               <p style={{ fontSize: "14px", lineHeight: 1.55, color: "#46555a", margin: 0, maxWidth: "34ch" }}>
@@ -228,7 +237,7 @@ export function GalleryPhotos({
                 href={tip.href}
                 target="_blank"
                 rel="noreferrer"
-                style={{ ...reviewBtn, background: brand, color: "#fff", width: "100%", maxWidth: "320px" }}
+                style={{ ...reviewBtn, background: ui, color: "#fff", width: "100%", maxWidth: "320px" }}
               >
                 Tip {tip.firstName}
               </a>
@@ -247,7 +256,7 @@ export function GalleryPhotos({
                         href={l.href}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ color: brand, fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "2px" }}
+                        style={{ color: ui, fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "2px" }}
                       >
                         {l.label}
                       </a>
@@ -259,7 +268,7 @@ export function GalleryPhotos({
           ) : reviewLinks.length ? (
             <>
               <p style={{ fontSize: "13.5px", lineHeight: 1.55, color: "#46555a", margin: "0 0 12px" }}>
-                Loved the trip? A quick review means a lot to a small crew like ours.
+                {reviewAskText}
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {reviewLinks.map((l, i) => (
@@ -270,8 +279,8 @@ export function GalleryPhotos({
                     rel="noreferrer"
                     style={
                       i === 0
-                        ? { ...reviewBtn, background: brand, color: "#fff" }
-                        : { ...reviewBtn, background: "transparent", color: brand, border: `1px solid ${brand}` }
+                        ? { ...reviewBtn, background: ui, color: "#fff" }
+                        : { ...reviewBtn, background: "transparent", color: ui, border: `1px solid ${ui}` }
                     }
                   >
                     {l.label}
@@ -281,7 +290,7 @@ export function GalleryPhotos({
             </>
           ) : (
             <p style={{ fontSize: "13px", color: "#46555a", margin: "0" }}>
-              Thanks for spending the day on the water with us.
+              {thanksText}
             </p>
           )}
         </div>

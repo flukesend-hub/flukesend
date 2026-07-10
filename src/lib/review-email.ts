@@ -2,14 +2,28 @@
   The branded review ask. Built and sent the moment a guest downloads, with the
   nightly job as the retry net. Shares the delivery email's shell so the two
   read as one brand: white body, a bordered card, the brand colored header band
-  with the operator's logo, and the social links in a footer below the card. A
-  warm line and one button per review link (first solid, the rest outlined). No
-  review gating: every guest who downloads is asked.
+  with the operator's logo, and the social links in a footer below the card.
+  One button per review link (first solid, the rest outlined). No review
+  gating: every guest who downloads is asked.
+
+  Look and voice come from the Branding tab, same as the delivery email:
+  accent_color paints the buttons, the font pack picks the faces, text_tone
+  sets the grays, and copy_overrides swaps the headline, ask line, and
+  sign-off (tokens substituted, then escaped). Client safe on purpose (no
+  server-only): the Branding tab renders this exact builder as its live
+  preview. Sending lives with the callers via lib/email.
 */
-import "server-only";
-import { escapeHtml, sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/html";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
+import { fontPack, googleFontsHref, textTone } from "@/lib/brand-fonts";
+import {
+  REVIEW_COPY,
+  copyValue,
+  renderTokens,
+  type CopyOverrides,
+  type TokenContext,
+} from "@/lib/brand-copy";
 
 // How long after a download the nightly sweep waits before asking. The ask now
 // goes out immediately on download (lib/review-ask.ts); the cron is the safety
@@ -62,10 +76,19 @@ export function speciesSentence(species: string[] | null): string {
 export type ReviewEmailInput = {
   operatorName: string;
   brandColor: string;
+  // Branding tab overrides; null or absent means the default look.
+  accentColor?: string | null;
+  headerTextColor?: string | null;
+  fontKey?: string | null;
+  textTone?: string | null;
+  copyOverrides?: CopyOverrides | null;
   logoUrl: string | null;
   recipientName: string | null;
   // Small date and captain reference for the bottom of the email.
   tripLine: string;
+  // For the {date} and {crew} fill-ins in editable copy.
+  tripDate?: string | null;
+  captainName?: string | null;
   // The trip's species, pluralized into the body sentence.
   species: string[];
   // href is the tracked redirect through /g/[token]/review, not the raw
@@ -83,27 +106,47 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   // a review request, so it gets opened. Opens are the funnel's biggest leak.
   const subject = "How about those whales?";
   const brand = escapeHtml(input.brandColor);
+  const accent = escapeHtml(input.accentColor || input.brandColor);
+  const headerTextColor = escapeHtml(input.headerTextColor || "#ffffff");
   const name = escapeHtml(input.operatorName);
+
+  const pack = fontPack(input.fontKey);
+  const display = pack.displayStack;
+  const body = pack.bodyStack;
+  const fontsHref = googleFontsHref(pack);
+  const tone = textTone(input.textTone);
+
+  const ctx: TokenContext = {
+    operatorName: input.operatorName,
+    firstName: input.recipientName?.trim().split(/\s+/)[0] ?? null,
+    species: input.species.length ? input.species.join(" and ") : null,
+    date: input.tripDate ?? null,
+    photographerName: null,
+    crew: input.captainName ? `Captain ${input.captainName}` : null,
+  };
+  const copy = Object.fromEntries(
+    REVIEW_COPY.map((f) => [
+      f.key,
+      escapeHtml(renderTokens(copyValue(input.copyOverrides, f), ctx)),
+    ]),
+  );
 
   // Greet by name when we have one; otherwise skip the greeting entirely
   // rather than a filler "Hi there," and open straight with the sentence.
   const hi = input.recipientName ? `Hi ${escapeHtml(input.recipientName)}, we` : "We";
   const seen = escapeHtml(speciesSentence(input.species));
 
-  // Same shell as the delivery email so the two reads as one brand: white
-  // body, a bordered card, the brand colored header band with the logo, and
-  // the social links pushed down into a footer below the card.
   const header = input.logoUrl
     ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:block" />`
-    : `<div style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:19px;color:#ffffff">${name}</div>`;
+    : `<div style="font-family:${display};font-weight:600;font-size:19px;color:${headerTextColor}">${name}</div>`;
 
   const socialRow = socialFooterHtml(input.social);
 
   const buttons = input.reviewLinks
     .map((l, i) =>
       i === 0
-        ? `<a href="${escapeHtml(l.href)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:${brand};color:#ffffff;padding:13px;border-radius:11px">${escapeHtml(l.label)}</a>`
-        : `<a href="${escapeHtml(l.href)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:transparent;color:${brand};border:1px solid ${brand};padding:12px;border-radius:11px">${escapeHtml(l.label)}</a>`,
+        ? `<a href="${escapeHtml(l.href)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:${accent};color:#ffffff;padding:13px;border-radius:11px">${escapeHtml(l.label)}</a>`
+        : `<a href="${escapeHtml(l.href)}" style="display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;background:transparent;color:${accent};border:1px solid ${accent};padding:12px;border-radius:11px">${escapeHtml(l.label)}</a>`,
     )
     .join("");
 
@@ -114,9 +157,9 @@ export function buildReviewEmail(input: ReviewEmailInput): {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
     <meta name="supported-color-schemes" content="light" />
-    <style>:root { color-scheme: light only; }</style>
+    <style>${fontsHref ? `@import url('${fontsHref}');` : ""}:root { color-scheme: light only; }</style>
   </head>
-  <body style="margin:0;padding:0;background:#ffffff;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1c2b2e">
+  <body style="margin:0;padding:0;background:#ffffff;font-family:${body};color:#1c2b2e">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
         <td align="center" style="padding:30px 16px">
@@ -126,9 +169,9 @@ export function buildReviewEmail(input: ReviewEmailInput): {
             </tr>
             <tr>
               <td style="padding:30px 28px 6px">
-                <h1 style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:#16241f">So glad you got your photos</h1>
-                <p style="font-size:15px;color:#33464a;margin:0 0 14px;line-height:1.55">${hi} hope you had an amazing time out on the water with us.${seen}</p>
-                <p style="font-size:15px;color:#33464a;margin:0 0 18px;line-height:1.55">If you have a moment, we would love to hear about your experience. A quick review helps us, and helps others find the whales.</p>
+                <h1 style="font-family:${display};font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:${tone.ink}">${copy["review.headline"]}</h1>
+                <p style="font-size:15px;color:${tone.body};margin:0 0 14px;line-height:1.55">${hi} hope you had an amazing time out on the water with us.${seen}</p>
+                <p style="font-size:15px;color:${tone.body};margin:0 0 18px;line-height:1.55">${copy["review.ask"]}</p>
               </td>
             </tr>
             <tr>
@@ -137,9 +180,9 @@ export function buildReviewEmail(input: ReviewEmailInput): {
               </td>
             </tr>
             <tr>
-              <td style="padding:18px 28px 28px">
-                <p style="font-size:12.5px;line-height:1.5;color:#8ba4ac;margin:0 0 2px">Thanks for joining us. Hope to see you on the water again soon. The crew at ${name}.</p>
-                ${input.tripLine ? `<p style="font-size:11.5px;color:#9aa6a8;margin:8px 0 0">${escapeHtml(input.tripLine)}</p>` : ""}
+              <td style="padding:18px 28px 26px;text-align:center">
+                <p style="font-size:14.5px;line-height:1.6;font-weight:500;color:${tone.mid};margin:0">${copy["review.signoff"]}</p>
+                ${input.tripLine ? `<p style="font-size:12px;color:${tone.quiet};margin:8px 0 0">${escapeHtml(input.tripLine)}</p>` : ""}
               </td>
             </tr>
           </table>
@@ -156,16 +199,4 @@ export function buildReviewEmail(input: ReviewEmailInput): {
 </html>`;
 
   return { subject, html };
-}
-
-// from is the full From header, resolved by the caller (white label domain
-// when the operator has one verified, shared flukesend.com sender otherwise).
-export async function sendReviewEmail(
-  to: string,
-  subject: string,
-  html: string,
-  from: string,
-  replyTo?: string | null,
-) {
-  return sendEmail(to, subject, html, from, replyTo);
 }

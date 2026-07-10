@@ -19,9 +19,12 @@ import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
+import { buildReviewEmail } from "@/lib/review-email";
 import { isFontKey, isTextTone } from "@/lib/brand-fonts";
 import {
   DELIVERY_COPY,
+  REVIEW_COPY,
+  GALLERY_COPY,
   findUnknownTokens,
   type CopyField,
   type CopyOverrides,
@@ -147,25 +150,25 @@ function cleanCopyValue(
   return { value };
 }
 
-export async function saveDeliveryCopy(
-  _prev: BrandingState,
+// Shared save for one surface's fields: validate each, then read-modify-write
+// copy_overrides so the other surfaces' overrides survive. extra lets the
+// delivery save also carry the intro (default_message, its own column).
+async function saveCopyFields(
+  fields: CopyField[],
   formData: FormData,
+  extra?: Record<string, unknown>,
 ): Promise<BrandingState> {
   const { supabase, operatorId } = await resolveOperator();
 
   const patch: Record<string, string | null> = {};
-  for (const field of DELIVERY_COPY) {
+  for (const field of fields) {
     const cleaned = cleanCopyValue(field, String(formData.get(field.key) ?? ""));
     if ("error" in cleaned) {
       return { error: cleaned.error };
     }
     patch[field.key] = cleaned.value;
   }
-  // The intro is the existing default guest message, same column as always,
-  // so the send page prefill and the gallery keep reading it unchanged.
-  const intro = String(formData.get("default_message") ?? "").trim();
 
-  // Read-modify-write: other surfaces' overrides must survive this save.
   const { data: row } = await supabase
     .from("branding")
     .select("copy_overrides")
@@ -179,7 +182,7 @@ export async function saveDeliveryCopy(
 
   const { error } = await supabase
     .from("branding")
-    .update({ copy_overrides: overrides, default_message: intro })
+    .update({ copy_overrides: overrides, ...(extra ?? {}) })
     .eq("operator_id", operatorId);
   if (error) {
     return { error: "Could not save your wording. Try again." };
@@ -187,6 +190,30 @@ export async function saveDeliveryCopy(
 
   revalidateBranding();
   return { ok: "Wording saved." };
+}
+
+export async function saveDeliveryCopy(
+  _prev: BrandingState,
+  formData: FormData,
+): Promise<BrandingState> {
+  // The intro is the existing default guest message, same column as always,
+  // so the send page prefill and the gallery keep reading it unchanged.
+  const intro = String(formData.get("default_message") ?? "").trim();
+  return saveCopyFields(DELIVERY_COPY, formData, { default_message: intro });
+}
+
+export async function saveReviewCopy(
+  _prev: BrandingState,
+  formData: FormData,
+): Promise<BrandingState> {
+  return saveCopyFields(REVIEW_COPY, formData);
+}
+
+export async function saveGalleryCopy(
+  _prev: BrandingState,
+  formData: FormData,
+): Promise<BrandingState> {
+  return saveCopyFields(GALLERY_COPY, formData);
 }
 
 // ---- Test send ----
@@ -254,6 +281,93 @@ export async function sendTestDelivery(draft: DeliveryTestDraft): Promise<Brandi
     message: draft.message.trim(),
     galleryUrl: `${CANONICAL_ORIGIN}/`,
     retentionDays: (branding?.retention_days as number | null) ?? 7,
+    social: {
+      website_url: (branding?.website_url as string | null) ?? null,
+      facebook_url: (branding?.facebook_url as string | null) ?? null,
+      instagram_url: (branding?.instagram_url as string | null) ?? null,
+      tiktok_url: (branding?.tiktok_url as string | null) ?? null,
+      youtube_url: (branding?.youtube_url as string | null) ?? null,
+      x_url: (branding?.x_url as string | null) ?? null,
+    },
+  });
+
+  const result = await sendEmail(
+    userEmail,
+    `[Test] ${subject}`,
+    html,
+    await resolveFromAddress(operatorId, operatorName),
+    (branding?.reply_to_email as string | null) ?? null,
+  );
+  if (result.status === "sent") {
+    return { ok: `Test sent to ${userEmail}.` };
+  }
+  if (result.status === "skipped") {
+    return { error: "Email service is not configured." };
+  }
+  return { error: "The test send failed. Try again." };
+}
+
+// Same idea for the review ask. The buttons are the operator's real review
+// links (pointing straight at the destinations; no tracking on a test), so
+// with no links there is nothing honest to send and we say so.
+export type ReviewTestDraft = Omit<DeliveryTestDraft, "message">;
+
+export async function sendTestReview(draft: ReviewTestDraft): Promise<BrandingState> {
+  const { supabase, operatorId, userEmail } = await resolveOperator();
+  if (!userEmail) {
+    return { error: "Could not find your login email." };
+  }
+
+  if (!HEX.test(draft.brandColor)) return { error: "Pick a valid brand color." };
+  if (draft.accentColor && !HEX.test(draft.accentColor)) return { error: "Pick a valid accent color." };
+  if (draft.headerTextColor && !HEX.test(draft.headerTextColor)) return { error: "Pick a valid header text color." };
+  if (draft.fontKey && !isFontKey(draft.fontKey)) return { error: "Pick a font from the pack." };
+  if (draft.textTone && !isTextTone(draft.textTone)) return { error: "Pick a text darkness." };
+
+  const overrides: CopyOverrides = {};
+  for (const field of REVIEW_COPY) {
+    const cleaned = cleanCopyValue(field, draft.copy[field.key] ?? "");
+    if ("error" in cleaned) return { error: cleaned.error };
+    if (cleaned.value) overrides[field.key] = cleaned.value;
+  }
+
+  const [{ data: operator }, { data: branding }, { data: links }] = await Promise.all([
+    supabase.from("operators").select("name").eq("id", operatorId).maybeSingle(),
+    supabase
+      .from("branding")
+      .select(
+        "logo_url, reply_to_email, species_options, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      )
+      .eq("operator_id", operatorId)
+      .maybeSingle(),
+    supabase
+      .from("review_destinations")
+      .select("label, url, sort_order")
+      .eq("operator_id", operatorId)
+      .order("sort_order", { ascending: true }),
+  ]);
+  if (!links?.length) {
+    return { error: "Add a review link first (Settings, Review links), then the test has real buttons to show." };
+  }
+  const operatorName = (operator?.name as string) ?? "Your crew";
+  const species = ((branding?.species_options ?? []) as string[]).slice(0, 2);
+  const today = new Date().toLocaleDateString("en-US", { dateStyle: "long" });
+
+  const { subject, html } = buildReviewEmail({
+    operatorName,
+    brandColor: draft.brandColor,
+    accentColor: draft.accentColor,
+    headerTextColor: draft.headerTextColor,
+    fontKey: draft.fontKey,
+    textTone: draft.textTone,
+    copyOverrides: overrides,
+    logoUrl: (branding?.logo_url as string | null) ?? null,
+    recipientName: "Alex",
+    tripLine: `${today} with Captain Ray`,
+    tripDate: today,
+    captainName: "Ray",
+    species: species.length ? species : ["Humpback whales"],
+    reviewLinks: (links ?? []).map((l) => ({ label: l.label as string, href: l.url as string })),
     social: {
       website_url: (branding?.website_url as string | null) ?? null,
       facebook_url: (branding?.facebook_url as string | null) ?? null,

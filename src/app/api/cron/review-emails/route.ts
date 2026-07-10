@@ -16,9 +16,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildReviewEmail,
   reviewDelayCutoffISO,
-  sendReviewEmail,
   tripLine,
 } from "@/lib/review-email";
+import { brandLookFromRow } from "@/lib/brand-copy";
+import { sendEmail } from "@/lib/email";
 import { type SocialLinks } from "@/lib/social";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
@@ -27,8 +28,11 @@ type OperatorContext = {
   operatorName: string;
   from: string;
   brandColor: string;
+  look: ReturnType<typeof brandLookFromRow>;
   logoUrl: string | null;
   tripLine: string;
+  tripDate: string | null;
+  captainName: string | null;
   species: string[];
   reviewLinks: { id: string; label: string; url: string }[];
   replyTo: string | null;
@@ -100,7 +104,7 @@ export async function GET(request: Request) {
     const { data: branding } = await admin
       .from("branding")
       .select(
-        "logo_url, brand_color, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, copy_overrides, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
       )
       .eq("operator_id", delivery.operator_id)
       .maybeSingle();
@@ -117,8 +121,13 @@ export async function GET(request: Request) {
         operator?.name ?? "your crew",
       ),
       brandColor: branding?.brand_color ?? "#0b5563",
+      look: brandLookFromRow(branding),
       logoUrl: branding?.logo_url ?? null,
       tripLine: tripLine(delivery),
+      tripDate: delivery.trip_datetime
+        ? new Date(delivery.trip_datetime as string).toLocaleDateString("en-US", { dateStyle: "long" })
+        : null,
+      captainName: (delivery.captain_name as string | null) ?? null,
       species: (delivery.species ?? []) as string[],
       reviewLinks: (links ?? []).map((l) => ({ id: l.id, label: l.label, url: l.url })),
       replyTo: branding?.reply_to_email ?? null,
@@ -162,14 +171,17 @@ export async function GET(request: Request) {
     const { subject, html } = buildReviewEmail({
       operatorName: ctx.operatorName,
       brandColor: ctx.brandColor,
+      ...ctx.look,
       logoUrl: ctx.logoUrl,
       recipientName: r.name,
       tripLine: ctx.tripLine,
+      tripDate: ctx.tripDate,
+      captainName: ctx.captainName,
       species: ctx.species,
       reviewLinks: trackedLinks,
       social: ctx.social,
     });
-    const result = await sendReviewEmail(
+    const result = await sendEmail(
       r.email,
       subject,
       html,
