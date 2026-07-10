@@ -22,6 +22,11 @@ import { CrewRoster } from "./crew-roster";
 import { CaptureQr } from "./qr-cards";
 import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
 
+// Sub-block styling inside a combined section: a hairline divider and a small
+// heading, so several related editors read as one calm card.
+const subDivider = { borderTop: "1px solid var(--line)", margin: "20px 0 16px" };
+const subHead = { margin: "0 0 10px", fontSize: "14px", fontWeight: 600 };
+
 export default async function SettingsPage() {
   const { supabase, userId, operatorId, operatorName } = await requireOperator();
 
@@ -32,7 +37,7 @@ export default async function SettingsPage() {
     await Promise.all([
       supabase
         .from("branding")
-        .select("logo_url, retention_days, species_options, trip_times")
+        .select("retention_days, species_options, trip_times")
         .eq("operator_id", operatorId)
         .maybeSingle(),
       supabase
@@ -71,7 +76,6 @@ export default async function SettingsPage() {
   const boatCount = boats?.length ?? 0;
   const crewCount = crew?.length ?? 0;
   const retentionDays = branding?.retention_days ?? 5;
-  const hasLogo = Boolean(branding?.logo_url);
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   const doneChip = { label: "Done", tone: "good" as const };
 
@@ -149,9 +153,6 @@ export default async function SettingsPage() {
             </div>
           </div>
 
-          <div style={{ fontSize: "12px", color: "var(--muted)", margin: "0 2px 8px" }}>
-            Set once
-          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <a
               href="/branding"
@@ -167,12 +168,10 @@ export default async function SettingsPage() {
             >
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontSize: "15px", fontWeight: 600 }}>
-                  Brand look and messaging
+                  Branding
                 </span>
                 <span style={{ display: "block", fontSize: "12.5px", color: "var(--muted)", marginTop: "3px" }}>
-                  {hasLogo ? "Logo set" : "No logo yet"}. Logo, colors, fonts,
-                  email wording, and your website and social links now live in
-                  the Branding tab.
+                  Logo, colors, fonts, email wording, website, social links
                 </span>
               </span>
               <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--signal-ink)", background: "var(--signal)", padding: "7px 12px", borderRadius: "9px", flex: "0 0 auto" }}>
@@ -189,22 +188,14 @@ export default async function SettingsPage() {
             </SettingsSection>
 
             <SettingsSection
-              title="Review links"
-              summary={reviewCount ? `${reviewCount} ${plural(reviewCount, "link", "links")}` : "None yet, add your Google or Tripadvisor link"}
-              chip={reviewCount ? doneChip : { label: "Optional", tone: "muted" }}
-            >
-              <ReviewLinks links={links ?? []} />
-            </SettingsSection>
-
-
-            <SettingsSection
-              title="Boats and employees"
-              summary={boatCount || crewCount ? `${boatCount} ${plural(boatCount, "boat", "boats")}, ${crewCount} ${plural(crewCount, "employee", "employees")}` : "None yet"}
-              chip={boatCount || crewCount ? doneChip : { label: "Optional", tone: "muted" }}
+              title="Boats, crew, and trips"
+              summary={`${boatCount} ${plural(boatCount, "boat", "boats")}, ${crewCount} ${plural(crewCount, "employee", "employees")}, ${tripTimes.length || "all"} ${plural(tripTimes.length, "departure", "departures")}, ${speciesList.length || "all"} species`}
+              chip={boatCount || crewCount || tripTimes.length || speciesList.length ? doneChip : { label: "Optional", tone: "muted" }}
             >
               <p className="fl-hint" style={{ margin: "0 0 16px" }}>
-                Pre-add your boats and team once. On a send you just pick the
-                boat and check who was aboard.
+                Everything a send is built from. Set these once, then on a send
+                you just pick the boat, departure, species, and who was aboard.
+                Departures and species change with the season.
               </p>
               <div className="fl-cols">
                 <RosterList
@@ -224,6 +215,45 @@ export default async function SettingsPage() {
                   setRolesAction={setCrewRoles}
                 />
               </div>
+
+              <div style={subDivider} />
+              <h4 style={subHead}>Departures</h4>
+              <TripTimesPicker selected={tripTimes} />
+
+              <div style={subDivider} />
+              <h4 style={subHead}>Species</h4>
+              <SpeciesPicker selected={speciesList} />
+            </SettingsSection>
+
+            <SettingsSection
+              title="Review links"
+              summary={reviewCount ? `${reviewCount} ${plural(reviewCount, "link", "links")}` : "None yet, add your Google or Tripadvisor link"}
+              chip={reviewCount ? doneChip : { label: "Optional", tone: "muted" }}
+            >
+              <ReviewLinks links={links ?? []} />
+            </SettingsSection>
+
+            <SettingsSection
+              title="Tips"
+              summary={
+                tipsEnabled
+                  ? tipsShowReview
+                    ? "On, with a review shown under the tip"
+                    : "On, guests can tip their photographer"
+                  : myTipSet
+                    ? "Off, your personal link is ready for when it turns on"
+                    : "Off"
+              }
+              chip={tipsEnabled ? doneChip : { label: "Off", tone: "muted" }}
+            >
+              <TipsToggle enabled={tipsEnabled} showReview={tipsShowReview} isOwner={isOwner} />
+              <div style={subDivider} />
+              <h4 style={subHead}>Your personal tip link</h4>
+              <p className="fl-hint" style={{ margin: "0 0 12px" }}>
+                Each team member sets their own. Tips on a send go to whoever
+                created it, so this one is yours.
+              </p>
+              <TipLinkForm displayName={myTip.displayName} provider={myTip.provider} handle={myTip.handle} />
             </SettingsSection>
 
             <SettingsSection
@@ -241,47 +271,7 @@ export default async function SettingsPage() {
             >
               <TeamManager members={members} invites={invites} isOwner={isOwner} />
             </SettingsSection>
-
-            <SettingsSection
-              title="Tips"
-              summary={
-                tipsEnabled
-                  ? tipsShowReview
-                    ? "On, with a review shown under the tip"
-                    : "On, guests can tip their photographer"
-                  : "Off"
-              }
-              chip={tipsEnabled ? doneChip : { label: "Off", tone: "muted" }}
-            >
-              <TipsToggle enabled={tipsEnabled} showReview={tipsShowReview} isOwner={isOwner} />
-            </SettingsSection>
-
-            <SettingsSection
-              title="Your tip link"
-              summary={myTipSet ? "Set, tips go straight to you" : "Not set"}
-              chip={myTipSet ? doneChip : { label: "Optional", tone: "muted" }}
-            >
-              <TipLinkForm displayName={myTip.displayName} provider={myTip.provider} handle={myTip.handle} />
-            </SettingsSection>
           </div>
-
-          <div style={{ fontSize: "12px", color: "var(--muted)", margin: "20px 2px 8px" }}>
-            Changes by season
-          </div>
-          <SettingsSection
-            title="Trip times"
-            summary={tripTimes.length ? `${tripTimes.length} departure ${tripTimes.length === 1 ? "time" : "times"}, shown on a send and your QR` : "Showing every slot, pick yours to narrow it"}
-            chip={tripTimes.length ? doneChip : { label: "Default", tone: "muted" }}
-          >
-            <TripTimesPicker selected={tripTimes} />
-          </SettingsSection>
-          <SettingsSection
-            title="Species"
-            summary={speciesList.length ? `${speciesList.length} selected, shown as pills on a send` : "Using the default list"}
-            chip={speciesList.length ? doneChip : { label: "Default", tone: "muted" }}
-          >
-            <SpeciesPicker selected={speciesList} />
-          </SettingsSection>
         </div>
       </main>
     </>
