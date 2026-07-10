@@ -170,13 +170,9 @@ export default async function SettingsPage() {
                 <span style={{ display: "block", fontSize: "15px", fontWeight: 600 }}>
                   Branding
                 </span>
-                <ul style={{ margin: "6px 0 0", padding: "0 0 0 16px", fontSize: "12.5px", color: "var(--muted)", lineHeight: 1.6 }}>
-                  <li>Logo, colors</li>
-                  <li>Fonts</li>
-                  <li>Email wording</li>
-                  <li>Website</li>
-                  <li>Social links</li>
-                </ul>
+                <span style={{ display: "block", fontSize: "12.5px", color: "var(--muted)", marginTop: "3px" }}>
+                  Logo, colors, fonts, email wording, website, social links
+                </span>
               </span>
               <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--signal-ink)", background: "var(--signal)", padding: "7px 12px", borderRadius: "9px", flex: "0 0 auto" }}>
                 Open Branding
