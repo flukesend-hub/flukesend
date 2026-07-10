@@ -51,21 +51,16 @@ export default async function BrandingPage() {
         .order("sort_order", { ascending: true }),
     ]);
 
-  // Real roster faces (visible) for the review-email preview, so it shows what
-  // guests will actually see; a couple of samples if the roster is empty.
-  const rosterFaces = (crewRows ?? [])
-    .filter((c) => c.show_to_guests !== false)
-    .slice(0, 4)
+  // The real roster for the review-email preview, with each person's shown
+  // flag, so the preview shows exactly who guests will see and can explain who
+  // is being left out (hidden, or has no photo yet).
+  const crew = (crewRows ?? [])
+    .slice(0, 8)
     .map((c) => ({
       firstName: (c.name as string).trim().split(/\s+/)[0],
       photoUrl: (c.photo_url as string | null) ?? null,
+      show: c.show_to_guests !== false,
     }));
-  const crewFaces = rosterFaces.length
-    ? rosterFaces
-    : [
-        { firstName: "Ray", photoUrl: null },
-        { firstName: "Maya", photoUrl: null },
-      ];
 
   const myTipSet = Boolean(isTipProvider(me?.tip_provider as string) && me?.tip_handle);
   const tips = {
@@ -93,7 +88,7 @@ export default async function BrandingPage() {
           operatorName={operatorName ?? "Operator"}
           reviewLinks={(reviewRows ?? []).map((l) => ({ label: l.label as string }))}
           tips={tips}
-          crewFaces={crewFaces}
+          crew={crew}
           reviewShowCrew={Boolean(branding?.review_show_crew)}
           initial={{
             logoUrl: (branding?.logo_url as string | null) ?? null,

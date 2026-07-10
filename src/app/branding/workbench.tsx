@@ -107,17 +107,20 @@ export function BrandingWorkbench({
   operatorName,
   reviewLinks,
   tips,
-  crewFaces,
+  crew,
   reviewShowCrew,
   initial,
 }: {
   operatorName: string;
   reviewLinks: { label: string }[];
   tips: Tips;
-  crewFaces: { firstName: string; photoUrl: string | null }[];
+  crew: { firstName: string; photoUrl: string | null; show: boolean }[];
   reviewShowCrew: boolean;
   initial: Initial;
 }) {
+  // Only the shown crew appear on the email; the rest inform the caption.
+  const shownFaces = crew.filter((c) => c.show);
+  const hiddenNames = crew.filter((c) => !c.show).map((c) => c.firstName);
   const [showCrew, setShowCrew] = useState(reviewShowCrew);
   const [crewPending, startCrew] = useTransition();
   const toggleCrew = () => {
@@ -222,13 +225,13 @@ export function BrandingWorkbench({
       tripDate: today,
       captainName: "Ray",
       species: sampleSpecies,
-      crew: crewFaces,
+      crew: shownFaces,
       showCrew,
       reviewLinks: links.map((l) => ({ label: l.label, href: "#" })),
       social: initial.social,
     }).html;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, shownLogo, reviewLinks, crewFaces, showCrew, initial, today]);
+  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, shownLogo, reviewLinks, crew, showCrew, initial, today]);
 
   // The gallery preview's fill-ins, rendered with the same sample trip.
   const galleryCtx: TokenContext = {
@@ -806,6 +809,17 @@ export function BrandingWorkbench({
                   : reviewLinks.length
                     ? "your review buttons, because tips are off for this send."
                     : "the thank-you line, because there are no review links and tips are off."}
+              </p>
+            ) : null}
+            {surface === "review" && showCrew ? (
+              <p className="fl-hint" style={{ margin: "10px 2px 0" }}>
+                {shownFaces.length
+                  ? `Showing the crew set to show: ${shownFaces.map((f) => f.firstName).join(", ")}.`
+                  : "No crew are set to show yet."}
+                {hiddenNames.length
+                  ? ` Hidden right now: ${hiddenNames.join(", ")}. Turn anyone on under Settings, Employees.`
+                  : ""}
+                {" Each real send shows only the crew who were aboard."}
               </p>
             ) : null}
           </div>

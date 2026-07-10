@@ -382,21 +382,14 @@ export async function sendTestReview(draft: ReviewTestDraft): Promise<BrandingSt
   const operatorName = (operator?.name as string) ?? "Your crew";
   const species = ((branding?.species_options ?? []) as string[]).slice(0, 2);
   const today = new Date().toLocaleDateString("en-US", { dateStyle: "long" });
-  // Real roster faces (visible ones) so the test shows what guests will see.
-  // If the roster is empty, a couple of sample names so the layout still reads.
-  const rosterFaces = (crewRows ?? [])
+  // The real shown roster, so the test mails exactly who guests would see.
+  const crew = (crewRows ?? [])
     .filter((c) => c.show_to_guests !== false)
-    .slice(0, 4)
+    .slice(0, 6)
     .map((c) => ({
       firstName: (c.name as string).trim().split(/\s+/)[0],
       photoUrl: (c.photo_url as string | null) ?? null,
     }));
-  const crew = rosterFaces.length
-    ? rosterFaces
-    : [
-        { firstName: "Ray", photoUrl: null },
-        { firstName: "Maya", photoUrl: null },
-      ];
 
   const { subject, html } = buildReviewEmail({
     operatorName,

@@ -166,9 +166,22 @@ function CrewCard({
             Remove photo
           </button>
         ) : null}
-        <button type="button" onClick={toggleShow} aria-pressed={show} style={{ ...showChip(show), marginLeft: "auto" }}>
-          {show ? "Shown to guests" : "Hidden from guests"}
-        </button>
+        <label style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "auto", cursor: "pointer" }}>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={show}
+            onClick={toggleShow}
+            style={{
+              width: "38px", height: "22px", borderRadius: "999px", border: 0, flex: "0 0 auto",
+              position: "relative", cursor: "pointer", padding: 0,
+              background: show ? "var(--signal)" : "var(--line-strong)",
+            }}
+          >
+            <span style={{ position: "absolute", top: "2px", left: show ? "18px" : "2px", width: "18px", height: "18px", borderRadius: "50%", background: "#fff", transition: "left .2s" }} />
+          </button>
+          <span style={{ fontSize: "12px", color: "var(--muted)" }}>Show on guest emails</span>
+        </label>
       </div>
       {photoState?.error ? (
         <p style={{ color: "var(--bad)", fontSize: "12px", margin: "8px 0 0" }}>{photoState.error}</p>
@@ -246,14 +259,3 @@ const photoLink: React.CSSProperties = {
   textDecoration: "underline",
   textUnderlineOffset: "2px",
 };
-const showChip = (on: boolean): React.CSSProperties => ({
-  font: "inherit",
-  fontSize: "11.5px",
-  fontWeight: 600,
-  border: `1px solid ${on ? "var(--line-strong)" : "var(--bad)"}`,
-  background: "transparent",
-  color: on ? "var(--muted)" : "var(--bad)",
-  borderRadius: "999px",
-  padding: "4px 10px",
-  cursor: "pointer",
-});
