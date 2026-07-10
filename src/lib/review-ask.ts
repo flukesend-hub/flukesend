@@ -11,7 +11,9 @@
 */
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildReviewEmail, sendReviewEmail, tripLine } from "@/lib/review-email";
+import { buildReviewEmail, tripLine } from "@/lib/review-email";
+import { brandLookFromRow } from "@/lib/brand-copy";
+import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 
 export async function sendReviewAskAfterDownload(
@@ -65,7 +67,7 @@ export async function sendReviewAskAfterDownload(
     admin
       .from("branding")
       .select(
-        "logo_url, brand_color, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
       )
       .eq("operator_id", delivery.operator_id)
       .maybeSingle(),
@@ -78,9 +80,14 @@ export async function sendReviewAskAfterDownload(
   const { subject, html } = buildReviewEmail({
     operatorName: operator?.name ?? "your crew",
     brandColor: branding?.brand_color ?? "#0b5563",
+    ...brandLookFromRow(branding),
     logoUrl: branding?.logo_url ?? null,
     recipientName: (r.name as string | null) ?? null,
     tripLine: tripLine(delivery),
+    tripDate: delivery.trip_datetime
+      ? new Date(delivery.trip_datetime as string).toLocaleDateString("en-US", { dateStyle: "long" })
+      : null,
+    captainName: (delivery.captain_name as string | null) ?? null,
     species: (delivery.species ?? []) as string[],
     reviewLinks: trackedLinks,
     social: {
@@ -97,7 +104,7 @@ export async function sendReviewAskAfterDownload(
     delivery.operator_id as string,
     operator?.name ?? "your crew",
   );
-  const result = await sendReviewEmail(
+  const result = await sendEmail(
     r.email as string,
     subject,
     html,

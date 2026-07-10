@@ -1,9 +1,8 @@
 /*
-  Operator settings actions: edit branding, upload a logo, and manage review
-  links. Branding and review-link writes go through the RLS client because a
-  member is allowed those by policy. The logo upload uses the service role admin
-  client because writing to Storage is a trusted server operation; files are
-  namespaced under the operator id so one operator can never touch another's.
+  Operator settings actions: retention, review links, roster, team, tips.
+  Look and voice (logo, colors, fonts, copy) live on the Branding tab now.
+  Writes go through the RLS client because a member is allowed those by
+  policy; the few trusted operations use the admin client and say why.
 */
 "use server";
 
@@ -13,7 +12,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, escapeHtml } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
-import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { isCrewRole } from "@/lib/roles";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
 import { normalizeSpecies } from "@/lib/species";
@@ -25,7 +23,6 @@ export type SettingsState =
   | { error?: string; ok?: string; upgrade?: boolean }
   | undefined;
 
-const HEX = /^#[0-9a-fA-F]{6}$/;
 
 // Resolve the signed in user and the operator they belong to. Bounces to login
 // or onboarding if either is missing, so callers can assume both exist.
@@ -48,21 +45,15 @@ async function resolveOperator() {
   return { supabase, operatorId: membership.operator_id as string };
 }
 
-export async function updateBranding(
+// Look and voice (logo, colors, fonts, copy) moved to the Branding tab; see
+// app/branding/actions.ts. Retention stayed here because it is mechanics.
+export async function updateRetention(
   _prev: SettingsState,
   formData: FormData,
 ): Promise<SettingsState> {
   const { supabase, operatorId } = await resolveOperator();
 
-  const brandColor = (
-    String(formData.get("brand_color") ?? "").trim() || "#0b5563"
-  ).toLowerCase();
-  const defaultMessage = String(formData.get("default_message") ?? "").trim();
   const retentionRaw = Number(formData.get("retention_days"));
-
-  if (!HEX.test(brandColor)) {
-    return { error: "Pick a valid brand color." };
-  }
   const retentionDays = Number.isFinite(retentionRaw)
     ? Math.trunc(retentionRaw)
     : NaN;
@@ -70,33 +61,16 @@ export async function updateBranding(
     return { error: "Pick 3, 5, or 7 days of retention." };
   }
 
-  // Logo is optional on save. When present, replace whatever is in the
-  // operator's folder so only one logo is ever kept.
-  const upload = await uploadOperatorLogo(operatorId, formData.get("logo"));
-  if (!upload.ok) {
-    return { error: upload.error };
-  }
-
-  const update: Record<string, unknown> = {
-    brand_color: brandColor,
-    default_message: defaultMessage,
-    retention_days: retentionDays,
-  };
-  if (upload.logoUrl) {
-    update.logo_url = upload.logoUrl;
-  }
-
   const { error } = await supabase
     .from("branding")
-    .update(update)
+    .update({ retention_days: retentionDays })
     .eq("operator_id", operatorId);
   if (error) {
-    return { error: "Could not save your branding. Try again." };
+    return { error: "Could not save that. Try again." };
   }
 
   revalidatePath("/settings");
-  revalidatePath("/dashboard");
-  return { ok: "Branding saved." };
+  return { ok: "Retention saved." };
 }
 
 // Website and the social links. Each platform maps to one branding column. A
@@ -125,6 +99,8 @@ export async function updateSocialLinks(
     return { error: "Could not save your links. Try again." };
   }
 
+  // The form lives on the Branding tab now; both paths stay fresh.
+  revalidatePath("/branding");
   revalidatePath("/settings");
   return { ok: "Links saved." };
 }

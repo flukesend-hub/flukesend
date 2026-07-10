@@ -11,7 +11,9 @@
   Returns an empty string when there are no links, so callers drop it in
   unconditionally.
 */
-import { escapeHtml } from "@/lib/email";
+// From lib/html, not lib/email: this module also renders inside the client
+// side Branding preview, so it must not pull in the server-only email sender.
+import { escapeHtml } from "@/lib/html";
 import { SOCIAL_PLATFORMS, type SocialLinks } from "@/lib/social";
 
 const ICON_BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/branding/app/social`;

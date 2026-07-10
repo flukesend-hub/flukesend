@@ -17,6 +17,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, sendEmailBatch, type BatchEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
+import { brandLookFromRow } from "@/lib/brand-copy";
 import { getTrialUsage, getPlan, TRIAL_TRANSFERS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
@@ -257,7 +258,7 @@ export async function createSend(
   const { data: branding } = await supabase
     .from("branding")
     .select(
-      "retention_days, brand_color, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      "retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
     )
     .eq("operator_id", operatorId)
     .maybeSingle();
@@ -397,6 +398,7 @@ export async function createSend(
       const { subject, html } = buildDeliveryEmail({
         operatorName: operator?.name ?? "your crew",
         brandColor: branding?.brand_color ?? "#0b5563",
+        ...brandLookFromRow(branding),
         logoUrl: branding?.logo_url ?? null,
         retentionDays,
         recipientName: (r.name as string | null) ?? null,

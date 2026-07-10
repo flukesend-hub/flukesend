@@ -1,21 +1,43 @@
 /*
-  The gallery delivery email, redesigned. Sent to each guest the moment an
-  operator creates a send: a brand colored header band with the operator's logo
-  top left, a warm line, a quiet trip card (date and captain, species in bold,
+  The gallery delivery email. Sent to each guest the moment an operator
+  creates a send: a brand colored header band with the operator's logo top
+  left, a warm line, a quiet trip card (date and captain, species in bold,
   naturalist and photographer credited), and one button to their gallery.
+
+  Look and voice come from the Branding tab: brand_color paints the header
+  band, accent_color (when set) paints the button and trip card bar, the
+  font pack picks the faces, and copy_overrides swaps the headline, button
+  label, and sign-off (tokens substituted, then escaped). Nothing set means
+  exactly today's default look.
 
   Light only on purpose. The email declares color-scheme light so dark mode
   clients keep it white instead of auto inverting it into a muddy mess. Inline
-  styled, single column, safe for Apple Mail and Gmail. No em dashes anywhere.
+  styled, single column, safe for Apple Mail and Gmail. Client safe on purpose
+  (no server-only): the Branding tab renders this exact builder as its live
+  preview. No em dashes anywhere.
 */
-import "server-only";
-import { escapeHtml } from "@/lib/email";
+import { escapeHtml } from "@/lib/html";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
+import { fontPack, googleFontsHref, textTone, logoAlign } from "@/lib/brand-fonts";
+import {
+  DELIVERY_COPY,
+  copyValue,
+  renderTokens,
+  type CopyOverrides,
+  type TokenContext,
+} from "@/lib/brand-copy";
 
 export type DeliveryEmailInput = {
   operatorName: string;
   brandColor: string;
+  // Branding tab overrides; null or absent means the default look.
+  accentColor?: string | null;
+  headerTextColor?: string | null;
+  fontKey?: string | null;
+  textTone?: string | null;
+  logoAlign?: string | null;
+  copyOverrides?: CopyOverrides | null;
   logoUrl: string | null;
   recipientName: string | null;
   tripDate: string | null;
@@ -36,20 +58,53 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
 } {
   const subject = `Your photos from ${input.operatorName}`;
   const brand = escapeHtml(input.brandColor);
+  const accent = escapeHtml(input.accentColor || input.brandColor);
+  const headerText = escapeHtml(input.headerTextColor || "#ffffff");
   const name = escapeHtml(input.operatorName);
   const url = escapeHtml(input.galleryUrl);
+
+  const pack = fontPack(input.fontKey);
+  const display = pack.displayStack;
+  const body = pack.bodyStack;
+  const fontsHref = googleFontsHref(pack);
+  const tone = textTone(input.textTone);
+  const align = logoAlign(input.logoAlign);
+
+  // The editable copy, tokens substituted then escaped. {first_name} is the
+  // guest's first word so "Alex Rivera" greets as Alex.
+  const ctx: TokenContext = {
+    operatorName: input.operatorName,
+    firstName: input.recipientName?.trim().split(/\s+/)[0] ?? null,
+    species: input.species.length ? input.species.join(" and ") : null,
+    date: input.tripDate,
+    photographerName: input.photographerName,
+    crew: [
+      input.captainName ? `Captain ${input.captainName}` : null,
+      input.naturalistName,
+      input.photographerName,
+    ]
+      .filter(Boolean)
+      .join(", ") || null,
+  };
+  const copy = Object.fromEntries(
+    DELIVERY_COPY.map((f) => [
+      f.key,
+      escapeHtml(renderTokens(copyValue(input.copyOverrides, f), ctx)),
+    ]),
+  );
+
   // Greeting line only when we know the guest's name; no filler "Hi there,"
   // otherwise. The email opens straight with the operator's message instead.
   const hiRow = input.recipientName
-    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 14px;color:#33464a">Hi ${escapeHtml(input.recipientName)},</p>`
+    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 14px;color:${tone.body}">Hi ${escapeHtml(input.recipientName)},</p>`
     : "";
 
   const header = input.logoUrl
-    ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:block" />`
-    : `<div style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:19px;color:#ffffff">${name}</div>`;
+    ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:inline-block" />`
+    : `<div style="font-family:${display};font-weight:600;font-size:19px;color:${headerText};display:inline-block">${name}</div>`;
 
   const message = input.message
-    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 18px;color:#33464a">${escapeHtml(input.message)}</p>`
+    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 18px;color:${tone.body}">${escapeHtml(input.message)}</p>`
     : "";
 
   // Trip card pieces. Each line only renders when it has something to say.
@@ -67,13 +122,13 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
 
   const tripRows = [
     whenParts.length
-      ? `<div style="font-size:13px;color:#6b7a7d;margin-bottom:3px">${whenParts.join(" &middot; ")}</div>`
+      ? `<div style="font-size:13px;color:${tone.mid};margin-bottom:3px">${whenParts.join(" &middot; ")}</div>`
       : "",
     speciesText
-      ? `<div style="font-size:14px;color:#33464a"><span style="font-weight:600;color:#1c2b2e">${speciesText}</span></div>`
+      ? `<div style="font-size:14px;color:${tone.body}"><span style="font-weight:600;color:${tone.ink}">${speciesText}</span></div>`
       : "",
     credits.length
-      ? `<div style="font-size:12.5px;color:#6b7a7d;margin-top:5px">${credits.join(" &middot; ")}</div>`
+      ? `<div style="font-size:12.5px;color:${tone.mid};margin-top:5px">${credits.join(" &middot; ")}</div>`
       : "",
   ].join("");
 
@@ -83,7 +138,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
     ? `<tr><td style="padding:0 28px">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f5;border-radius:12px;overflow:hidden">
           <tr>
-            <td style="width:4px;background:${brand}"></td>
+            <td style="width:4px;background:${accent}"></td>
             <td style="padding:13px 16px">${tripRows}</td>
           </tr>
         </table>
@@ -97,20 +152,20 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
     <meta name="supported-color-schemes" content="light" />
-    <style>:root { color-scheme: light only; }</style>
+    <style>${fontsHref ? `@import url('${fontsHref}');` : ""}:root { color-scheme: light only; }</style>
   </head>
-  <body style="margin:0;padding:0;background:#ffffff;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1c2b2e">
+  <body style="margin:0;padding:0;background:#ffffff;font-family:${body};color:#1c2b2e">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0">Your photos from the trip are ready to view and download.</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
         <td align="center" style="padding:30px 16px">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e6e9e8;border-radius:18px;overflow:hidden">
             <tr>
-              <td style="background:${brand};padding:20px 28px">${header}</td>
+              <td style="background:${brand};padding:20px 28px;text-align:${align}">${header}</td>
             </tr>
             <tr>
               <td style="padding:30px 28px 6px">
-                <h1 style="font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:#16241f">Your photos are ready</h1>
+                <h1 style="font-family:${display};font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:${tone.ink}">${copy["delivery.headline"]}</h1>
                 ${hiRow}
                 ${message}
               </td>
@@ -120,21 +175,16 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
               <td style="padding:22px 28px 6px">
                 <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%">
                   <tr>
-                    <td align="center" style="border-radius:12px;background:${brand}">
-                      <a href="${url}" style="display:block;padding:15px 24px;font-family:'Inter',system-ui,sans-serif;font-weight:600;font-size:15px;color:#ffffff;text-decoration:none">View your photos</a>
+                    <td align="center" style="border-radius:12px;background:${accent}">
+                      <a href="${url}" style="display:block;padding:15px 24px;font-family:${body};font-weight:600;font-size:15px;color:#ffffff;text-decoration:none">${copy["delivery.button"]}</a>
                     </td>
                   </tr>
                 </table>
               </td>
             </tr>
             <tr>
-              <td style="padding:12px 28px 0;text-align:center">
-                <p style="font-size:12.5px;line-height:1.5;color:#8ba4ac;margin:0">Your gallery is up for ${input.retentionDays} days. Save your photos to your phone while they are there.</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:14px 28px 28px">
-                <p style="font-size:12.5px;line-height:1.5;color:#8ba4ac;margin:0">This private link is just for you. Reply to this email any time, it reaches us directly. Thank you, the crew at ${name}.</p>
+              <td style="padding:14px 28px 26px;text-align:center">
+                <p style="font-size:14.5px;line-height:1.6;font-weight:500;color:${tone.mid};margin:0">Your gallery is up for ${input.retentionDays} days, save your photos while it lasts. ${copy["delivery.signoff"]}</p>
               </td>
             </tr>
           </table>
