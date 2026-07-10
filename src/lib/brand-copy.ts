@@ -116,6 +116,7 @@ export function brandLookFromRow(
         accent_color?: string | null;
         header_text_color?: string | null;
         font_key?: string | null;
+        text_tone?: string | null;
         copy_overrides?: unknown;
       }
     | null
@@ -124,12 +125,14 @@ export function brandLookFromRow(
   accentColor: string | null;
   headerTextColor: string | null;
   fontKey: string | null;
+  textTone: string | null;
   copyOverrides: CopyOverrides | null;
 } {
   return {
     accentColor: branding?.accent_color ?? null,
     headerTextColor: branding?.header_text_color ?? null,
     fontKey: branding?.font_key ?? null,
+    textTone: branding?.text_tone ?? null,
     copyOverrides: (branding?.copy_overrides ?? null) as CopyOverrides | null,
   };
 }

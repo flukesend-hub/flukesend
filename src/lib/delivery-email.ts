@@ -19,7 +19,7 @@
 import { escapeHtml } from "@/lib/html";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
-import { fontPack, googleFontsHref } from "@/lib/brand-fonts";
+import { fontPack, googleFontsHref, textTone } from "@/lib/brand-fonts";
 import {
   DELIVERY_COPY,
   copyValue,
@@ -35,6 +35,7 @@ export type DeliveryEmailInput = {
   accentColor?: string | null;
   headerTextColor?: string | null;
   fontKey?: string | null;
+  textTone?: string | null;
   copyOverrides?: CopyOverrides | null;
   logoUrl: string | null;
   recipientName: string | null;
@@ -65,6 +66,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
   const display = pack.displayStack;
   const body = pack.bodyStack;
   const fontsHref = googleFontsHref(pack);
+  const tone = textTone(input.textTone);
 
   // The editable copy, tokens substituted then escaped. {first_name} is the
   // guest's first word so "Alex Rivera" greets as Alex.
@@ -92,7 +94,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
   // Greeting line only when we know the guest's name; no filler "Hi there,"
   // otherwise. The email opens straight with the operator's message instead.
   const hiRow = input.recipientName
-    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 14px;color:#33464a">Hi ${escapeHtml(input.recipientName)},</p>`
+    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 14px;color:${tone.body}">Hi ${escapeHtml(input.recipientName)},</p>`
     : "";
 
   const header = input.logoUrl
@@ -100,7 +102,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
     : `<div style="font-family:${display};font-weight:600;font-size:19px;color:${headerText}">${name}</div>`;
 
   const message = input.message
-    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 18px;color:#33464a">${escapeHtml(input.message)}</p>`
+    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 18px;color:${tone.body}">${escapeHtml(input.message)}</p>`
     : "";
 
   // Trip card pieces. Each line only renders when it has something to say.
@@ -118,13 +120,13 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
 
   const tripRows = [
     whenParts.length
-      ? `<div style="font-size:13px;color:#6b7a7d;margin-bottom:3px">${whenParts.join(" &middot; ")}</div>`
+      ? `<div style="font-size:13px;color:${tone.mid};margin-bottom:3px">${whenParts.join(" &middot; ")}</div>`
       : "",
     speciesText
-      ? `<div style="font-size:14px;color:#33464a"><span style="font-weight:600;color:#1c2b2e">${speciesText}</span></div>`
+      ? `<div style="font-size:14px;color:${tone.body}"><span style="font-weight:600;color:${tone.ink}">${speciesText}</span></div>`
       : "",
     credits.length
-      ? `<div style="font-size:12.5px;color:#6b7a7d;margin-top:5px">${credits.join(" &middot; ")}</div>`
+      ? `<div style="font-size:12.5px;color:${tone.mid};margin-top:5px">${credits.join(" &middot; ")}</div>`
       : "",
   ].join("");
 
@@ -161,7 +163,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
             </tr>
             <tr>
               <td style="padding:30px 28px 6px">
-                <h1 style="font-family:${display};font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:#16241f">${copy["delivery.headline"]}</h1>
+                <h1 style="font-family:${display};font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:${tone.ink}">${copy["delivery.headline"]}</h1>
                 ${hiRow}
                 ${message}
               </td>
@@ -180,12 +182,12 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
             </tr>
             <tr>
               <td style="padding:12px 28px 0;text-align:center">
-                <p style="font-size:12.5px;line-height:1.5;color:#8ba4ac;margin:0">Your gallery is up for ${input.retentionDays} days. Save your photos to your phone while they are there.</p>
+                <p style="font-size:12.5px;line-height:1.5;color:${tone.quiet};margin:0">Your gallery is up for ${input.retentionDays} days. Save your photos to your phone while they are there.</p>
               </td>
             </tr>
             <tr>
               <td style="padding:14px 28px 28px">
-                <p style="font-size:12.5px;line-height:1.5;color:#8ba4ac;margin:0">${copy["delivery.signoff"]}</p>
+                <p style="font-size:12.5px;line-height:1.5;color:${tone.quiet};margin:0">${copy["delivery.signoff"]}</p>
               </td>
             </tr>
           </table>

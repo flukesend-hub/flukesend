@@ -81,3 +81,38 @@ export function googleFontsHref(pack: FontPack): string | null {
     ? `https://fonts.googleapis.com/css2?family=${pack.googleFamilies}&display=swap`
     : null;
 }
+
+/*
+  Text tone: one shared dial for how dark the email text reads. Standard is
+  today's palette; darker and darkest deepen every step together so the
+  hierarchy (headline over body over quiet) survives. A single curated dial
+  instead of per section color pickers, so an operator can fix "the gray is
+  too light" in one tap and can never end up with unreadable copy.
+*/
+
+export type TextToneKey = "standard" | "darker" | "darkest";
+
+export type TextTone = {
+  key: TextToneKey;
+  label: string;
+  // Headline, body copy, secondary lines, and the quietest footer text.
+  ink: string;
+  body: string;
+  mid: string;
+  quiet: string;
+};
+
+export const TEXT_TONES: TextTone[] = [
+  { key: "standard", label: "Standard", ink: "#16241f", body: "#33464a", mid: "#6b7a7d", quiet: "#8ba4ac" },
+  { key: "darker", label: "Darker", ink: "#101b1d", body: "#26383d", mid: "#566a70", quiet: "#64787f" },
+  { key: "darkest", label: "Darkest", ink: "#0b1416", body: "#1a2a2e", mid: "#41545a", quiet: "#4a5c63" },
+];
+
+export function isTextTone(v: unknown): v is TextToneKey {
+  return typeof v === "string" && TEXT_TONES.some((t) => t.key === v);
+}
+
+// Null or unknown means the standard palette.
+export function textTone(key: string | null | undefined): TextTone {
+  return TEXT_TONES.find((t) => t.key === key) ?? TEXT_TONES[0];
+}

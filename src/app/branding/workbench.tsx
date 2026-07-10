@@ -20,7 +20,7 @@ import {
   useTransition,
 } from "react";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
-import { FONT_PACKS, fontPack } from "@/lib/brand-fonts";
+import { FONT_PACKS, fontPack, TEXT_TONES, textTone } from "@/lib/brand-fonts";
 import {
   COPY_TOKENS,
   DELIVERY_COPY,
@@ -42,6 +42,7 @@ type Initial = {
   accentColor: string | null;
   headerTextColor: string | null;
   fontKey: string | null;
+  textTone: string | null;
   copyOverrides: CopyOverrides;
   defaultMessage: string;
   retentionDays: number;
@@ -92,6 +93,7 @@ export function BrandingWorkbench({
   const [accent, setAccent] = useState(initial.accentColor ?? initial.brandColor);
   const [headerText, setHeaderText] = useState(initial.headerTextColor ?? "#ffffff");
   const [font, setFont] = useState(fontPack(initial.fontKey).key);
+  const [tone, setTone] = useState(textTone(initial.textTone).key);
   // A data URL, not an object URL: the preview iframe is sandboxed into its
   // own origin and cannot fetch the parent's blob: URLs, but data: inlines.
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -136,6 +138,7 @@ export function BrandingWorkbench({
       accentColor: accentOn ? accent : null,
       headerTextColor: headerText,
       fontKey: font,
+      textTone: tone,
       copyOverrides: copy,
       logoUrl: shownLogo,
       recipientName: "Alex Rivera",
@@ -149,7 +152,7 @@ export function BrandingWorkbench({
       retentionDays: initial.retentionDays,
       social: initial.social,
     }).html;
-  }, [operatorName, brand, accentOn, accent, headerText, font, copy, shownLogo, intro, initial]);
+  }, [operatorName, brand, accentOn, accent, headerText, font, tone, copy, shownLogo, intro, initial]);
 
   // Scale the 600px email to the preview column.
   const previewBox = useRef<HTMLDivElement | null>(null);
@@ -190,6 +193,7 @@ export function BrandingWorkbench({
         accentColor: accentOn ? accent : null,
         headerTextColor: headerText === "#ffffff" ? null : headerText,
         fontKey: font,
+        textTone: tone,
         copy,
         message: intro,
       });
@@ -198,6 +202,25 @@ export function BrandingWorkbench({
   };
 
   const [surface, setSurface] = useState<string>("delivery");
+
+  // One copy field by key, so the editor can lay fields out in the same order
+  // they appear in the email rather than the schema's order.
+  const copyField = (key: string) => {
+    const f = DELIVERY_COPY.find((x) => x.key === key);
+    if (!f) return null;
+    return (
+      <CopyInput
+        key={f.key}
+        field={f}
+        value={copy[f.key] ?? f.default}
+        onChange={(v) => setCopy((c) => ({ ...c, [f.key]: v }))}
+        onFocus={() => setFocused(f.key)}
+        refFn={(el) => {
+          fieldRefs.current[f.key] = el;
+        }}
+      />
+    );
+  };
 
   return (
     <div>
@@ -336,6 +359,46 @@ export function BrandingWorkbench({
               </div>
             </div>
 
+            <div style={{ marginBottom: "16px" }}>
+              <span className="fl-label-text">Text darkness</span>
+              <p className="fl-hint" style={{ margin: "0 0 8px" }}>
+                How dark the smaller email text reads. Bump it up if the gray
+                feels too light for your brand.
+              </p>
+              <input type="hidden" name="text_tone" value={tone} />
+              <div style={{ display: "flex", gap: "8px" }}>
+                {TEXT_TONES.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setTone(t.key)}
+                    style={{
+                      flex: 1,
+                      font: "inherit",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      padding: "10px 0 8px",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      background: tone === t.key ? "var(--signal)" : "transparent",
+                      color: tone === t.key ? "var(--signal-ink)" : "var(--text)",
+                      border: `1px solid ${tone === t.key ? "var(--signal)" : "var(--line-strong)"}`,
+                    }}
+                  >
+                    {t.label}
+                    <span
+                      aria-hidden="true"
+                      style={{ display: "flex", gap: "3px", justifyContent: "center", marginTop: "6px" }}
+                    >
+                      {[t.body, t.mid, t.quiet].map((c) => (
+                        <span key={c} style={{ width: 14, height: 6, borderRadius: 3, background: c, border: "1px solid rgba(255,255,255,.25)" }} />
+                      ))}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {warnings.map((w) => (
               <p key={w} style={{ color: "#b98a2f", fontSize: "12.5px", margin: "0 0 10px" }}>{w}</p>
             ))}
@@ -382,23 +445,15 @@ export function BrandingWorkbench({
                 plus the tokens below; we swap them in at send time.
               </p>
 
-              {DELIVERY_COPY.map((f) => (
-                <CopyInput
-                  key={f.key}
-                  field={f}
-                  value={copy[f.key] ?? f.default}
-                  onChange={(v) => setCopy((c) => ({ ...c, [f.key]: v }))}
-                  onFocus={() => setFocused(f.key)}
-                  refFn={(el) => {
-                    fieldRefs.current[f.key] = el;
-                  }}
-                />
-              ))}
+              {/* Fields in the order they appear in the email itself:
+                  headline, intro, button, sign-off. */}
+              {copyField("delivery.headline")}
 
               <label style={{ display: "block", marginBottom: "14px" }}>
                 <span className="fl-label-text">Intro message</span>
                 <p className="fl-hint" style={{ margin: "0 0 6px" }}>
-                  Your default note to guests. Each send can still overwrite it.
+                  Your default note to guests, shown under the headline. Each
+                  send can still overwrite it.
                 </p>
                 <textarea
                   name="default_message"
@@ -408,6 +463,9 @@ export function BrandingWorkbench({
                   onFocus={() => setFocused(null)}
                 />
               </label>
+
+              {copyField("delivery.button")}
+              {copyField("delivery.signoff")}
 
               <div style={{ background: "var(--ink-2)", border: "1px solid var(--line)", borderRadius: "11px", padding: "12px 13px", marginBottom: "16px" }}>
                 <div style={{ fontSize: "12.5px", fontWeight: 600, marginBottom: "3px" }}>Fill-ins</div>

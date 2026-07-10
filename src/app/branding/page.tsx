@@ -16,7 +16,7 @@ export default async function BrandingPage() {
   const { data: branding } = await supabase
     .from("branding")
     .select(
-      "logo_url, brand_color, accent_color, header_text_color, font_key, copy_overrides, default_message, retention_days, species_options, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, copy_overrides, default_message, retention_days, species_options, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
     )
     .eq("operator_id", operatorId)
     .maybeSingle();
@@ -38,6 +38,7 @@ export default async function BrandingPage() {
             accentColor: (branding?.accent_color as string | null) ?? null,
             headerTextColor: (branding?.header_text_color as string | null) ?? null,
             fontKey: (branding?.font_key as string | null) ?? null,
+            textTone: (branding?.text_tone as string | null) ?? null,
             copyOverrides: ((branding?.copy_overrides ?? {}) as CopyOverrides),
             defaultMessage: (branding?.default_message as string | null) ?? "",
             retentionDays: (branding?.retention_days as number | null) ?? 7,
