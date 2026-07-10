@@ -46,6 +46,7 @@ import {
   saveGalleryCopy,
   sendTestDelivery,
   sendTestReview,
+  setReviewShowCrew,
   type BrandingState,
 } from "./actions";
 
@@ -106,13 +107,27 @@ export function BrandingWorkbench({
   operatorName,
   reviewLinks,
   tips,
+  crewFaces,
+  reviewShowCrew,
   initial,
 }: {
   operatorName: string;
   reviewLinks: { label: string }[];
   tips: Tips;
+  crewFaces: { firstName: string; photoUrl: string | null }[];
+  reviewShowCrew: boolean;
   initial: Initial;
 }) {
+  const [showCrew, setShowCrew] = useState(reviewShowCrew);
+  const [crewPending, startCrew] = useTransition();
+  const toggleCrew = () => {
+    const next = !showCrew;
+    setShowCrew(next);
+    startCrew(async () => {
+      const res = await setReviewShowCrew(next);
+      if (res && "error" in res && res.error) setShowCrew(!next);
+    });
+  };
   // ---- Brand identity state ----
   const [brand, setBrand] = useState(initial.brandColor);
   const [accentOn, setAccentOn] = useState(Boolean(initial.accentColor));
@@ -207,11 +222,13 @@ export function BrandingWorkbench({
       tripDate: today,
       captainName: "Ray",
       species: sampleSpecies,
+      crew: crewFaces,
+      showCrew,
       reviewLinks: links.map((l) => ({ label: l.label, href: "#" })),
       social: initial.social,
     }).html;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, shownLogo, reviewLinks, initial, today]);
+  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, shownLogo, reviewLinks, crewFaces, showCrew, initial, today]);
 
   // The gallery preview's fill-ins, rendered with the same sample trip.
   const galleryCtx: TokenContext = {
@@ -652,6 +669,33 @@ export function BrandingWorkbench({
                   Settings; the preview shows a sample button until then.
                 </p>
               ) : null}
+
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "0 0 14px", marginBottom: "14px", borderBottom: "1px solid var(--line)" }}>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={showCrew}
+                  onClick={toggleCrew}
+                  disabled={crewPending}
+                  style={{
+                    width: "44px", height: "26px", borderRadius: "999px", flex: "0 0 auto",
+                    background: showCrew ? "var(--signal)" : "var(--line-strong)",
+                    border: 0, position: "relative", cursor: crewPending ? "default" : "pointer",
+                    padding: 0, marginTop: "2px",
+                  }}
+                >
+                  <span style={{ position: "absolute", top: "3px", left: showCrew ? "21px" : "3px", width: "20px", height: "20px", borderRadius: "50%", background: "#fff", transition: "left .2s" }} />
+                </button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13.5px", fontWeight: 600 }}>Show your crew&apos;s faces</div>
+                  <p className="fl-hint" style={{ margin: "3px 0 0" }}>
+                    Adds a row of the crew aboard, with their photos, above the
+                    review buttons. Off by default: your review email already
+                    converts, so turn it on and watch your numbers. Add photos
+                    under Settings, Employees.
+                  </p>
+                </div>
+              </div>
 
               {copyField("review.headline")}
               {copyField("review.ask")}

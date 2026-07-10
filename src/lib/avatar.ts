@@ -31,7 +31,7 @@ export function avatarColor(name: string): string {
 export function crewAvatarHtml(name: string, photoUrl: string | null, size = 48): string {
   const s = Math.round(size);
   if (photoUrl) {
-    return `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(name)}" width="${s}" height="${s}" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;display:block;border:0" />`;
+    return `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(name)}" width="${s}" height="${s}" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;display:inline-block;border:0" />`;
   }
-  return `<div style="width:${s}px;height:${s}px;border-radius:50%;background:${avatarColor(name)};color:#ffffff;text-align:center;line-height:${s}px;font-size:${Math.round(s * 0.42)}px;font-weight:600;font-family:'Inter',system-ui,sans-serif">${escapeHtml(avatarInitials(name))}</div>`;
+  return `<div style="width:${s}px;height:${s}px;border-radius:50%;background:${avatarColor(name)};color:#ffffff;text-align:center;line-height:${s}px;font-size:${Math.round(s * 0.42)}px;font-weight:600;font-family:'Inter',system-ui,sans-serif;display:inline-block">${escapeHtml(avatarInitials(name))}</div>`;
 }

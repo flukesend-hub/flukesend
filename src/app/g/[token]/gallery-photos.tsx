@@ -55,7 +55,7 @@ export function GalleryPhotos({
   thanksText?: string;
   // When set, the tip block is the primary ask in the post-save slot, in place
   // of the review links. Resolved server side (both flags already checked).
-  tip?: { firstName: string; verb: string; href: string } | null;
+  tip?: { firstName: string; verb: string; href: string; photoUrl: string | null } | null;
   // When the operator opted to also ask for a review, the review shows as a
   // quiet secondary link under the tip button (never a second big button).
   reviewUnderTip?: boolean;
@@ -226,9 +226,14 @@ export function GalleryPhotos({
             // button; the payment provider is only a small grey cue, never a
             // logo, so the operator's brand stays the hero.
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px" }}>
-              <span style={{ ...avatar, background: ui }}>
-                {(tip.firstName.trim()[0] ?? "?").toUpperCase()}
-              </span>
+              {tip.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={tip.photoUrl} alt={tip.firstName} style={{ ...avatar, objectFit: "cover" }} />
+              ) : (
+                <span style={{ ...avatar, background: ui }}>
+                  {(tip.firstName.trim()[0] ?? "?").toUpperCase()}
+                </span>
+              )}
               <p style={{ fontSize: "14px", lineHeight: 1.55, color: "#46555a", margin: 0, maxWidth: "34ch" }}>
                 Loved your trip? Your photos were shot by{" "}
                 <strong style={{ color: "#1c2b2e" }}>{tip.firstName}</strong>.

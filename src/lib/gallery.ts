@@ -113,6 +113,9 @@ export type GalleryTip = {
   // The built payment URL. Kept server side (the gallery links through the
   // tracked /tip route); the tip route uses it for the redirect.
   url: string;
+  // The photographer's face for the tip bubble, from the roster; null falls
+  // back to the initials circle.
+  photoUrl: string | null;
 };
 
 /*
@@ -153,5 +156,19 @@ export async function resolveGalleryTip(data: GalleryData): Promise<GalleryTip |
     email,
   );
 
-  return { provider, firstName, verb: tipProviderVerb(provider), url: buildTipUrl(provider, handle) };
+  // The face for the tip bubble is the send's credited photographer, matched
+  // to the roster by name (their show flag does not gate the tip: the guest is
+  // tipping this person by name either way).
+  let photoUrl: string | null = null;
+  if (data.delivery.photographer_name) {
+    const { data: cm } = await admin
+      .from("crew_members")
+      .select("photo_url")
+      .eq("operator_id", data.delivery.operator_id)
+      .eq("name", data.delivery.photographer_name)
+      .maybeSingle();
+    photoUrl = (cm?.photo_url as string | null) ?? null;
+  }
+
+  return { provider, firstName, verb: tipProviderVerb(provider), url: buildTipUrl(provider, handle), photoUrl };
 }

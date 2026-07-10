@@ -13,6 +13,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildReviewEmail, tripLine } from "@/lib/review-email";
 import { brandLookFromRow } from "@/lib/brand-copy";
+import { resolveAboardCrew } from "@/lib/crew";
 import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 
@@ -33,7 +34,7 @@ export async function sendReviewAskAfterDownload(
 
   const { data: delivery } = await admin
     .from("deliveries")
-    .select("operator_id, trip_datetime, species, captain_name")
+    .select("operator_id, trip_datetime, species, captain_name, naturalist_name, photographer_name, crew_names")
     .eq("id", r.delivery_id)
     .maybeSingle();
   if (!delivery) {
@@ -67,11 +68,16 @@ export async function sendReviewAskAfterDownload(
     admin
       .from("branding")
       .select(
-        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, review_show_crew, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
       )
       .eq("operator_id", delivery.operator_id)
       .maybeSingle(),
   ]);
+
+  const showCrew = Boolean(branding?.review_show_crew);
+  const crew = showCrew
+    ? await resolveAboardCrew(admin, delivery.operator_id as string, delivery)
+    : [];
 
   const trackedLinks = links.map((l) => ({
     label: l.label as string,
@@ -89,6 +95,8 @@ export async function sendReviewAskAfterDownload(
       : null,
     captainName: (delivery.captain_name as string | null) ?? null,
     species: (delivery.species ?? []) as string[],
+    crew,
+    showCrew,
     reviewLinks: trackedLinks,
     social: {
       website_url: branding?.website_url ?? null,

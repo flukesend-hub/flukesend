@@ -17,6 +17,7 @@ import { escapeHtml } from "@/lib/html";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
 import { fontPack, googleFontsHref, textTone, logoAlign } from "@/lib/brand-fonts";
+import { crewAvatarHtml } from "@/lib/avatar";
 import {
   REVIEW_COPY,
   copyValue,
@@ -92,6 +93,10 @@ export type ReviewEmailInput = {
   captainName?: string | null;
   // The trip's species, pluralized into the body sentence.
   species: string[];
+  // The crew aboard this send (first name + optional photo), shown as a face
+  // row above the buttons only when showCrew is on. Empty renders nothing.
+  crew?: { firstName: string; photoUrl: string | null }[];
+  showCrew?: boolean;
   // href is the tracked redirect through /g/[token]/review, not the raw
   // destination, so a tap is logged before the guest lands on Google.
   reviewLinks: { label: string; href: string }[];
@@ -144,6 +149,23 @@ export function buildReviewEmail(input: ReviewEmailInput): {
 
   const socialRow = socialFooterHtml(input.social);
 
+  // The crew face row, above the buttons, only when the operator turned it on
+  // and someone aboard is visible. Each face is a circle (photo or initials)
+  // with the first name beneath; scales cleanly from one person to several.
+  const crew = (input.crew ?? []).filter((c) => c.firstName);
+  const crewRow =
+    input.showCrew && crew.length
+      ? `<tr><td style="padding:2px 28px 10px">
+          <div style="font-size:12.5px;color:${tone.quiet};text-align:center;margin:0 0 12px">Your crew today</div>
+          <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto"><tr>${crew
+            .map(
+              (c) =>
+                `<td style="padding:0 10px;text-align:center;vertical-align:top">${crewAvatarHtml(c.firstName, c.photoUrl, 52)}<div style="font-size:12.5px;color:${tone.mid};margin-top:7px">${escapeHtml(c.firstName)}</div></td>`,
+            )
+            .join("")}</tr></table>
+        </td></tr>`
+      : "";
+
   const buttons = input.reviewLinks
     .map((l, i) =>
       i === 0
@@ -176,6 +198,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
                 <p style="font-size:15px;color:${tone.body};margin:0 0 18px;line-height:1.55">${copy["review.ask"]}</p>
               </td>
             </tr>
+            ${crewRow}
             <tr>
               <td style="padding:0 28px 6px">
                 <div style="display:flex;flex-direction:column;gap:9px">${buttons}</div>

@@ -19,6 +19,7 @@ import {
   tripLine,
 } from "@/lib/review-email";
 import { brandLookFromRow } from "@/lib/brand-copy";
+import { resolveAboardCrew, type CrewFace } from "@/lib/crew";
 import { sendEmail } from "@/lib/email";
 import { type SocialLinks } from "@/lib/social";
 import { resolveFromAddress } from "@/lib/sender-domain";
@@ -33,6 +34,8 @@ type OperatorContext = {
   tripLine: string;
   tripDate: string | null;
   captainName: string | null;
+  crew: CrewFace[];
+  showCrew: boolean;
   species: string[];
   reviewLinks: { id: string; label: string; url: string }[];
   replyTo: string | null;
@@ -88,7 +91,7 @@ export async function GET(request: Request) {
     const { data: delivery } = await admin
       .from("deliveries")
       .select(
-        "operator_id, trip_datetime, species, captain_name",
+        "operator_id, trip_datetime, species, captain_name, naturalist_name, photographer_name, crew_names",
       )
       .eq("id", deliveryId)
       .maybeSingle();
@@ -104,7 +107,7 @@ export async function GET(request: Request) {
     const { data: branding } = await admin
       .from("branding")
       .select(
-        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, review_show_crew, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
       )
       .eq("operator_id", delivery.operator_id)
       .maybeSingle();
@@ -128,6 +131,10 @@ export async function GET(request: Request) {
         ? new Date(delivery.trip_datetime as string).toLocaleDateString("en-US", { dateStyle: "long" })
         : null,
       captainName: (delivery.captain_name as string | null) ?? null,
+      showCrew: Boolean(branding?.review_show_crew),
+      crew: branding?.review_show_crew
+        ? await resolveAboardCrew(admin, delivery.operator_id as string, delivery)
+        : [],
       species: (delivery.species ?? []) as string[],
       reviewLinks: (links ?? []).map((l) => ({ id: l.id, label: l.label, url: l.url })),
       replyTo: branding?.reply_to_email ?? null,
@@ -177,6 +184,8 @@ export async function GET(request: Request) {
       tripLine: ctx.tripLine,
       tripDate: ctx.tripDate,
       captainName: ctx.captainName,
+      crew: ctx.crew,
+      showCrew: ctx.showCrew,
       species: ctx.species,
       reviewLinks: trackedLinks,
       social: ctx.social,
