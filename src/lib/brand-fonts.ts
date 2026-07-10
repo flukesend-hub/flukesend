@@ -102,10 +102,13 @@ export type TextTone = {
   quiet: string;
 };
 
+// The scale used to start at a light gray; operator feedback was that it read
+// too faint, so the whole ladder sits a step darker now and Standard is what
+// Darker used to be.
 export const TEXT_TONES: TextTone[] = [
-  { key: "standard", label: "Standard", ink: "#16241f", body: "#33464a", mid: "#6b7a7d", quiet: "#8ba4ac" },
-  { key: "darker", label: "Darker", ink: "#101b1d", body: "#26383d", mid: "#566a70", quiet: "#64787f" },
-  { key: "darkest", label: "Darkest", ink: "#0b1416", body: "#1a2a2e", mid: "#41545a", quiet: "#4a5c63" },
+  { key: "standard", label: "Standard", ink: "#101b1d", body: "#26383d", mid: "#4f6268", quiet: "#5d7076" },
+  { key: "darker", label: "Darker", ink: "#0b1416", body: "#1a2a2e", mid: "#3d4f55", quiet: "#47585e" },
+  { key: "darkest", label: "Darkest", ink: "#060a0b", body: "#101a1d", mid: "#2a373c", quiet: "#313f44" },
 ];
 
 export function isTextTone(v: unknown): v is TextToneKey {

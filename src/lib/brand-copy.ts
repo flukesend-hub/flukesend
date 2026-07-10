@@ -91,9 +91,8 @@ export const DELIVERY_COPY: CopyField[] = [
   {
     key: "delivery.signoff",
     label: "Sign-off",
-    hint: "The quiet line at the bottom of the email.",
-    default:
-      "This private link is just for you. Reply to this email any time, it reaches us directly. Thank you, the crew at {operator_name}.",
+    hint: "The closing line at the bottom, right after the gallery expiry note.",
+    default: "Reply any time, it reaches us directly. Thank you, the crew at {operator_name}.",
     limit: 240,
     multiline: true,
   },
