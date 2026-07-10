@@ -32,7 +32,7 @@ export type GalleryData = {
     custom_message: string | null;
     expires_at: string;
   };
-  operator: { id: string; name: string; tips_enabled: boolean };
+  operator: { id: string; name: string; tips_enabled: boolean; tips_show_review: boolean };
   branding: {
     logo_url: string | null;
     brand_color: string;
@@ -67,7 +67,7 @@ export async function getGalleryByToken(
 
   const { data: operator } = await admin
     .from("operators")
-    .select("id, name, tips_enabled")
+    .select("id, name, tips_enabled, tips_show_review")
     .eq("id", delivery.operator_id)
     .maybeSingle();
 
@@ -86,8 +86,13 @@ export async function getGalleryByToken(
     },
     delivery,
     operator: operator
-      ? { id: operator.id, name: operator.name, tips_enabled: Boolean(operator.tips_enabled) }
-      : { id: delivery.operator_id, name: "Operator", tips_enabled: false },
+      ? {
+          id: operator.id,
+          name: operator.name,
+          tips_enabled: Boolean(operator.tips_enabled),
+          tips_show_review: Boolean(operator.tips_show_review),
+        }
+      : { id: delivery.operator_id, name: "Operator", tips_enabled: false, tips_show_review: false },
     branding: branding ?? null,
   };
 }

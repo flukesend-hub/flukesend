@@ -37,6 +37,7 @@ export function GalleryPhotos({
   photos,
   reviewLinks,
   tip = null,
+  reviewUnderTip = false,
   preview = false,
 }: {
   token: string;
@@ -47,6 +48,9 @@ export function GalleryPhotos({
   // When set, the tip block is the primary ask in the post-save slot, in place
   // of the review links. Resolved server side (both flags already checked).
   tip?: { firstName: string; verb: string; href: string } | null;
+  // When the operator opted to also ask for a review, the review shows as a
+  // quiet secondary link under the tip button (never a second big button).
+  reviewUnderTip?: boolean;
   preview?: boolean;
 }) {
   const [downloaded, setDownloaded] = useState(false);
@@ -231,6 +235,26 @@ export function GalleryPhotos({
               <span style={{ fontSize: "12px", color: "#8a938f" }}>
                 {tip.verb} · goes straight to {tip.firstName}
               </span>
+              {reviewUnderTip && reviewLinks.length ? (
+                // Secondary, quiet: a small review link under the tip, so the
+                // tip stays the one primary button. Never a second big CTA.
+                <div style={{ marginTop: "8px", fontSize: "13px", color: "#6b7a7d" }}>
+                  Loved it?{" "}
+                  {reviewLinks.map((l, i) => (
+                    <span key={l.href}>
+                      {i > 0 ? " · " : null}
+                      <a
+                        href={l.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: brand, fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "2px" }}
+                      >
+                        {l.label}
+                      </a>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : reviewLinks.length ? (
             <>

@@ -476,6 +476,25 @@ export async function setTipsEnabled(enabled: boolean): Promise<SettingsState> {
   return { ok: enabled ? "Tips are on." : "Tips are off." };
 }
 
+// Whether the gallery also asks for a review under the tip. Owner only, and only
+// meaningful while tips are on. Off means the tip is the single ask.
+export async function setTipsShowReview(enabled: boolean): Promise<SettingsState> {
+  const { operatorId, isOwner } = await resolveMember();
+  if (!isOwner) {
+    return { error: "Only the account owner can change this." };
+  }
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("operators")
+    .update({ tips_show_review: enabled })
+    .eq("id", operatorId);
+  if (error) {
+    return { error: "Could not save that. Try again." };
+  }
+  revalidatePath("/settings");
+  return { ok: "Saved." };
+}
+
 // A photographer's own tip link and display name. Scoped to the caller's own
 // membership row (user_id = auth.uid()); it only ever writes the tip columns, so
 // there is no way to touch role or another person's link. Blank clears it.
