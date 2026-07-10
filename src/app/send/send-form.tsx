@@ -414,8 +414,7 @@ export function SendForm({
               height: "440px",
               marginLeft: "-220px",
               borderRadius: progress >= 100 ? "50%" : "38%",
-              background: brandColor,
-              opacity: 0.35,
+              background: "#5aa7cf",
               transition: "border-radius 1.2s ease, top .25s linear",
             }}
           />
@@ -429,7 +428,7 @@ export function SendForm({
               height: "440px",
               marginLeft: "-220px",
               borderRadius: progress >= 100 ? "50%" : "41%",
-              background: brandColor,
+              background: "#1e6f9c",
               transition: "border-radius 1.2s ease, top .25s linear",
             }}
           />
