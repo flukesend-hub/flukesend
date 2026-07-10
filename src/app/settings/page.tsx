@@ -20,7 +20,7 @@ import { SettingsSection } from "./settings-section";
 import { RosterList } from "./roster-list";
 import { CrewRoster } from "./crew-roster";
 import { CaptureQr } from "./qr-cards";
-import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles } from "./actions";
+import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles, setCrewPhoto, removeCrewPhoto, setCrewShowToGuests } from "./actions";
 
 // Sub-block styling inside a combined section: a hairline divider and a small
 // heading, so several related editors read as one calm card.
@@ -52,7 +52,7 @@ export default async function SettingsPage() {
         .order("sort_order", { ascending: true }),
       supabase
         .from("crew_members")
-        .select("id, name, roles")
+        .select("id, name, roles, photo_url, show_to_guests")
         .eq("operator_id", operatorId)
         .order("sort_order", { ascending: true }),
       // One standing, operator wide capture link, rendered as a single QR.
@@ -209,10 +209,19 @@ export default async function SettingsPage() {
                   deleteAction={deleteBoat}
                 />
                 <CrewRoster
-                  items={(crew ?? []) as { id: string; name: string; roles: string[] }[]}
+                  items={(crew ?? []).map((c) => ({
+                    id: c.id as string,
+                    name: c.name as string,
+                    roles: (c.roles ?? []) as string[],
+                    photoUrl: (c.photo_url as string | null) ?? null,
+                    showToGuests: c.show_to_guests !== false,
+                  }))}
                   addAction={addCrew}
                   deleteAction={deleteCrew}
                   setRolesAction={setCrewRoles}
+                  setPhotoAction={setCrewPhoto}
+                  removePhotoAction={removeCrewPhoto}
+                  setShowAction={setCrewShowToGuests}
                 />
               </div>
 
