@@ -23,6 +23,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
+import { brandLookFromRow } from "@/lib/brand-copy";
 import { incrementRecipientsUsed } from "@/lib/usage";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
@@ -32,6 +33,7 @@ type OperatorCtx = {
   operatorName: string;
   from: string;
   brandColor: string;
+  look: ReturnType<typeof brandLookFromRow>;
   logoUrl: string | null;
   retentionDays: number;
   defaultMessage: string;
@@ -105,7 +107,7 @@ export async function GET(request: Request) {
       admin.from("operators").select("name").eq("id", operatorId).maybeSingle(),
       admin
         .from("branding")
-        .select("retention_days, brand_color, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url")
+        .select("retention_days, brand_color, accent_color, header_text_color, font_key, copy_overrides, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url")
         .eq("operator_id", operatorId)
         .maybeSingle(),
     ]);
@@ -114,6 +116,7 @@ export async function GET(request: Request) {
       operatorName: name,
       from: await resolveFromAddress(operatorId, name),
       brandColor: (branding?.brand_color as string) ?? "#0b5563",
+      look: brandLookFromRow(branding),
       logoUrl: (branding?.logo_url as string | null) ?? null,
       retentionDays: (branding?.retention_days as number | null) ?? 7,
       defaultMessage: (branding?.default_message as string | null) ?? "",
@@ -218,6 +221,7 @@ export async function GET(request: Request) {
     const { subject, html } = buildDeliveryEmail({
       operatorName: ctx.operatorName,
       brandColor: ctx.brandColor,
+      ...ctx.look,
       logoUrl: ctx.logoUrl,
       retentionDays: ctx.retentionDays,
       recipientName: (cap.name as string | null) ?? null,

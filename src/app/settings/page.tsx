@@ -12,7 +12,7 @@ import { TeamManager } from "./team";
 import { TipsToggle } from "./tips-toggle";
 import { TipLinkForm } from "./tip-link-form";
 import { isTipProvider, type TipProvider } from "@/lib/tips";
-import { BrandingForm } from "./branding-form";
+import { RetentionForm } from "./retention-form";
 import { ReviewLinks } from "./review-links";
 import { SocialLinksForm } from "./social-links-form";
 import { SpeciesPicker } from "./species-picker";
@@ -165,18 +165,38 @@ export default async function SettingsPage() {
             Set once
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <a
+              href="/branding"
+              className="fl-card"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "16px 18px",
+                textDecoration: "none",
+                color: "var(--text)",
+              }}
+            >
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: "15px", fontWeight: 600 }}>
+                  Brand look and messaging
+                </span>
+                <span style={{ display: "block", fontSize: "12.5px", color: "var(--muted)", marginTop: "3px" }}>
+                  {hasLogo ? "Logo set" : "No logo yet"}. Logo, colors, fonts, and
+                  email wording now live in the Branding tab.
+                </span>
+              </span>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--signal-ink)", background: "var(--signal)", padding: "7px 12px", borderRadius: "9px", flex: "0 0 auto" }}>
+                Open Branding
+              </span>
+            </a>
+
             <SettingsSection
-              title="Brand and email look"
-              summary={`${hasLogo ? "Logo set" : "No logo yet"}, photos kept ${retentionDays} ${plural(retentionDays, "day", "days")}`}
+              title="Photo retention"
+              summary={`Photos kept ${retentionDays} ${plural(retentionDays, "day", "days")}`}
               chip={doneChip}
             >
-              <BrandingForm
-                operatorName={operatorName ?? "Operator"}
-                logoUrl={branding?.logo_url ?? null}
-                brandColor={branding?.brand_color ?? "#0b5563"}
-                defaultMessage={branding?.default_message ?? ""}
-                retentionDays={branding?.retention_days ?? 5}
-              />
+              <RetentionForm retentionDays={retentionDays} />
             </SettingsSection>
 
             <SettingsSection

@@ -6,6 +6,10 @@
 */
 import "server-only";
 
+// escapeHtml lives in lib/html (client safe, used by the branding previews
+// too); re-exported here so the many existing imports keep working.
+export { escapeHtml } from "@/lib/html";
+
 // On success, ids are the Resend email ids in send order (one for a single
 // send, one per message for a batch). The webhook uses them to report what
 // happened to each email after we hand it off.
@@ -13,14 +17,6 @@ export type SendResult =
   | { status: "sent"; ids: (string | null)[] }
   | { status: "skipped" }
   | { status: "error"; error: string };
-
-export function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 // White label the From header so guests see the operator, not Flukesend. The
 // company name is the display name and a slug of it is the local part at our
