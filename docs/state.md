@@ -1,6 +1,6 @@
 # Flukesend product state
 
-Last updated: July 9, 2026.
+Last updated: July 10, 2026.
 
 This file is the catch-up brief. It exists so any fresh Claude session (a coding
 session in this repo, or a plain chat for ideation) can get current fast: what the
@@ -43,12 +43,23 @@ internal plan key is still `fleet`; the customer facing display name is currentl
 
 ## The product today, feature by feature
 
-- Send flow: trip details (boat, crew, times), photos straight to private storage,
-  guest emails pasted or preloaded from QR captures, per species head counts.
+- Send flow: a four step cascade (Trip details, Photos, Guests, Review), one card
+  open at a time, each gating the next, a read only review before send. Trip step
+  has a segmented boat picker, trip time pills, species with snug head count chips,
+  crew grid. Photos: real drag and drop onto the dropzone plus click to browse; a
+  stray drop outside the box is swallowed so it cannot navigate away and lose the
+  send. Photos go straight to private storage; guest emails are pasted or preloaded
+  from QR captures.
+- Edit trip details: an operator can correct a misclicked species, boat, time, or
+  crew on a send that already went out, from the delivery's Trip card. Operator side
+  only (fixes the record and analytics), never re-emails guests. RLS scoped.
 - Guest gallery: private tokened link, no account, camera roll save on phones, zip
   on desktop. Download fires the review ask instantly.
 - QR capture: one QR per operator, posted on the boat. Guest picks boat and trip
-  time. A reconcile cron catches late sign-ups after the send already went out.
+  time, but the time picker shows only trips that have already departed (by the
+  guest's own clock), so a 9 AM guest cannot mistakenly pick the noon trip; a quiet
+  "show all times" link covers odd cases. A reconcile cron catches late sign-ups
+  after the send already went out.
 - Review engine: instant ask on download, cron as safety net, per destination click
   tracking.
 - Social page: story card (photo of the day, species counts, brand, safe band so
@@ -56,7 +67,9 @@ internal plan key is still `fleet`; the customer facing display name is currentl
   second cap, speed control), post mode (up to 10 photos for a carousel).
 - Team: owner invites by email, invitee sees only a join screen, joins as crew.
   Invite email is white labeled as the operator.
-- Analytics: full funnel, trend, per photographer, CSV. Everyone gets all of it.
+- Analytics: full funnel, trend, per photographer, CSV. Everyone gets all of it. A
+  bounced email shows as a chip that links straight to its send, where the guest
+  sits at the top of the list (bounced float up, tinted red) with fix and resend.
 - Expiry: whole local days, midnight Pacific, so all of a day's sends expire
   together; nightly cleanup at 2 AM Pacific removes storage, keeps history.
 - White label sending domain: concierge only, set up through the admin page.
@@ -95,8 +108,19 @@ internal plan key is still `fleet`; the customer facing display name is currentl
 
 ## Operating notes
 
+- Guest facing links: every link that reaches a guest or lands in an email (gallery
+  links, review links, reminders, the printed QR, team invites) must be built on
+  CANONICAL_ORIGIN (src/lib/base-url.ts, defaults to www.flukesend.com), never from
+  the request's Host header. This is a hard rule with a scar behind it: on the Pro
+  plan, crons run on a protected .vercel.app deployment URL, so links built from the
+  request host greeted guests with a Vercel login wall. Only same session redirects
+  (auth callback, password reset, Stripe return) may use the request host. If you add
+  a new guest facing link, use CANONICAL_ORIGIN.
 - Deploys: merge to main auto deploys to production on Vercel (Pro plan). Preview
   build on the working branch first, then merge. Cron schedules live in vercel.json.
+  Vercel occasionally drops the merge webhook and no production deploy starts; if a
+  merge does not produce a production build within a couple of minutes, push an empty
+  commit to main to re-trigger.
 - All three operators run on Pacific time. Cron times in UTC: cleanup 09:00 (2 AM
   PT), review sweeps 03:00 and 14:00 (8 PM and 7 AM PT), expiry reminders 16:00
   (9 AM PT), reconcile captures every 15 minutes.
