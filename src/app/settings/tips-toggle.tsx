@@ -27,23 +27,17 @@ export function TipsToggle({
   if (!isOwner) {
     return (
       <p className="fl-hint" style={{ margin: 0 }}>
-        Tips are {enabled ? "on" : "off"} for your operation. Only the account
-        owner can change this. When it is on, add your own payment link below and
-        tips go straight to you.
+        Tips are {enabled ? "on" : "off"}, set by the account owner. When on, add
+        your payment link below and tips go straight to you.
       </p>
     );
   }
 
   return (
     <div>
-      <p className="fl-hint" style={{ margin: "0 0 14px" }}>
-        Show a &quot;Tip your photographer&quot; button on the gallery after a
-        guest saves their photos. Each photographer adds their own payment link
-        (below), and tips go directly to them. Flukesend never touches the money.
-      </p>
-
       <Switch
         label={(v) => (v ? "Tips are on" : "Tips are off")}
+        hint="Shows a Tip your photographer button on the gallery. Each photographer adds their own payment link below; Flukesend never touches the money."
         value={on}
         onChange={async (next) => {
           setOn(next);
@@ -57,13 +51,10 @@ export function TipsToggle({
       />
 
       {on ? (
-        <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid var(--line)" }}>
-          <p className="fl-hint" style={{ margin: "0 0 10px" }}>
-            Also ask for a review, shown as a small link under the tip. Off keeps
-            the tip as the only ask.
-          </p>
+        <div style={{ marginTop: "14px", paddingTop: "14px", borderTop: "1px solid var(--line)" }}>
           <Switch
             label={(v) => (v ? "Review shown under the tip" : "Tip only")}
+            hint="Adds a small review link under the tip. Off keeps the tip as the only ask."
             value={withReview}
             onChange={async (next) => {
               setWithReview(next);
@@ -81,13 +72,16 @@ export function TipsToggle({
   );
 }
 
-// A labelled switch. onChange returns an error string to roll back, or null.
+// A labelled switch with a quiet hint under it. onChange returns an error
+// string to roll back, or null.
 function Switch({
   label,
+  hint,
   value,
   onChange,
 }: {
   label: (v: boolean) => string;
+  hint?: string;
   value: boolean;
   onChange: (next: boolean) => Promise<string | null>;
 }) {
@@ -145,6 +139,7 @@ function Switch({
         </span>
         <span style={{ fontSize: "13.5px", fontWeight: 600, color: "var(--text)" }}>{label(value)}</span>
       </button>
+      {hint ? <p className="fl-hint" style={{ margin: "8px 0 0" }}>{hint}</p> : null}
       {note ? <p style={{ color: "var(--bad)", fontSize: "13px", margin: "10px 0 0" }}>{note}</p> : null}
     </div>
   );
