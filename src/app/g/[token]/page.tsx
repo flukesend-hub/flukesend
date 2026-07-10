@@ -84,6 +84,7 @@ export default async function GalleryPage({
         firstName: tipInfo.firstName,
         verb: tipInfo.verb,
         href: `/g/${token}/tip${preview ? "?preview=1" : ""}`,
+        photoUrl: tipInfo.photoUrl,
       }
     : null;
 

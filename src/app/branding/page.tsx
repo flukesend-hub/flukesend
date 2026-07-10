@@ -19,12 +19,12 @@ export default async function BrandingPage() {
   // last three exist so the gallery preview mirrors the real post-save slot:
   // tip when tips are on and this member has a link, review buttons
   // otherwise, thanks line when neither.
-  const [{ data: branding }, { data: reviewRows }, { data: op }, { data: me }] =
+  const [{ data: branding }, { data: reviewRows }, { data: op }, { data: me }, { data: crewRows }] =
     await Promise.all([
       supabase
         .from("branding")
         .select(
-          "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, default_message, retention_days, species_options, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+          "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, review_show_crew, default_message, retention_days, species_options, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
         )
         .eq("operator_id", operatorId)
         .maybeSingle(),
@@ -44,7 +44,23 @@ export default async function BrandingPage() {
         .eq("operator_id", operatorId)
         .eq("user_id", userId)
         .maybeSingle(),
+      supabase
+        .from("crew_members")
+        .select("name, photo_url, show_to_guests, sort_order")
+        .eq("operator_id", operatorId)
+        .order("sort_order", { ascending: true }),
     ]);
+
+  // The real roster for the review-email preview, with each person's shown
+  // flag, so the preview shows exactly who guests will see and can explain who
+  // is being left out (hidden, or has no photo yet).
+  const crew = (crewRows ?? [])
+    .slice(0, 8)
+    .map((c) => ({
+      firstName: (c.name as string).trim().split(/\s+/)[0],
+      photoUrl: (c.photo_url as string | null) ?? null,
+      show: c.show_to_guests !== false,
+    }));
 
   const myTipSet = Boolean(isTipProvider(me?.tip_provider as string) && me?.tip_handle);
   const tips = {
@@ -72,6 +88,8 @@ export default async function BrandingPage() {
           operatorName={operatorName ?? "Operator"}
           reviewLinks={(reviewRows ?? []).map((l) => ({ label: l.label as string }))}
           tips={tips}
+          crew={crew}
+          reviewShowCrew={Boolean(branding?.review_show_crew)}
           initial={{
             logoUrl: (branding?.logo_url as string | null) ?? null,
             brandColor: (branding?.brand_color as string | null) ?? "#0b5563",

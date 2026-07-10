@@ -15,6 +15,7 @@ import { resolveFromAddress } from "@/lib/sender-domain";
 import { isCrewRole } from "@/lib/roles";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
 import { normalizeSpecies } from "@/lib/species";
+import { uploadCrewPhoto, removeCrewPhotoFiles } from "@/lib/crew-photo-upload";
 import { TRIP_TIME_SLOTS } from "@/lib/trip-times";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
 import { isTipProvider, normalizeTipHandle } from "@/lib/tips";
@@ -427,7 +428,68 @@ export async function addCrew(_prev: SettingsState, formData: FormData) {
   return addNamed("crew_members", formData, { roles: [] });
 }
 export async function deleteCrew(formData: FormData) {
+  const { operatorId } = await resolveOperator();
+  const id = String(formData.get("id") ?? "");
+  if (id) {
+    // Sweep the storage photo too; the row delete alone would orphan it.
+    await removeCrewPhotoFiles(operatorId, id);
+  }
   return deleteNamed("crew_members", formData);
+}
+
+// A crew member's photo, shown as their face on guest surfaces. Scoped to the
+// operator's own roster; stored public (crew photos render in emails).
+export async function setCrewPhoto(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
+  const { supabase, operatorId } = await resolveOperator();
+  const crewId = String(formData.get("crew_id") ?? "");
+  if (!crewId) return { error: "Missing crew member." };
+  const { data: c } = await supabase
+    .from("crew_members")
+    .select("id")
+    .eq("id", crewId)
+    .eq("operator_id", operatorId)
+    .maybeSingle();
+  if (!c) return { error: "Crew member not found." };
+
+  const upload = await uploadCrewPhoto(operatorId, crewId, formData.get("photo"));
+  if (!upload.ok) return { error: upload.error };
+
+  const { error } = await supabase
+    .from("crew_members")
+    .update({ photo_url: upload.photoUrl })
+    .eq("id", crewId)
+    .eq("operator_id", operatorId);
+  if (error) return { error: "Could not save the photo. Try again." };
+  revalidatePath("/settings");
+  return { ok: "Photo saved." };
+}
+
+export async function removeCrewPhoto(crewId: string): Promise<void> {
+  const { supabase, operatorId } = await resolveOperator();
+  if (!crewId) return;
+  await removeCrewPhotoFiles(operatorId, crewId);
+  await supabase
+    .from("crew_members")
+    .update({ photo_url: null })
+    .eq("id", crewId)
+    .eq("operator_id", operatorId);
+  revalidatePath("/settings");
+}
+
+// Whether this person appears on guest-facing surfaces (the review email crew
+// row). Off keeps them off, photo or not.
+export async function setCrewShowToGuests(crewId: string, show: boolean): Promise<void> {
+  const { supabase, operatorId } = await resolveOperator();
+  if (!crewId) return;
+  await supabase
+    .from("crew_members")
+    .update({ show_to_guests: show })
+    .eq("id", crewId)
+    .eq("operator_id", operatorId);
+  revalidatePath("/settings");
 }
 
 // ---- Photographer tip jar ----

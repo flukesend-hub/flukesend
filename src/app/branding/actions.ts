@@ -214,6 +214,19 @@ export async function saveReviewCopy(
   return saveCopyFields(REVIEW_COPY, formData);
 }
 
+// The review-email crew-faces toggle. Any member can flip it (branding is
+// member-editable); default off, so nothing changes until they turn it on.
+export async function setReviewShowCrew(enabled: boolean): Promise<BrandingState> {
+  const { supabase, operatorId } = await resolveOperator();
+  const { error } = await supabase
+    .from("branding")
+    .update({ review_show_crew: enabled })
+    .eq("operator_id", operatorId);
+  if (error) return { error: "Could not save that. Try again." };
+  revalidateBranding();
+  return { ok: enabled ? "Crew faces are on." : "Crew faces are off." };
+}
+
 export async function saveGalleryCopy(
   _prev: BrandingState,
   formData: FormData,
@@ -343,18 +356,23 @@ export async function sendTestReview(draft: ReviewTestDraft): Promise<BrandingSt
     if (cleaned.value) overrides[field.key] = cleaned.value;
   }
 
-  const [{ data: operator }, { data: branding }, { data: links }] = await Promise.all([
+  const [{ data: operator }, { data: branding }, { data: links }, { data: crewRows }] = await Promise.all([
     supabase.from("operators").select("name").eq("id", operatorId).maybeSingle(),
     supabase
       .from("branding")
       .select(
-        "logo_url, reply_to_email, species_options, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        "logo_url, reply_to_email, species_options, review_show_crew, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
       )
       .eq("operator_id", operatorId)
       .maybeSingle(),
     supabase
       .from("review_destinations")
       .select("label, url, sort_order")
+      .eq("operator_id", operatorId)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("crew_members")
+      .select("name, photo_url, show_to_guests, sort_order")
       .eq("operator_id", operatorId)
       .order("sort_order", { ascending: true }),
   ]);
@@ -364,6 +382,14 @@ export async function sendTestReview(draft: ReviewTestDraft): Promise<BrandingSt
   const operatorName = (operator?.name as string) ?? "Your crew";
   const species = ((branding?.species_options ?? []) as string[]).slice(0, 2);
   const today = new Date().toLocaleDateString("en-US", { dateStyle: "long" });
+  // The real shown roster, so the test mails exactly who guests would see.
+  const crew = (crewRows ?? [])
+    .filter((c) => c.show_to_guests !== false)
+    .slice(0, 6)
+    .map((c) => ({
+      firstName: (c.name as string).trim().split(/\s+/)[0],
+      photoUrl: (c.photo_url as string | null) ?? null,
+    }));
 
   const { subject, html } = buildReviewEmail({
     operatorName,
@@ -380,6 +406,8 @@ export async function sendTestReview(draft: ReviewTestDraft): Promise<BrandingSt
     tripDate: today,
     captainName: "Ray",
     species: species.length ? species : ["Humpback whales"],
+    crew,
+    showCrew: Boolean(branding?.review_show_crew),
     reviewLinks: (links ?? []).map((l) => ({ label: l.label as string, href: l.url as string })),
     social: {
       website_url: (branding?.website_url as string | null) ?? null,
