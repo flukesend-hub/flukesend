@@ -10,6 +10,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { CREW_ROLES } from "@/lib/roles";
 import { avatarInitials, avatarColor } from "@/lib/avatar";
+import { CrewPhotoEditor } from "./crew-photo-editor";
 import type { SettingsState } from "./actions";
 
 type Member = {
@@ -85,11 +86,22 @@ function CrewCard({
 }: { m: Member } & Actions) {
   const [rolesOverlay, setRolesOverlay] = useState<string[] | null>(null);
   const [showOverlay, setShowOverlay] = useState<boolean | null>(null);
+  const [editFile, setEditFile] = useState<File | null>(null);
   const [, startTransition] = useTransition();
   const [photoState, photoAction, photoPending] = useActionState<SettingsState, FormData>(
     setPhotoAction,
     undefined,
   );
+
+  // The editor hands back a cropped square blob; ship it through the same
+  // action as a small named file, with the crew id it belongs to.
+  function uploadCropped(blob: Blob) {
+    const fd = new FormData();
+    fd.append("crew_id", m.id);
+    fd.append("photo", new File([blob], "crew.jpg", { type: "image/jpeg" }));
+    startTransition(() => photoAction(fd));
+    setEditFile(null);
+  }
 
   const roles = rolesOverlay ?? m.roles ?? [];
   const show = showOverlay ?? m.showToGuests;
@@ -135,20 +147,20 @@ function CrewCard({
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginTop: "10px" }}>
-        <form action={photoAction}>
-          <input type="hidden" name="crew_id" value={m.id} />
-          <label style={photoLink}>
-            {photoPending ? "Uploading..." : m.photoUrl ? "Replace photo" : "Add photo"}
-            <input
-              type="file"
-              name="photo"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => e.currentTarget.form?.requestSubmit()}
-              style={{ display: "none" }}
-              disabled={photoPending}
-            />
-          </label>
-        </form>
+        <label style={photoLink}>
+          {photoPending ? "Uploading..." : m.photoUrl ? "Replace photo" : "Add photo"}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = ""; // let the same file be re-picked later
+              if (f) setEditFile(f);
+            }}
+            style={{ display: "none" }}
+            disabled={photoPending}
+          />
+        </label>
         {m.photoUrl ? (
           <button type="button" onClick={() => startTransition(() => removePhotoAction(m.id))} style={photoLink}>
             Remove photo
@@ -160,6 +172,16 @@ function CrewCard({
       </div>
       {photoState?.error ? (
         <p style={{ color: "var(--bad)", fontSize: "12px", margin: "8px 0 0" }}>{photoState.error}</p>
+      ) : null}
+
+      {editFile ? (
+        <CrewPhotoEditor
+          file={editFile}
+          name={m.name}
+          saving={photoPending}
+          onSave={uploadCropped}
+          onCancel={() => setEditFile(null)}
+        />
       ) : null}
     </div>
   );
