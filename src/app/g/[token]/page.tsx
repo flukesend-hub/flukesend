@@ -7,7 +7,7 @@
 import { notFound } from "next/navigation";
 import { getGalleryByToken, isExpired, resolveGalleryTip } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fontPack, googleFontsHref } from "@/lib/brand-fonts";
+import { fontPack, googleFontsHref, logoAlign } from "@/lib/brand-fonts";
 import { GALLERY_COPY, GALLERY_THANKS_DEFAULT, copyValue, renderTokens } from "@/lib/brand-copy";
 import { TrackOpen } from "./track-open";
 import { GalleryPhotos } from "./gallery-photos";
@@ -40,6 +40,7 @@ export default async function GalleryPage({
   const accent = branding?.accent_color ?? brand;
   const pack = fontPack(branding?.font_key);
   const fontsHref = googleFontsHref(pack);
+  const headerAlign = logoAlign(branding?.logo_align);
   const tokenCtx = {
     operatorName: operator.name,
     firstName: data.recipient.name?.trim().split(/\s+/)[0] ?? null,
@@ -165,15 +166,18 @@ export default async function GalleryPage({
         ) : null}
         <div style={{ background: brand, color: "#fff", padding: "32px 26px 28px" }}>
           {/* The logo already carries the operator name, so show one or the
-              other: the logo when set, the name in type as the fallback. */}
-          {branding?.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logo_url} alt={operator.name} style={{ height: "40px" }} />
-          ) : (
-            <div className="fl-display" style={{ fontFamily: pack.displayStack, fontSize: "20px", letterSpacing: ".02em", opacity: 0.96 }}>
-              {operator.name}
-            </div>
-          )}
+              other: the logo when set, the name in type as the fallback. The
+              operator picks where it sits in the header. */}
+          <div style={{ textAlign: headerAlign }}>
+            {branding?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={branding.logo_url} alt={operator.name} style={{ height: "40px", display: "inline-block" }} />
+            ) : (
+              <div className="fl-display" style={{ display: "inline-block", fontFamily: pack.displayStack, fontSize: "20px", letterSpacing: ".02em", opacity: 0.96 }}>
+                {operator.name}
+              </div>
+            )}
+          </div>
           <div className="fl-display" style={{ fontFamily: pack.displayStack, fontWeight: 500, fontSize: "26px", lineHeight: 1.2, margin: "16px 0 8px", maxWidth: "18ch" }}>
             {title}
           </div>

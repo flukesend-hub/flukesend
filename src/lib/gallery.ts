@@ -38,6 +38,7 @@ export type GalleryData = {
     brand_color: string;
     accent_color: string | null;
     font_key: string | null;
+    logo_align: string | null;
     copy_overrides: Record<string, string> | null;
     default_message: string;
   } | null;
@@ -76,7 +77,7 @@ export async function getGalleryByToken(
 
   const { data: branding } = await admin
     .from("branding")
-    .select("logo_url, brand_color, accent_color, font_key, copy_overrides, default_message")
+    .select("logo_url, brand_color, accent_color, font_key, logo_align, copy_overrides, default_message")
     .eq("operator_id", delivery.operator_id)
     .maybeSingle();
 

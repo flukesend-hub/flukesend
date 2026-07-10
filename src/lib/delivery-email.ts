@@ -19,7 +19,7 @@
 import { escapeHtml } from "@/lib/html";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
-import { fontPack, googleFontsHref, textTone } from "@/lib/brand-fonts";
+import { fontPack, googleFontsHref, textTone, logoAlign } from "@/lib/brand-fonts";
 import {
   DELIVERY_COPY,
   copyValue,
@@ -36,6 +36,7 @@ export type DeliveryEmailInput = {
   headerTextColor?: string | null;
   fontKey?: string | null;
   textTone?: string | null;
+  logoAlign?: string | null;
   copyOverrides?: CopyOverrides | null;
   logoUrl: string | null;
   recipientName: string | null;
@@ -67,6 +68,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
   const body = pack.bodyStack;
   const fontsHref = googleFontsHref(pack);
   const tone = textTone(input.textTone);
+  const align = logoAlign(input.logoAlign);
 
   // The editable copy, tokens substituted then escaped. {first_name} is the
   // guest's first word so "Alex Rivera" greets as Alex.
@@ -98,8 +100,8 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
     : "";
 
   const header = input.logoUrl
-    ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:block" />`
-    : `<div style="font-family:${display};font-weight:600;font-size:19px;color:${headerText}">${name}</div>`;
+    ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:inline-block" />`
+    : `<div style="font-family:${display};font-weight:600;font-size:19px;color:${headerText};display:inline-block">${name}</div>`;
 
   const message = input.message
     ? `<p style="font-size:15px;line-height:1.55;margin:0 0 18px;color:${tone.body}">${escapeHtml(input.message)}</p>`
@@ -159,7 +161,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
         <td align="center" style="padding:30px 16px">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e6e9e8;border-radius:18px;overflow:hidden">
             <tr>
-              <td style="background:${brand};padding:20px 28px">${header}</td>
+              <td style="background:${brand};padding:20px 28px;text-align:${align}">${header}</td>
             </tr>
             <tr>
               <td style="padding:30px 28px 6px">

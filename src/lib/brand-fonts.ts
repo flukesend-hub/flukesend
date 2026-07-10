@@ -119,3 +119,19 @@ export function isTextTone(v: unknown): v is TextToneKey {
 export function textTone(key: string | null | undefined): TextTone {
   return TEXT_TONES.find((t) => t.key === key) ?? TEXT_TONES[0];
 }
+
+/*
+  Logo alignment: where the logo (or the name fallback) sits in the header
+  band of the emails and the gallery hero. Left is the default look.
+*/
+
+export type LogoAlign = "left" | "center" | "right";
+
+export function isLogoAlign(v: unknown): v is LogoAlign {
+  return v === "left" || v === "center" || v === "right";
+}
+
+// Null or unknown means left.
+export function logoAlign(key: string | null | undefined): LogoAlign {
+  return isLogoAlign(key) ? key : "left";
+}

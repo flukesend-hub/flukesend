@@ -20,7 +20,7 @@ import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { buildReviewEmail } from "@/lib/review-email";
-import { isFontKey, isTextTone } from "@/lib/brand-fonts";
+import { isFontKey, isTextTone, isLogoAlign } from "@/lib/brand-fonts";
 import {
   DELIVERY_COPY,
   REVIEW_COPY,
@@ -96,6 +96,10 @@ export async function saveBrandLook(
   if (toneRaw && !isTextTone(toneRaw)) {
     return { error: "Pick a text darkness." };
   }
+  const alignRaw = String(formData.get("logo_align") ?? "").trim();
+  if (alignRaw && !isLogoAlign(alignRaw)) {
+    return { error: "Pick a logo alignment." };
+  }
 
   const upload = await uploadOperatorLogo(operatorId, formData.get("logo"));
   if (!upload.ok) {
@@ -109,6 +113,7 @@ export async function saveBrandLook(
     header_text_color: headerTextRaw && headerTextRaw !== "#ffffff" ? headerTextRaw : null,
     font_key: fontRaw && fontRaw !== "classic" ? fontRaw : null,
     text_tone: toneRaw && toneRaw !== "standard" ? toneRaw : null,
+    logo_align: alignRaw && alignRaw !== "left" ? alignRaw : null,
   };
   if (upload.logoUrl) {
     update.logo_url = upload.logoUrl;
@@ -230,6 +235,7 @@ export type DeliveryTestDraft = {
   headerTextColor: string | null;
   fontKey: string | null;
   textTone: string | null;
+  logoAlign: string | null;
   copy: Record<string, string>;
   message: string;
 };
@@ -245,6 +251,7 @@ export async function sendTestDelivery(draft: DeliveryTestDraft): Promise<Brandi
   if (draft.headerTextColor && !HEX.test(draft.headerTextColor)) return { error: "Pick a valid header text color." };
   if (draft.fontKey && !isFontKey(draft.fontKey)) return { error: "Pick a font from the pack." };
   if (draft.textTone && !isTextTone(draft.textTone)) return { error: "Pick a text darkness." };
+  if (draft.logoAlign && !isLogoAlign(draft.logoAlign)) return { error: "Pick a logo alignment." };
 
   const overrides: CopyOverrides = {};
   for (const field of DELIVERY_COPY) {
@@ -273,6 +280,7 @@ export async function sendTestDelivery(draft: DeliveryTestDraft): Promise<Brandi
     headerTextColor: draft.headerTextColor,
     fontKey: draft.fontKey,
     textTone: draft.textTone,
+    logoAlign: draft.logoAlign,
     copyOverrides: overrides,
     logoUrl: (branding?.logo_url as string | null) ?? null,
     recipientName: "Alex Rivera",
@@ -326,6 +334,7 @@ export async function sendTestReview(draft: ReviewTestDraft): Promise<BrandingSt
   if (draft.headerTextColor && !HEX.test(draft.headerTextColor)) return { error: "Pick a valid header text color." };
   if (draft.fontKey && !isFontKey(draft.fontKey)) return { error: "Pick a font from the pack." };
   if (draft.textTone && !isTextTone(draft.textTone)) return { error: "Pick a text darkness." };
+  if (draft.logoAlign && !isLogoAlign(draft.logoAlign)) return { error: "Pick a logo alignment." };
 
   const overrides: CopyOverrides = {};
   for (const field of REVIEW_COPY) {
@@ -363,6 +372,7 @@ export async function sendTestReview(draft: ReviewTestDraft): Promise<BrandingSt
     headerTextColor: draft.headerTextColor,
     fontKey: draft.fontKey,
     textTone: draft.textTone,
+    logoAlign: draft.logoAlign,
     copyOverrides: overrides,
     logoUrl: (branding?.logo_url as string | null) ?? null,
     recipientName: "Alex",

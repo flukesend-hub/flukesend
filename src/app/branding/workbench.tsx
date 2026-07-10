@@ -24,7 +24,7 @@ import {
 } from "react";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { buildReviewEmail } from "@/lib/review-email";
-import { FONT_PACKS, fontPack, TEXT_TONES, textTone } from "@/lib/brand-fonts";
+import { FONT_PACKS, fontPack, TEXT_TONES, textTone, logoAlign, type LogoAlign } from "@/lib/brand-fonts";
 import {
   COPY_TOKENS,
   DELIVERY_COPY,
@@ -56,6 +56,7 @@ type Initial = {
   headerTextColor: string | null;
   fontKey: string | null;
   textTone: string | null;
+  logoAlign: string | null;
   copyOverrides: CopyOverrides;
   defaultMessage: string;
   retentionDays: number;
@@ -119,6 +120,7 @@ export function BrandingWorkbench({
   const [headerText, setHeaderText] = useState(initial.headerTextColor ?? "#ffffff");
   const [font, setFont] = useState(fontPack(initial.fontKey).key);
   const [tone, setTone] = useState(textTone(initial.textTone).key);
+  const [align, setAlign] = useState<LogoAlign>(logoAlign(initial.logoAlign));
   // A data URL, not an object URL: the preview iframe is sandboxed into its
   // own origin and cannot fetch the parent's blob: URLs, but data: inlines.
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -171,6 +173,7 @@ export function BrandingWorkbench({
       headerTextColor: headerText,
       fontKey: font,
       textTone: tone,
+      logoAlign: align,
       copyOverrides: copy,
       logoUrl: shownLogo,
       recipientName: "Alex Rivera",
@@ -185,7 +188,7 @@ export function BrandingWorkbench({
       social: initial.social,
     }).html;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operatorName, brand, accentOn, accent, headerText, font, tone, copy, shownLogo, intro, initial, today]);
+  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, shownLogo, intro, initial, today]);
 
   const reviewHtml = useMemo(() => {
     const links = reviewLinks.length ? reviewLinks : [{ label: "Leave a Google review" }];
@@ -196,6 +199,7 @@ export function BrandingWorkbench({
       headerTextColor: headerText,
       fontKey: font,
       textTone: tone,
+      logoAlign: align,
       copyOverrides: copy,
       logoUrl: shownLogo,
       recipientName: "Alex",
@@ -207,7 +211,7 @@ export function BrandingWorkbench({
       social: initial.social,
     }).html;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operatorName, brand, accentOn, accent, headerText, font, tone, copy, shownLogo, reviewLinks, initial, today]);
+  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, shownLogo, reviewLinks, initial, today]);
 
   // The gallery preview's fill-ins, rendered with the same sample trip.
   const galleryCtx: TokenContext = {
@@ -276,6 +280,7 @@ export function BrandingWorkbench({
     headerTextColor: headerText === "#ffffff" ? null : headerText,
     fontKey: font as string | null,
     textTone: tone as string | null,
+    logoAlign: align as string | null,
   };
   const runTest = (which: "delivery" | "review") => {
     setTestNote(undefined);
@@ -404,6 +409,39 @@ export function BrandingWorkbench({
                 </label>
               </div>
             </label>
+
+            <div style={{ marginBottom: "14px" }}>
+              <span className="fl-label-text">Logo placement</span>
+              <p className="fl-hint" style={{ margin: "0 0 8px" }}>
+                Where your logo sits in the header band (and the name, if you
+                have no logo).
+              </p>
+              <input type="hidden" name="logo_align" value={align} />
+              <div style={{ display: "flex", gap: "8px" }}>
+                {(["left", "center", "right"] as const).map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setAlign(a)}
+                    style={{
+                      flex: 1,
+                      font: "inherit",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      textTransform: "capitalize",
+                      padding: "9px 0",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      background: align === a ? "var(--signal)" : "transparent",
+                      color: align === a ? "var(--signal-ink)" : "var(--text)",
+                      border: `1px solid ${align === a ? "var(--signal)" : "var(--line-strong)"}`,
+                    }}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div style={{ marginBottom: "14px" }}>
               <span className="fl-label-text">Brand color</span>
@@ -689,6 +727,7 @@ export function BrandingWorkbench({
                 brand={brand}
                 accent={effectiveAccent}
                 displayStack={pack.displayStack}
+                logoAlign={align}
                 logo={shownLogo}
                 intro={intro}
                 species={sampleSpecies}
@@ -739,6 +778,7 @@ function GalleryMini({
   brand,
   accent,
   displayStack,
+  logoAlign: align,
   logo,
   intro,
   species,
@@ -751,6 +791,7 @@ function GalleryMini({
   brand: string;
   accent: string;
   displayStack: string;
+  logoAlign: LogoAlign;
   logo: string | null;
   intro: string;
   species: string[];
@@ -765,12 +806,14 @@ function GalleryMini({
   return (
     <div style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#faf8f4", color: "#1c2b2e" }}>
       <div style={{ background: brand, color: "#fff", padding: "18px 16px 16px" }}>
-        {logo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt={operatorName} style={{ height: "26px" }} />
-        ) : (
-          <div style={{ fontFamily: displayStack, fontSize: "14px", opacity: 0.96 }}>{operatorName}</div>
-        )}
+        <div style={{ textAlign: align }}>
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt={operatorName} style={{ height: "26px", display: "inline-block" }} />
+          ) : (
+            <div style={{ display: "inline-block", fontFamily: displayStack, fontSize: "14px", opacity: 0.96 }}>{operatorName}</div>
+          )}
+        </div>
         <div style={{ fontFamily: displayStack, fontWeight: 500, fontSize: "18px", lineHeight: 1.25, margin: "10px 0 5px", maxWidth: "18ch" }}>
           Your 10:00 AM trip with Captain Ray
         </div>

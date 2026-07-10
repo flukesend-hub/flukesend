@@ -16,7 +16,7 @@
 import { escapeHtml } from "@/lib/html";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
-import { fontPack, googleFontsHref, textTone } from "@/lib/brand-fonts";
+import { fontPack, googleFontsHref, textTone, logoAlign } from "@/lib/brand-fonts";
 import {
   REVIEW_COPY,
   copyValue,
@@ -81,6 +81,7 @@ export type ReviewEmailInput = {
   headerTextColor?: string | null;
   fontKey?: string | null;
   textTone?: string | null;
+  logoAlign?: string | null;
   copyOverrides?: CopyOverrides | null;
   logoUrl: string | null;
   recipientName: string | null;
@@ -115,6 +116,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   const body = pack.bodyStack;
   const fontsHref = googleFontsHref(pack);
   const tone = textTone(input.textTone);
+  const align = logoAlign(input.logoAlign);
 
   const ctx: TokenContext = {
     operatorName: input.operatorName,
@@ -137,8 +139,8 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   const seen = escapeHtml(speciesSentence(input.species));
 
   const header = input.logoUrl
-    ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:block" />`
-    : `<div style="font-family:${display};font-weight:600;font-size:19px;color:${headerTextColor}">${name}</div>`;
+    ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:inline-block" />`
+    : `<div style="font-family:${display};font-weight:600;font-size:19px;color:${headerTextColor};display:inline-block">${name}</div>`;
 
   const socialRow = socialFooterHtml(input.social);
 
@@ -165,7 +167,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
         <td align="center" style="padding:30px 16px">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e6e9e8;border-radius:18px;overflow:hidden">
             <tr>
-              <td style="background:${brand};padding:20px 28px">${header}</td>
+              <td style="background:${brand};padding:20px 28px;text-align:${align}">${header}</td>
             </tr>
             <tr>
               <td style="padding:30px 28px 6px">

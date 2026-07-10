@@ -67,7 +67,7 @@ export async function sendReviewAskAfterDownload(
     admin
       .from("branding")
       .select(
-        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, copy_overrides, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
       )
       .eq("operator_id", delivery.operator_id)
       .maybeSingle(),

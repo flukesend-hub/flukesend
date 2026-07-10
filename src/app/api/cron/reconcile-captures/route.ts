@@ -107,7 +107,7 @@ export async function GET(request: Request) {
       admin.from("operators").select("name").eq("id", operatorId).maybeSingle(),
       admin
         .from("branding")
-        .select("retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, copy_overrides, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url")
+        .select("retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url")
         .eq("operator_id", operatorId)
         .maybeSingle(),
     ]);
