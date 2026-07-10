@@ -37,7 +37,7 @@ export default async function SettingsPage() {
     await Promise.all([
       supabase
         .from("branding")
-        .select("logo_url, retention_days, species_options, trip_times")
+        .select("retention_days, species_options, trip_times")
         .eq("operator_id", operatorId)
         .maybeSingle(),
       supabase
@@ -76,7 +76,6 @@ export default async function SettingsPage() {
   const boatCount = boats?.length ?? 0;
   const crewCount = crew?.length ?? 0;
   const retentionDays = branding?.retention_days ?? 5;
-  const hasLogo = Boolean(branding?.logo_url);
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   const doneChip = { label: "Done", tone: "good" as const };
 
@@ -169,18 +168,28 @@ export default async function SettingsPage() {
             >
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontSize: "15px", fontWeight: 600 }}>
-                  Brand look and messaging
+                  Branding
                 </span>
-                <span style={{ display: "block", fontSize: "12.5px", color: "var(--muted)", marginTop: "3px" }}>
-                  {hasLogo ? "Logo set" : "No logo yet"}. Logo, colors, fonts,
-                  email wording, and your website and social links now live in
-                  the Branding tab.
-                </span>
+                <ul style={{ margin: "6px 0 0", padding: "0 0 0 16px", fontSize: "12.5px", color: "var(--muted)", lineHeight: 1.6 }}>
+                  <li>Logo, colors</li>
+                  <li>Fonts</li>
+                  <li>Email wording</li>
+                  <li>Website</li>
+                  <li>Social links</li>
+                </ul>
               </span>
               <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--signal-ink)", background: "var(--signal)", padding: "7px 12px", borderRadius: "9px", flex: "0 0 auto" }}>
                 Open Branding
               </span>
             </a>
+
+            <SettingsSection
+              title="Photo retention"
+              summary={`Photos kept ${retentionDays} ${plural(retentionDays, "day", "days")}`}
+              chip={doneChip}
+            >
+              <RetentionForm retentionDays={retentionDays} />
+            </SettingsSection>
 
             <SettingsSection
               title="Boats, crew, and trips"
@@ -265,14 +274,6 @@ export default async function SettingsPage() {
               chip={members.length > 1 ? doneChip : { label: "Just you", tone: "muted" }}
             >
               <TeamManager members={members} invites={invites} isOwner={isOwner} />
-            </SettingsSection>
-
-            <SettingsSection
-              title="Photo retention"
-              summary={`Photos kept ${retentionDays} ${plural(retentionDays, "day", "days")}`}
-              chip={doneChip}
-            >
-              <RetentionForm retentionDays={retentionDays} />
             </SettingsSection>
           </div>
         </div>
