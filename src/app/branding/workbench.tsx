@@ -221,16 +221,26 @@ export function BrandingWorkbench({
   const galleryReviewAsk = renderTokens(copy["gallery.review_ask"] ?? "", galleryCtx);
   const galleryThanks = GALLERY_THANKS_DEFAULT;
 
-  // Scale the 600px email to the preview column.
+  // Scale the 600px email to the preview column. Keyed on surface because the
+  // preview box unmounts on the gallery tab (which renders its own miniature)
+  // and remounts as a fresh node when you return to an email tab, so the
+  // observer has to re-attach. The width > 0 guard ignores the zero-width
+  // measurement a detaching node reports, which would otherwise collapse the
+  // scale to nothing and blank every email preview.
   const previewBox = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.72);
   useEffect(() => {
     const el = previewBox.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setScale(Math.min(1, el.clientWidth / 600)));
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setScale(Math.min(1, w / 600));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [surface]);
 
   // ---- Warnings ----
   const warnings: string[] = [];
