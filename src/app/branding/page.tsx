@@ -54,13 +54,14 @@ export default async function BrandingPage() {
   // The real roster for the review-email preview, with each person's shown
   // flag, so the preview shows exactly who guests will see and can explain who
   // is being left out (hidden, or has no photo yet).
-  const crew = (crewRows ?? [])
-    .slice(0, 8)
-    .map((c) => ({
-      firstName: (c.name as string).trim().split(/\s+/)[0],
-      photoUrl: (c.photo_url as string | null) ?? null,
-      show: c.show_to_guests !== false,
-    }));
+  // Full roster (rosters are small): the workbench filters to the shown ones
+  // for the preview and lists the hidden ones in the caption. Capping happens
+  // after filtering so shown people are never dropped by hidden ones ahead.
+  const crew = (crewRows ?? []).map((c) => ({
+    firstName: (c.name as string).trim().split(/\s+/)[0],
+    photoUrl: (c.photo_url as string | null) ?? null,
+    show: c.show_to_guests !== false,
+  }));
 
   const myTipSet = Boolean(isTipProvider(me?.tip_provider as string) && me?.tip_handle);
   const tips = {

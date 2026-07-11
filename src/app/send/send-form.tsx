@@ -290,7 +290,7 @@ export function SendForm({
 
   const missing: string[] = [];
   if (boats.length > 0 && !boat) missing.push("pick a boat");
-  if (!tripTime) missing.push("pick a trip time");
+  if (!tripTime) missing.push("pick a departure");
   if (!files.length) missing.push("add photos");
   if (!allValid.length) missing.push("add at least one guest");
 
@@ -577,7 +577,7 @@ export function SendForm({
             ) : null}
 
             <div>
-              <span className="fl-label-text">Trip time</span>
+              <span className="fl-label-text">Departure</span>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {tripTimes.map((slot) => {
                   const on = tripTime === slot;
@@ -607,8 +607,8 @@ export function SendForm({
                 {boat && tripTime && capturedGuests.length
                   ? `${capturedGuests.length} QR ${capturedGuests.length === 1 ? "sign-up" : "sign-ups"} found for this trip. ${capturedGuests.length === 1 ? "They will" : "They'll"} be waiting on the Guests step.`
                   : boats.length > 1
-                    ? "Pick the boat and trip time to load guests who signed up by QR."
-                    : "Pick the trip time to load guests who signed up by QR."}
+                    ? "Pick the boat and departure to load guests who signed up by QR."
+                    : "Pick the departure to load guests who signed up by QR."}
               </span>
             </div>
 
@@ -816,7 +816,7 @@ export function SendForm({
                 {capturedByBoat[boat] === 1 ? "guest has" : "guests have"} signed up by QR for{" "}
                 {boatName ?? "this boat"}.{" "}
                 <button type="button" onClick={() => setStep(0)} style={inlineLink}>
-                  Pick the trip time
+                  Pick the departure
                 </button>{" "}
                 to load them.
               </span>

@@ -262,7 +262,7 @@ export async function createSend(
     )
     .eq("operator_id", operatorId)
     .maybeSingle();
-  const retentionDays = branding?.retention_days ?? 5;
+  const retentionDays = branding?.retention_days ?? 7;
   const expiresAt = deliveryExpiresAt(new Date(), retentionDays);
 
   const tripDatetime = input.tripDatetime

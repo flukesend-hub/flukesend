@@ -55,11 +55,20 @@ export function CrewPhotoEditor({
     y: Math.min(0, Math.max(BOX - hh, y)),
   });
 
-  // Keep the image covering the circle whenever the zoom changes.
-  useEffect(() => {
-    if (img) setPos((p) => clamp(p.x, p.y, w, h));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scale, img]);
+  // Zoom about the viewport center so the framing stays put, instead of
+  // drifting toward a corner and then re-clamping.
+  function zoomTo(next: number) {
+    if (!img) {
+      setScale(next);
+      return;
+    }
+    const cx = (BOX / 2 - pos.x) / scale;
+    const cy = (BOX / 2 - pos.y) / scale;
+    const nw = img.naturalWidth * next;
+    const nh = img.naturalHeight * next;
+    setScale(next);
+    setPos(clamp(BOX / 2 - cx * next, BOX / 2 - cy * next, nw, nh));
+  }
 
   function save() {
     if (!img) return;
@@ -96,6 +105,9 @@ export function CrewPhotoEditor({
               boxRef.current?.releasePointerCapture(e.pointerId);
             } catch {}
           }}
+          onPointerCancel={() => {
+            drag.current = null;
+          }}
           style={{ width: BOX, height: BOX, borderRadius: "50%", overflow: "hidden", position: "relative", margin: "0 auto", background: "#e7e2d8", cursor: "grab", touchAction: "none" }}
         >
           {img ? (
@@ -115,7 +127,7 @@ export function CrewPhotoEditor({
           max={minScale * 3}
           step="0.01"
           value={scale}
-          onChange={(e) => setScale(Number(e.target.value))}
+          onChange={(e) => zoomTo(Number(e.target.value))}
           aria-label="zoom"
           style={{ width: BOX, display: "block", margin: "16px auto 0" }}
         />

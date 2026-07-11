@@ -55,12 +55,17 @@ export function CaptureQr({
     if (!dataUrl) return;
     const w = window.open("", "_blank", "width=520,height=680");
     if (!w) return;
+    // Escape the operator name before it lands in the print window's HTML.
+    const safeName = operatorName
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
     w.document.write(
-      `<!doctype html><html><head><title>${operatorName} sign-up QR</title>` +
+      `<!doctype html><html><head><title>${safeName} sign-up QR</title>` +
         `<style>body{font-family:system-ui,sans-serif;text-align:center;padding:40px;color:#10221f}` +
         `h1{font-size:22px;margin:0 0 6px}p{color:#5f6b68;font-size:14px;margin:0 0 24px}` +
         `img{width:320px;height:320px}</style></head><body>` +
-        `<h1>${operatorName}</h1><p>Scan to get your trip photos</p>` +
+        `<h1>${safeName}</h1><p>Scan to get your trip photos</p>` +
         `<img src="${dataUrl}" alt="Sign-up QR" onload="window.focus();window.print()"/>` +
         `</body></html>`,
     );

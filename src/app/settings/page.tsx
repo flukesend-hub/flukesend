@@ -75,7 +75,7 @@ export default async function SettingsPage() {
   const reviewCount = links?.length ?? 0;
   const boatCount = boats?.length ?? 0;
   const crewCount = crew?.length ?? 0;
-  const retentionDays = branding?.retention_days ?? 5;
+  const retentionDays = branding?.retention_days ?? 7;
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   const doneChip = { label: "Done", tone: "good" as const };
 

@@ -118,7 +118,7 @@ export default async function AdminOperatorPage({
         logoUrl={b?.logo_url ?? null}
         brandColor={b?.brand_color ?? "#0b5563"}
         defaultMessage={b?.default_message ?? ""}
-        retentionDays={b?.retention_days ?? 3}
+        retentionDays={b?.retention_days ?? 7}
         social={{
           website_url: b?.website_url ?? null,
           facebook_url: b?.facebook_url ?? null,

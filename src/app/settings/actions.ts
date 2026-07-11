@@ -135,11 +135,11 @@ export async function updateTripTimes(times: string[]): Promise<SettingsState> {
     .update({ trip_times: clean })
     .eq("operator_id", operatorId);
   if (error) {
-    return { error: "Could not save your trip times. Try again." };
+    return { error: "Could not save your departures. Try again." };
   }
   revalidatePath("/settings");
   revalidatePath("/send");
-  return { ok: "Trip times saved." };
+  return { ok: "Departures saved." };
 }
 
 export async function removeLogo(): Promise<void> {
@@ -157,6 +157,7 @@ export async function removeLogo(): Promise<void> {
     .from("branding")
     .update({ logo_url: null })
     .eq("operator_id", operatorId);
+  revalidatePath("/branding");
   revalidatePath("/settings");
   revalidatePath("/dashboard");
 }
