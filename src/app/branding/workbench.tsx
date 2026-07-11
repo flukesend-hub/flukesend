@@ -389,10 +389,10 @@ export function BrandingWorkbench({
       {/* Font specimens for the picker and the gallery mini preview. */}
       <link rel="stylesheet" href={ALL_FAMILIES_HREF} />
       <style>{`
-        .fl-brandgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 440px); gap: 18px; align-items: start; }
+        .fl-brandgrid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 22px; align-items: start; max-width: 1280px; }
         .fl-brandprev { position: sticky; top: 84px; }
         @media (max-width: 980px) {
-          .fl-brandgrid { grid-template-columns: 1fr; }
+          .fl-brandgrid { grid-template-columns: 1fr; max-width: 640px; }
           .fl-brandprev { position: static; }
         }
       `}</style>
@@ -792,22 +792,24 @@ export function BrandingWorkbench({
             </div>
 
             {surface === "gallery" ? (
-              <GalleryMini
-                operatorName={operatorName}
-                brand={brand}
-                accent={effectiveAccent}
-                displayStack={pack.displayStack}
-                logoAlign={align}
-                logo={shownLogo}
-                intro={intro}
-                species={sampleSpecies}
-                reviewLinks={reviewLinks}
-                reviewAsk={galleryReviewAsk}
-                thanks={galleryThanks}
-                tips={tips}
-              />
+              <div style={{ maxWidth: "440px", margin: "0 auto" }}>
+                <GalleryMini
+                  operatorName={operatorName}
+                  brand={brand}
+                  accent={effectiveAccent}
+                  displayStack={pack.displayStack}
+                  logoAlign={align}
+                  logo={shownLogo}
+                  intro={intro}
+                  species={sampleSpecies}
+                  reviewLinks={reviewLinks}
+                  reviewAsk={galleryReviewAsk}
+                  thanks={galleryThanks}
+                  tips={tips}
+                />
+              </div>
             ) : (
-              <div ref={previewBox} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#fff", height: `${Math.round(previewH * scale)}px` }}>
+              <div ref={previewBox} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#fff", height: `${Math.round(previewH * scale)}px`, maxWidth: "600px", margin: "0 auto" }}>
                 <iframe
                   title="Email preview"
                   sandbox=""
