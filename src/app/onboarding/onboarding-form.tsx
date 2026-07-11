@@ -10,6 +10,15 @@
 import { useActionState, useEffect, useState } from "react";
 import { createOperator, type SetupState } from "./actions";
 import { Swatches, Toggle } from "@/app/_ui/controls";
+import { LOCALES, LOCALE_LABELS, type Locale } from "@/lib/i18n";
+
+// A working starter note per language, shown in the intro field so an operator
+// begins from copy that already reads right and edits it to their own voice.
+const INTRO_EXAMPLE: Record<Locale, string> = {
+  en: "Thanks for spending the morning on the water with us. Your photos from the trip are ready below.",
+  fr: "Merci d'avoir passé la matinée sur l'eau avec nous. Vos photos de la sortie sont disponibles ci-dessous.",
+  es: "Gracias por pasar la mañana en el agua con nosotros. Tus fotos de la salida están disponibles abajo.",
+};
 
 export function OnboardingForm() {
   const [state, formAction, pending] = useActionState<SetupState, FormData>(
@@ -20,6 +29,17 @@ export function OnboardingForm() {
   const [retention, setRetention] = useState(7);
   const [extended, setExtended] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [locale, setLocale] = useState<Locale>("en");
+  // The intro message follows the language until the operator edits it: switch
+  // to French and an untouched example becomes the French one, but their own
+  // words are never overwritten.
+  const [intro, setIntro] = useState(INTRO_EXAMPLE.en);
+  const introEdited =
+    intro !== INTRO_EXAMPLE.en && intro !== INTRO_EXAMPLE.fr && intro !== INTRO_EXAMPLE.es;
+  const pickLocale = (l: Locale) => {
+    if (!introEdited) setIntro(INTRO_EXAMPLE[l]);
+    setLocale(l);
+  };
 
   // Revoke the object URL when it is replaced or the form unmounts.
   useEffect(() => {
@@ -41,6 +61,26 @@ export function OnboardingForm() {
           <p className="fl-hint" style={{ margin: "0 0 16px" }}>
             This name leads every gallery and email a guest opens.
           </p>
+          <div style={{ marginBottom: "16px" }}>
+            <span className="fl-label-text">Guest language</span>
+            <p className="fl-hint" style={{ margin: "0 0 8px" }}>
+              The language your guests read. It sets every email and page they
+              see. You can change it later in Branding.
+            </p>
+            <input type="hidden" name="guest_locale" value={locale} />
+            <div style={{ display: "flex", gap: "8px" }}>
+              {LOCALES.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => pickLocale(l)}
+                  style={localeBtn(locale === l)}
+                >
+                  {LOCALE_LABELS[l]}
+                </button>
+              ))}
+            </div>
+          </div>
           <label style={{ display: "block", marginBottom: "16px" }}>
             <span className="fl-label-text">Operation name</span>
             <input name="name" className="fl-input" placeholder="Enocean Tours" required />
@@ -71,7 +111,8 @@ export function OnboardingForm() {
             <textarea
               name="default_message"
               className="fl-textarea"
-              defaultValue="Thanks for spending the morning on the water with us. Your photos from the trip are ready below."
+              value={intro}
+              onChange={(e) => setIntro(e.target.value)}
             />
           </label>
         </div>
@@ -145,6 +186,18 @@ export function OnboardingForm() {
 }
 
 const h3: React.CSSProperties = { margin: "0 0 2px", fontSize: "15px", fontWeight: 600 };
+const localeBtn = (active: boolean): React.CSSProperties => ({
+  flex: 1,
+  cursor: "pointer",
+  font: "inherit",
+  fontSize: "14px",
+  fontWeight: 600,
+  padding: "10px 0",
+  borderRadius: "10px",
+  border: `1px solid ${active ? "var(--signal)" : "var(--line-strong)"}`,
+  background: active ? "var(--signal)" : "transparent",
+  color: active ? "var(--signal-ink)" : "var(--text)",
+});
 const dropzone: React.CSSProperties = {
   border: "1.5px dashed var(--line-strong)",
   borderRadius: "12px",

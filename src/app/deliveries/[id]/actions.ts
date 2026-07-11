@@ -15,6 +15,7 @@ import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { brandLookFromRow } from "@/lib/brand-copy";
+import { asLocale, formatDateLocalized, type Locale } from "@/lib/i18n";
 import { getTrialUsage, getPlan } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
@@ -135,9 +136,8 @@ export async function updateRecipientEmail(
   return { ok: true, email };
 }
 
-function formatTripDate(tripDatetime: string | null): string | null {
-  if (!tripDatetime) return null;
-  return new Date(tripDatetime).toLocaleDateString("en-US", { dateStyle: "long" });
+function formatTripDate(tripDatetime: string | null, locale: Locale): string | null {
+  return formatDateLocalized(tripDatetime, locale);
 }
 
 // Permanently delete a send. Rows go first through the RLS client (so an
@@ -209,7 +209,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
   const { data: branding } = await supabase
     .from("branding")
     .select(
-      "retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      "retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, guest_locale, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
     )
     .eq("operator_id", d.operator_id)
     .maybeSingle();
@@ -224,7 +224,7 @@ export async function resendDelivery(recipientId: string): Promise<RowResult> {
     logoUrl: branding?.logo_url ?? null,
     retentionDays: (branding?.retention_days as number | null) ?? 7,
     recipientName: (r.name as string | null) ?? null,
-    tripDate: formatTripDate(d.trip_datetime),
+    tripDate: formatTripDate(d.trip_datetime, asLocale(branding?.guest_locale)),
     captainName: d.captain_name,
     naturalistName: d.naturalist_name,
     photographerName: d.photographer_name,

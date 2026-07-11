@@ -18,6 +18,7 @@ import { sendEmail, sendEmailBatch, type BatchEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { brandLookFromRow } from "@/lib/brand-copy";
+import { asLocale, formatDateLocalized, type Locale } from "@/lib/i18n";
 import { getTrialUsage, getPlan, TRIAL_TRANSFERS } from "@/lib/trial";
 import { PLANS } from "@/lib/plans";
 import { getRecipientsUsed, incrementRecipientsUsed } from "@/lib/usage";
@@ -258,11 +259,12 @@ export async function createSend(
   const { data: branding } = await supabase
     .from("branding")
     .select(
-      "retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      "retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, guest_locale, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
     )
     .eq("operator_id", operatorId)
     .maybeSingle();
   const retentionDays = branding?.retention_days ?? 7;
+  const guestLocale = asLocale(branding?.guest_locale);
   const expiresAt = deliveryExpiresAt(new Date(), retentionDays);
 
   const tripDatetime = input.tripDatetime
@@ -402,7 +404,7 @@ export async function createSend(
         logoUrl: branding?.logo_url ?? null,
         retentionDays,
         recipientName: (r.name as string | null) ?? null,
-        tripDate: formatTripDate(input.tripDatetime),
+        tripDate: formatTripDate(input.tripDatetime, guestLocale),
         captainName: input.captainName,
         naturalistName: input.naturalistName,
         photographerName: input.photographerName,
@@ -476,9 +478,8 @@ export async function createSend(
   };
 }
 
-function formatTripDate(tripDatetime: string | null): string | null {
-  if (!tripDatetime) return null;
-  return new Date(tripDatetime).toLocaleDateString("en-US", { dateStyle: "long" });
+function formatTripDate(tripDatetime: string | null, locale: Locale): string | null {
+  return formatDateLocalized(tripDatetime, locale);
 }
 
 // Best effort rollback. Deleting the delivery cascades the photo and recipient

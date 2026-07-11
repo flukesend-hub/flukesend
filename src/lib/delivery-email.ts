@@ -20,6 +20,7 @@ import { escapeHtml } from "@/lib/html";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
 import { fontPack, googleFontsHref, textTone, logoAlign } from "@/lib/brand-fonts";
+import { t, asLocale } from "@/lib/i18n";
 import {
   DELIVERY_COPY,
   copyValue,
@@ -38,6 +39,8 @@ export type DeliveryEmailInput = {
   textTone?: string | null;
   logoAlign?: string | null;
   copyOverrides?: CopyOverrides | null;
+  // The operator's guest language; null or absent renders English.
+  guestLocale?: string | null;
   logoUrl: string | null;
   recipientName: string | null;
   tripDate: string | null;
@@ -56,7 +59,8 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
   subject: string;
   html: string;
 } {
-  const subject = `Your photos from ${input.operatorName}`;
+  const locale = asLocale(input.guestLocale);
+  const subject = t(locale, "delivery.subject", { operator: input.operatorName });
   const brand = escapeHtml(input.brandColor);
   const accent = escapeHtml(input.accentColor || input.brandColor);
   const headerText = escapeHtml(input.headerTextColor || "#ffffff");
@@ -79,7 +83,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
     date: input.tripDate,
     photographerName: input.photographerName,
     crew: [
-      input.captainName ? `Captain ${input.captainName}` : null,
+      input.captainName ? t(locale, "trip.captain", { name: input.captainName }) : null,
       input.naturalistName,
       input.photographerName,
     ]
@@ -89,14 +93,14 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
   const copy = Object.fromEntries(
     DELIVERY_COPY.map((f) => [
       f.key,
-      escapeHtml(renderTokens(copyValue(input.copyOverrides, f), ctx)),
+      escapeHtml(renderTokens(copyValue(input.copyOverrides, f, locale), ctx)),
     ]),
   );
 
   // Greeting line only when we know the guest's name; no filler "Hi there,"
   // otherwise. The email opens straight with the operator's message instead.
   const hiRow = input.recipientName
-    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 14px;color:${tone.body}">Hi ${escapeHtml(input.recipientName)},</p>`
+    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 14px;color:${tone.body}">${t(locale, "email.greeting", { name: escapeHtml(input.recipientName) })}</p>`
     : "";
 
   const header = input.logoUrl
@@ -110,11 +114,11 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
   // Trip card pieces. Each line only renders when it has something to say.
   const whenParts = [
     input.tripDate ? escapeHtml(input.tripDate) : null,
-    input.captainName ? `with Captain ${escapeHtml(input.captainName)}` : null,
+    input.captainName ? t(locale, "trip.withCaptain", { name: escapeHtml(input.captainName) }) : null,
   ].filter(Boolean);
   const credits = [
-    input.naturalistName ? `Naturalist ${escapeHtml(input.naturalistName)}` : null,
-    input.photographerName ? `Photos by ${escapeHtml(input.photographerName)}` : null,
+    input.naturalistName ? t(locale, "trip.naturalist", { name: escapeHtml(input.naturalistName) }) : null,
+    input.photographerName ? t(locale, "trip.photosBy", { name: escapeHtml(input.photographerName) }) : null,
   ].filter(Boolean);
   const speciesText = input.species.length
     ? input.species.map((s) => escapeHtml(s)).join(", ")
@@ -155,7 +159,7 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
     <style>${fontsHref ? `@import url('${fontsHref}');` : ""}:root { color-scheme: light only; }</style>
   </head>
   <body style="margin:0;padding:0;background:#ffffff;font-family:${body};color:#1c2b2e">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0">Your photos from the trip are ready to view and download.</div>
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0">${t(locale, "delivery.preheader")}</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
         <td align="center" style="padding:30px 16px">
@@ -184,14 +188,14 @@ export function buildDeliveryEmail(input: DeliveryEmailInput): {
             </tr>
             <tr>
               <td style="padding:14px 28px 26px;text-align:center">
-                <p style="font-size:14.5px;line-height:1.6;font-weight:500;color:${tone.mid};margin:0">Your gallery is up for ${input.retentionDays} days, save your photos while it lasts. ${copy["delivery.signoff"]}</p>
+                <p style="font-size:14.5px;line-height:1.6;font-weight:500;color:${tone.mid};margin:0">${t(locale, "delivery.retention", { days: input.retentionDays })} ${copy["delivery.signoff"]}</p>
               </td>
             </tr>
           </table>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
             ${socialRow ? `<tr><td align="center" style="padding:18px 8px 4px">${socialRow}</td></tr>` : ""}
             <tr><td align="center" style="padding:${socialRow ? "4px" : "16px"} 8px 0">
-              <p style="font-size:11px;color:#9aa6a8;margin:0">Sent by ${name}</p>
+              <p style="font-size:11px;color:#9aa6a8;margin:0">${t(locale, "email.sentBy", { name })}</p>
             </td></tr>
           </table>
         </td>

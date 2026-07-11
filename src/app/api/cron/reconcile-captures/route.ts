@@ -24,6 +24,7 @@ import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { brandLookFromRow } from "@/lib/brand-copy";
+import { asLocale, formatDateLocalized } from "@/lib/i18n";
 import { incrementRecipientsUsed } from "@/lib/usage";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
@@ -47,9 +48,8 @@ function utcDate(ts: string): string {
 function utcHHMM(ts: string): string {
   return new Date(ts).toISOString().slice(11, 16);
 }
-function fmtTripDate(ts: string | null): string | null {
-  if (!ts) return null;
-  return new Date(ts).toLocaleDateString("en-US", { dateStyle: "long", timeZone: "UTC" });
+function fmtTripDate(ts: string | null, locale: string | null): string | null {
+  return formatDateLocalized(ts, asLocale(locale), { utc: true });
 }
 
 export async function GET(request: Request) {
@@ -107,7 +107,7 @@ export async function GET(request: Request) {
       admin.from("operators").select("name").eq("id", operatorId).maybeSingle(),
       admin
         .from("branding")
-        .select("retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url")
+        .select("retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, guest_locale, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url")
         .eq("operator_id", operatorId)
         .maybeSingle(),
     ]);
@@ -225,7 +225,7 @@ export async function GET(request: Request) {
       logoUrl: ctx.logoUrl,
       retentionDays: ctx.retentionDays,
       recipientName: (cap.name as string | null) ?? null,
-      tripDate: fmtTripDate(delivery.trip_datetime as string | null),
+      tripDate: fmtTripDate(delivery.trip_datetime as string | null, ctx.look.guestLocale),
       captainName: delivery.captain_name as string | null,
       naturalistName: delivery.naturalist_name as string | null,
       photographerName: delivery.photographer_name as string | null,

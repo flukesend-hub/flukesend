@@ -14,6 +14,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { uploadOperatorLogo } from "@/lib/logo-upload";
+import { asLocale } from "@/lib/i18n";
 
 export type SetupState = { error: string } | undefined;
 
@@ -36,6 +37,7 @@ export async function createOperator(
     String(formData.get("brand_color") ?? "").trim() || "#0b5563"
   ).toLowerCase();
   const defaultMessage = String(formData.get("default_message") ?? "").trim();
+  const guestLocale = asLocale(formData.get("guest_locale"));
   const retentionRaw = Number(formData.get("retention_days"));
 
   if (!name) {
@@ -97,6 +99,7 @@ export async function createOperator(
     operator_id: operator.id,
     brand_color: brandColor,
     default_message: defaultMessage,
+    guest_locale: guestLocale,
     retention_days: retentionDays,
     logo_url: upload.logoUrl,
     // Guest replies route here: the email the operator signed up with.

@@ -15,6 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { brandLookFromRow } from "@/lib/brand-copy";
+import { asLocale, formatDateLocalized } from "@/lib/i18n";
 import { sendEmail } from "@/lib/email";
 import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { SOCIAL_PLATFORMS, normalizeSocialUrl } from "@/lib/social";
@@ -263,7 +264,7 @@ export async function adminFixBouncedEmail(
     admin
       .from("branding")
       .select(
-        "retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        "retention_days, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, guest_locale, logo_url, default_message, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
       )
       .eq("operator_id", operatorId)
       .maybeSingle(),
@@ -279,9 +280,10 @@ export async function adminFixBouncedEmail(
     logoUrl: branding?.logo_url ?? null,
     retentionDays: (branding?.retention_days as number | null) ?? 7,
     recipientName: (r.name as string | null) ?? null,
-    tripDate: d.trip_datetime
-      ? new Date(d.trip_datetime as string).toLocaleDateString("en-US", { dateStyle: "long" })
-      : null,
+    tripDate: formatDateLocalized(
+      (d.trip_datetime as string | null) ?? null,
+      asLocale(branding?.guest_locale),
+    ),
     captainName: d.captain_name,
     naturalistName: d.naturalist_name,
     photographerName: d.photographer_name,

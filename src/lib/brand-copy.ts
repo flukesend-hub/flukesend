@@ -11,6 +11,8 @@
   so no markup or script can ever ride in through operator copy.
 */
 
+import { type Locale } from "@/lib/i18n";
+
 export type CopyOverrides = Record<string, string>;
 
 // ---- Tokens ----
@@ -70,7 +72,13 @@ export type CopyField = {
   key: string;
   label: string;
   hint?: string;
+  // The English default and the working example shown to English operators.
   default: string;
+  // A localized example per non-default language, so a French or Spanish
+  // operator starts from copy that already reads right and can rewrite it.
+  // English falls back to `default`; a missing entry falls back to `default`
+  // too, so an untranslated field degrades to English rather than an empty box.
+  localized?: Partial<Record<Locale, string>>;
   limit: number;
   multiline?: boolean;
 };
@@ -80,12 +88,14 @@ export const DELIVERY_COPY: CopyField[] = [
     key: "delivery.headline",
     label: "Headline",
     default: "Your photos are ready",
+    localized: { fr: "Vos photos sont prêtes", es: "Tus fotos están listas" },
     limit: 60,
   },
   {
     key: "delivery.button",
     label: "Button label",
     default: "View your photos",
+    localized: { fr: "Voir vos photos", es: "Ver tus fotos" },
     limit: 30,
   },
   {
@@ -93,6 +103,10 @@ export const DELIVERY_COPY: CopyField[] = [
     label: "Sign-off",
     hint: "The closing line at the bottom, right after the gallery expiry note.",
     default: "Reply any time, it reaches us directly. Thank you, the crew at {operator_name}.",
+    localized: {
+      fr: "Répondez à tout moment, cela nous parvient directement. Merci, l'équipage de {operator_name}.",
+      es: "Responde cuando quieras, nos llega directamente. Gracias, la tripulación de {operator_name}.",
+    },
     limit: 240,
     multiline: true,
   },
@@ -140,13 +154,23 @@ export const GALLERY_COPY: CopyField[] = [
 // renders empty.
 export const GALLERY_THANKS_DEFAULT = "Thanks for spending the day on the water with us.";
 
-// The override when one is set, the template default otherwise.
+// The default for a field in a given language: the localized example when there
+// is one, the English default otherwise. English and any untranslated field
+// fall back to `default`, so a guest never sees an empty slot.
+export function copyDefault(field: CopyField, locale: Locale = "en"): string {
+  return field.localized?.[locale] ?? field.default;
+}
+
+// The operator's override when one is set, the localized default otherwise.
+// locale defaults to English so existing callers keep today's behavior until
+// they pass the operator's guest language.
 export function copyValue(
   overrides: CopyOverrides | null | undefined,
   field: CopyField,
+  locale: Locale = "en",
 ): string {
   const v = overrides?.[field.key]?.trim();
-  return v || field.default;
+  return v || copyDefault(field, locale);
 }
 
 // The Branding tab fields off a branding row, in the shape the email builders
@@ -160,6 +184,7 @@ export function brandLookFromRow(
         text_tone?: string | null;
         logo_align?: string | null;
         copy_overrides?: unknown;
+        guest_locale?: string | null;
       }
     | null
     | undefined,
@@ -170,6 +195,11 @@ export function brandLookFromRow(
   textTone: string | null;
   logoAlign: string | null;
   copyOverrides: CopyOverrides | null;
+  // The operator's guest language, carried in the same bag every send path
+  // already spreads into the email builders. A row without the column reads as
+  // null, which the builders coerce to English, so callers that have not
+  // selected guest_locale yet are unchanged.
+  guestLocale: string | null;
 } {
   return {
     accentColor: branding?.accent_color ?? null,
@@ -178,5 +208,6 @@ export function brandLookFromRow(
     textTone: branding?.text_tone ?? null,
     logoAlign: branding?.logo_align ?? null,
     copyOverrides: (branding?.copy_overrides ?? null) as CopyOverrides | null,
+    guestLocale: branding?.guest_locale ?? null,
   };
 }

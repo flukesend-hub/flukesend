@@ -19,6 +19,7 @@ import { uploadOperatorLogo } from "@/lib/logo-upload";
 import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
+import { asLocale, formatDateLocalized, isLocale, type Locale } from "@/lib/i18n";
 import { buildReviewEmail } from "@/lib/review-email";
 import { isFontKey, isTextTone, isLogoAlign } from "@/lib/brand-fonts";
 import {
@@ -26,6 +27,7 @@ import {
   REVIEW_COPY,
   GALLERY_COPY,
   findUnknownTokens,
+  copyDefault,
   type CopyField,
   type CopyOverrides,
 } from "@/lib/brand-copy";
@@ -100,6 +102,10 @@ export async function saveBrandLook(
   if (alignRaw && !isLogoAlign(alignRaw)) {
     return { error: "Pick a logo alignment." };
   }
+  const localeRaw = String(formData.get("guest_locale") ?? "").trim();
+  if (localeRaw && !isLocale(localeRaw)) {
+    return { error: "Pick a guest language from the list." };
+  }
 
   const upload = await uploadOperatorLogo(operatorId, formData.get("logo"));
   if (!upload.ok) {
@@ -114,6 +120,8 @@ export async function saveBrandLook(
     font_key: fontRaw && fontRaw !== "classic" ? fontRaw : null,
     text_tone: toneRaw && toneRaw !== "standard" ? toneRaw : null,
     logo_align: alignRaw && alignRaw !== "left" ? alignRaw : null,
+    // Not null in the schema; an empty or bad value stores English.
+    guest_locale: isLocale(localeRaw) ? localeRaw : "en",
   };
   if (upload.logoUrl) {
     update.logo_url = upload.logoUrl;
@@ -138,9 +146,13 @@ export async function saveBrandLook(
 function cleanCopyValue(
   field: CopyField,
   raw: string,
+  locale: Locale = "en",
 ): { value: string | null } | { error: string } {
   const value = raw.replace(/\s+/g, " ").trim();
-  if (!value || value === field.default) {
+  // Blank, or equal to the language's own default example, stores no override,
+  // so the localized default renders and improving a translation later reaches
+  // operators who never edited it.
+  if (!value || value === copyDefault(field, locale)) {
     return { value: null };
   }
   if (value.length > field.limit) {
@@ -162,12 +174,13 @@ async function saveCopyFields(
   fields: CopyField[],
   formData: FormData,
   extra?: Record<string, unknown>,
+  locale: Locale = "en",
 ): Promise<BrandingState> {
   const { supabase, operatorId } = await resolveOperator();
 
   const patch: Record<string, string | null> = {};
   for (const field of fields) {
-    const cleaned = cleanCopyValue(field, String(formData.get(field.key) ?? ""));
+    const cleaned = cleanCopyValue(field, String(formData.get(field.key) ?? ""), locale);
     if ("error" in cleaned) {
       return { error: cleaned.error };
     }
@@ -204,7 +217,10 @@ export async function saveDeliveryCopy(
   // The intro is the existing default guest message, same column as always,
   // so the send page prefill and the gallery keep reading it unchanged.
   const intro = String(formData.get("default_message") ?? "").trim();
-  return saveCopyFields(DELIVERY_COPY, formData, { default_message: intro });
+  // The delivery copy is compared against its language's own example, so a
+  // French or Spanish operator who leaves the example stores no override.
+  const locale = asLocale(formData.get("guest_locale"));
+  return saveCopyFields(DELIVERY_COPY, formData, { default_message: intro }, locale);
 }
 
 export async function saveReviewCopy(
@@ -249,6 +265,9 @@ export type DeliveryTestDraft = {
   fontKey: string | null;
   textTone: string | null;
   logoAlign: string | null;
+  // The guest language being previewed, so a test send reflects the language
+  // picker before the operator saves it.
+  guestLocale: string | null;
   copy: Record<string, string>;
   message: string;
 };
@@ -268,7 +287,7 @@ export async function sendTestDelivery(draft: DeliveryTestDraft): Promise<Brandi
 
   const overrides: CopyOverrides = {};
   for (const field of DELIVERY_COPY) {
-    const cleaned = cleanCopyValue(field, draft.copy[field.key] ?? "");
+    const cleaned = cleanCopyValue(field, draft.copy[field.key] ?? "", asLocale(draft.guestLocale));
     if ("error" in cleaned) return { error: cleaned.error };
     if (cleaned.value) overrides[field.key] = cleaned.value;
   }
@@ -295,9 +314,10 @@ export async function sendTestDelivery(draft: DeliveryTestDraft): Promise<Brandi
     textTone: draft.textTone,
     logoAlign: draft.logoAlign,
     copyOverrides: overrides,
+    guestLocale: draft.guestLocale,
     logoUrl: (branding?.logo_url as string | null) ?? null,
     recipientName: "Alex Rivera",
-    tripDate: new Date().toLocaleDateString("en-US", { dateStyle: "long" }),
+    tripDate: formatDateLocalized(new Date().toISOString(), asLocale(draft.guestLocale)),
     captainName: "Ray",
     naturalistName: "Maya",
     photographerName: "Jordan",

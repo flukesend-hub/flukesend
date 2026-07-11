@@ -32,10 +32,12 @@ import {
   GALLERY_COPY,
   GALLERY_THANKS_DEFAULT,
   renderTokens,
+  copyDefault,
   type CopyOverrides,
   type CopyField,
   type TokenContext,
 } from "@/lib/brand-copy";
+import { LOCALES, LOCALE_LABELS, asLocale, formatDateLocalized, type Locale } from "@/lib/i18n";
 import { type SocialLinks } from "@/lib/social";
 import { Swatches } from "@/app/_ui/controls";
 import { SocialLinksForm } from "@/app/settings/social-links-form";
@@ -59,6 +61,7 @@ type Initial = {
   fontKey: string | null;
   textTone: string | null;
   logoAlign: string | null;
+  guestLocale: string | null;
   copyOverrides: CopyOverrides;
   defaultMessage: string;
   retentionDays: number;
@@ -143,18 +146,46 @@ export function BrandingWorkbench({
   const [font, setFont] = useState(fontPack(initial.fontKey).key);
   const [tone, setTone] = useState(textTone(initial.textTone).key);
   const [align, setAlign] = useState<LogoAlign>(logoAlign(initial.logoAlign));
+  // The one language every guest-facing surface renders in. Drives the preview
+  // and the editable copy examples live.
+  const [locale, setLocale] = useState<Locale>(asLocale(initial.guestLocale));
   // A data URL, not an object URL: the preview iframe is sandboxed into its
   // own origin and cannot fetch the parent's blob: URLs, but data: inlines.
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const shownLogo = logoPreview ?? initial.logoUrl;
 
-  // ---- Copy state across all surfaces, initialized to override or default ----
+  // ---- Copy state across all surfaces, initialized to override or the
+  // language's own default example ----
   const [copy, setCopy] = useState<Record<string, string>>(() =>
     Object.fromEntries(
-      ALL_FIELDS.map((f) => [f.key, initial.copyOverrides[f.key] ?? f.default]),
+      ALL_FIELDS.map((f) => [
+        f.key,
+        initial.copyOverrides[f.key] ?? copyDefault(f, asLocale(initial.guestLocale)),
+      ]),
     ),
   );
   const [intro, setIntro] = useState(initial.defaultMessage);
+
+  // When the operator switches guest language, roll any field still showing an
+  // untouched example to the new language's example. A field the operator has
+  // actually written (a saved override, or text that no longer matches the old
+  // language's example) is left exactly as they wrote it.
+  const prevLocale = useRef<Locale>(locale);
+  useEffect(() => {
+    const from = prevLocale.current;
+    if (from === locale) return;
+    prevLocale.current = locale;
+    setCopy((cur) => {
+      const next = { ...cur };
+      for (const f of ALL_FIELDS) {
+        const saved = initial.copyOverrides[f.key];
+        if (!saved && next[f.key] === copyDefault(f, from)) {
+          next[f.key] = copyDefault(f, locale);
+        }
+      }
+      return next;
+    });
+  }, [locale, initial.copyOverrides]);
 
   // Fill-in chips insert into the last focused copy field, at the caret.
   // Until the operator has clicked into a field the chips stay inert, so a
@@ -186,6 +217,7 @@ export function BrandingWorkbench({
     ? initial.sampleSpecies
     : ["Humpback whales"];
   const today = new Date().toLocaleDateString("en-US", { dateStyle: "long" });
+  const localizedToday = formatDateLocalized(new Date().toISOString(), locale);
 
   const deliveryHtml = useMemo(() => {
     return buildDeliveryEmail({
@@ -197,9 +229,10 @@ export function BrandingWorkbench({
       textTone: tone,
       logoAlign: align,
       copyOverrides: copy,
+      guestLocale: locale,
       logoUrl: shownLogo,
       recipientName: "Alex Rivera",
-      tripDate: today,
+      tripDate: localizedToday,
       captainName: "Ray",
       naturalistName: "Maya",
       photographerName: "Jordan",
@@ -210,7 +243,7 @@ export function BrandingWorkbench({
       social: initial.social,
     }).html;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, shownLogo, intro, initial, today]);
+  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, locale, shownLogo, intro, initial, localizedToday]);
 
   const reviewHtml = useMemo(() => {
     const links = reviewLinks.length ? reviewLinks : [{ label: "Leave a Google review" }];
@@ -317,6 +350,7 @@ export function BrandingWorkbench({
     fontKey: font as string | null,
     textTone: tone as string | null,
     logoAlign: align as string | null,
+    guestLocale: locale as string | null,
   };
   const runTest = (which: "delivery" | "review") => {
     setTestNote(undefined);
@@ -621,6 +655,38 @@ export function BrandingWorkbench({
               </div>
             </div>
 
+            <div style={{ marginBottom: "16px" }}>
+              <span className="fl-label-text">Guest language</span>
+              <p className="fl-hint" style={{ margin: "0 0 8px" }}>
+                The language your guests read. It sets every email and page they
+                see, and the starting wording below, which you can edit.
+              </p>
+              <input type="hidden" name="guest_locale" value={locale} />
+              <div style={{ display: "flex", gap: "8px" }}>
+                {LOCALES.map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setLocale(l)}
+                    style={{
+                      flex: 1,
+                      font: "inherit",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      padding: "10px 0",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      background: locale === l ? "var(--signal)" : "transparent",
+                      color: locale === l ? "var(--signal-ink)" : "var(--text)",
+                      border: `1px solid ${locale === l ? "var(--signal)" : "var(--line-strong)"}`,
+                    }}
+                  >
+                    {LOCALE_LABELS[l]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {warnings.map((w) => (
               <p key={w} style={{ color: "#b98a2f", fontSize: "12.5px", margin: "0 0 10px" }}>{w}</p>
             ))}
@@ -665,6 +731,9 @@ export function BrandingWorkbench({
           {/* ---- Delivery email wording ---- */}
           {surface === "delivery" ? (
             <form action={copyAction} className="fl-card" style={{ padding: "18px" }}>
+              {/* The language this copy is being written in, so the save knows
+                  which example to treat as untouched. */}
+              <input type="hidden" name="guest_locale" value={locale} />
               <div style={cardTitle}>Delivery email wording</div>
               <p className="fl-hint" style={{ margin: "0 0 14px" }}>
                 The email each guest gets with their gallery link. Plain words
