@@ -9,7 +9,7 @@ import { getGalleryByToken, isExpired, resolveGalleryTip } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fontPack, googleFontsHref, logoAlign } from "@/lib/brand-fonts";
 import { GALLERY_COPY, copyValue, renderTokens } from "@/lib/brand-copy";
-import { t, asLocale, formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
+import { t, asLocale, isLocale, formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { TrackOpen } from "./track-open";
 import { GalleryPhotos } from "./gallery-photos";
 
@@ -23,18 +23,22 @@ export default async function GalleryPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; lang?: string }>;
 }) {
   const { token } = await params;
+  const sp = await searchParams;
   // Preview mode is for the operator checking their own send. No opened or
   // downloaded events are written, so previewing never triggers a review ask.
-  const preview = (await searchParams).preview === "1";
+  const preview = sp.preview === "1";
   const data = await getGalleryByToken(token);
   if (!data) {
     notFound();
   }
   const { delivery, operator, branding } = data;
-  const locale = asLocale(branding?.guest_locale);
+  // The operator's saved guest language, unless a ?lang= override is present:
+  // that only changes what renders, never the saved setting, so an operator can
+  // preview the page in another language without touching production.
+  const locale = isLocale(sp.lang) ? sp.lang : asLocale(branding?.guest_locale);
   const brand = branding?.brand_color ?? "#0b5563";
   // The Branding tab look: accent paints the buttons (falls back to brand),
   // the font pack sets the display type, and the post-save copy comes from

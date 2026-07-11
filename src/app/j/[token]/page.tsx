@@ -6,15 +6,17 @@
 */
 import { notFound } from "next/navigation";
 import { getCaptureByToken } from "@/lib/capture";
-import { t } from "@/lib/i18n";
+import { t, isLocale } from "@/lib/i18n";
 import { CaptureForm } from "./capture-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function CapturePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ lang?: string }>;
 }) {
   const { token } = await params;
   const ctx = await getCaptureByToken(token);
@@ -22,7 +24,11 @@ export default async function CapturePage({
     notFound();
   }
   const { operator, branding, boats } = ctx;
-  const locale = ctx.locale;
+  // Saved guest language, unless a ?lang= override is present: render-only, so
+  // the operator can preview this page in another language without changing the
+  // saved setting or any production behavior.
+  const langOverride = (await searchParams).lang;
+  const locale = isLocale(langOverride) ? langOverride : ctx.locale;
   const brand = branding?.brand_color ?? "#0b5563";
   const multiBoat = boats.length > 1;
 
