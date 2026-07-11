@@ -49,6 +49,7 @@ import {
   setReviewShowCrew,
   type BrandingState,
 } from "./actions";
+import { removeLogo } from "@/app/settings/actions";
 
 type Initial = {
   logoUrl: string | null;
@@ -118,11 +119,14 @@ export function BrandingWorkbench({
   reviewShowCrew: boolean;
   initial: Initial;
 }) {
-  // Only the shown crew appear on the email; the rest inform the caption.
-  const shownFaces = crew.filter((c) => c.show);
+  // Only the shown crew appear on the email; the rest inform the caption. Cap
+  // the preview at 6, matching the test send (real sends show only who was
+  // aboard, which is naturally a handful).
+  const shownFaces = crew.filter((c) => c.show).slice(0, 6);
   const hiddenNames = crew.filter((c) => !c.show).map((c) => c.firstName);
   const [showCrew, setShowCrew] = useState(reviewShowCrew);
   const [crewPending, startCrew] = useTransition();
+  const [logoRemoving, startLogoRemove] = useTransition();
   const toggleCrew = () => {
     const next = !showCrew;
     setShowCrew(next);
@@ -251,6 +255,9 @@ export function BrandingWorkbench({
   // observer has to re-attach. The width > 0 guard ignores the zero-width
   // measurement a detaching node reports, which would otherwise collapse the
   // scale to nothing and blank every email preview.
+  // The review email runs taller (crew row plus several review buttons), so
+  // give it more room than the delivery email to avoid clipping the footer.
+  const previewH = surface === "review" ? 1160 : 980;
   const previewBox = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.72);
   useEffect(() => {
@@ -399,7 +406,9 @@ export function BrandingWorkbench({
               Shared by your emails and your gallery.
             </p>
 
-            <label style={{ display: "block", marginBottom: "14px" }}>
+            {/* Not a <label>: it wraps the file-picker <label> below, and
+                nested labels are invalid and make the whole row a click target. */}
+            <div style={{ display: "block", marginBottom: "14px" }}>
               <span className="fl-label-text">Logo</span>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 {shownLogo ? (
@@ -428,7 +437,17 @@ export function BrandingWorkbench({
                   />
                 </label>
               </div>
-            </label>
+              {initial.logoUrl && !logoPreview ? (
+                <button
+                  type="button"
+                  onClick={() => startLogoRemove(() => removeLogo())}
+                  disabled={logoRemoving}
+                  style={{ ...resetLink, marginTop: "8px" }}
+                >
+                  {logoRemoving ? "Removing..." : "Remove logo"}
+                </button>
+              ) : null}
+            </div>
 
             <div style={{ marginBottom: "14px" }}>
               <span className="fl-label-text">Logo placement</span>
@@ -474,10 +493,7 @@ export function BrandingWorkbench({
                 <input
                   type="checkbox"
                   checked={accentOn}
-                  onChange={(e) => {
-                    setAccentOn(e.target.checked);
-                    if (e.target.checked && accent === brand) setAccent(brand);
-                  }}
+                  onChange={(e) => setAccentOn(e.target.checked)}
                 />
                 <span style={{ fontSize: "13.5px", fontWeight: 600 }}>Separate accent color</span>
                 <span className="fl-hint" style={{ margin: 0 }}>buttons and highlights</span>
@@ -602,7 +618,14 @@ export function BrandingWorkbench({
               <button
                 key={s.key}
                 type="button"
-                onClick={() => setSurface(s.key)}
+                onClick={() => {
+                  // Clear the focused copy field and any test note when moving
+                  // tabs, so a fill-in chip can't append to a now-hidden field
+                  // and a stale "test sent" note doesn't bleed across surfaces.
+                  setFocused(null);
+                  setTestNote(undefined);
+                  setSurface(s.key);
+                }}
                 style={{
                   font: "inherit",
                   fontSize: "13px",
@@ -784,14 +807,14 @@ export function BrandingWorkbench({
                 tips={tips}
               />
             ) : (
-              <div ref={previewBox} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#fff", height: `${Math.round(980 * scale)}px` }}>
+              <div ref={previewBox} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#fff", height: `${Math.round(previewH * scale)}px` }}>
                 <iframe
                   title="Email preview"
                   sandbox=""
                   srcDoc={surface === "review" ? reviewHtml : deliveryHtml}
                   style={{
                     width: "600px",
-                    height: "980px",
+                    height: `${previewH}px`,
                     border: 0,
                     transform: `scale(${scale})`,
                     transformOrigin: "top left",

@@ -151,9 +151,11 @@ export default async function GalleryPage({
 
   return (
     <main style={{ minHeight: "100dvh", background: "var(--paper)", color: "var(--paper-ink)", padding: "0 0 60px" }}>
-      {fontsHref && pack.key !== "classic" ? (
-        // The operator picked a non default font pack; load it for the hero
-        // and headings. Classic already loads through the app layout.
+      {fontsHref ? (
+        // Load the pack's fonts for the hero and headings. Always, even for
+        // Classic: the app layout registers Fraunces under a hashed next/font
+        // family, so the inline literal "'Fraunces'" here would fall back to
+        // Georgia without this stylesheet defining that literal family.
         // eslint-disable-next-line @next/next/no-page-custom-font
         <link rel="stylesheet" href={fontsHref} />
       ) : null}

@@ -3,12 +3,10 @@
 /*
   Review links manager, dark workspace. Existing links show as rows with a
   remove control; the add row appends a new one. These become the buttons in
-  the review email. The per send override toggle is presentational; sends
-  already accept a custom message.
+  the review email.
 */
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { addReviewLink, deleteReviewLink, type SettingsState } from "./actions";
-import { Toggle } from "@/app/_ui/controls";
 
 type LinkRow = { id: string; label: string; url: string };
 
@@ -17,7 +15,6 @@ export function ReviewLinks({ links }: { links: LinkRow[] }) {
     addReviewLink,
     undefined,
   );
-  const [override, setOverride] = useState(true);
 
   return (
     <div>
@@ -59,13 +56,6 @@ export function ReviewLinks({ links }: { links: LinkRow[] }) {
       {state?.error ? (
         <p style={{ color: "var(--bad)", fontSize: "13px", margin: "10px 0 0" }}>{state.error}</p>
       ) : null}
-
-      <div style={overrideRow}>
-        <Toggle on={override} onToggle={() => setOverride(!override)} label="Per send override" />
-        <span style={{ fontSize: "13px", color: "var(--muted)" }}>
-          Let each send override the default message
-        </span>
-      </div>
     </div>
   );
 }
@@ -85,12 +75,4 @@ const removeBtn: React.CSSProperties = {
   width: "40px",
   height: "100%",
   fontSize: "17px",
-};
-const overrideRow: React.CSSProperties = {
-  marginTop: "24px",
-  borderTop: "1px solid var(--line)",
-  paddingTop: "16px",
-  display: "flex",
-  alignItems: "center",
-  gap: "12px",
 };

@@ -18,6 +18,7 @@ import { cronAuthorized } from "@/lib/cron-auth";
 import { fetchAllRows } from "@/lib/db-page";
 import { sendEmail } from "@/lib/email";
 import { buildReminderEmail } from "@/lib/reminder-email";
+import { brandLookFromRow } from "@/lib/brand-copy";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { PLANS } from "@/lib/plans";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
@@ -31,6 +32,7 @@ type OperatorContext = {
   operatorName: string;
   from: string;
   brandColor: string;
+  look: ReturnType<typeof brandLookFromRow>;
   logoUrl: string | null;
   replyTo: string | null;
   social: Record<string, string | null>;
@@ -91,7 +93,7 @@ export async function GET(request: Request) {
       admin
         .from("branding")
         .select(
-          "logo_url, brand_color, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+          "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
         )
         .eq("operator_id", operatorId)
         .maybeSingle(),
@@ -105,6 +107,7 @@ export async function GET(request: Request) {
       operatorName: name,
       from: await resolveFromAddress(operatorId, name),
       brandColor: branding?.brand_color ?? "#0b5563",
+      look: brandLookFromRow(branding),
       logoUrl: branding?.logo_url ?? null,
       replyTo: branding?.reply_to_email ?? null,
       social: {
@@ -184,6 +187,7 @@ export async function GET(request: Request) {
       const { subject, html } = buildReminderEmail({
         operatorName: ctx.operatorName,
         brandColor: ctx.brandColor,
+        ...ctx.look,
         logoUrl: ctx.logoUrl,
         recipientName: (r.name as string | null) ?? null,
         expiresWhen,
