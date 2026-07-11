@@ -251,7 +251,7 @@ export default async function SettingsPage() {
             <SettingsSection
               title="Guest sign-up QR"
               summary="One code guests scan aboard to get their photos"
-              chip={{ label: "Optional", tone: "muted" }}
+              chip={{ label: "Recommended", tone: "good" }}
             >
               <CaptureQr operatorName={operatorName ?? "Operator"} dataUrl={captureDataUrl} />
             </SettingsSection>
