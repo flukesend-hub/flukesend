@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { formatTripTime, departedTripTimes } from "@/lib/trip-times";
 import { SOCIAL_PLATFORMS, type SocialLinks } from "@/lib/social";
+import { t, formatDateLocalized, type Locale } from "@/lib/i18n";
 import { captureGuest } from "./actions";
 
 export function CaptureForm({
@@ -22,6 +23,7 @@ export function CaptureForm({
   tripTimes,
   social,
   defaultBoatId,
+  locale = "en",
 }: {
   token: string;
   brand: string;
@@ -30,6 +32,7 @@ export function CaptureForm({
   tripTimes: string[];
   social: SocialLinks;
   defaultBoatId: string;
+  locale?: Locale;
 }) {
   const [boatId, setBoatId] = useState(defaultBoatId || (boats.length === 1 ? boats[0].id : ""));
   const [tripTime, setTripTime] = useState("");
@@ -52,13 +55,13 @@ export function CaptureForm({
       const d = new Date();
       const pad = (n: number) => String(n).padStart(2, "0");
       setTripDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
-      setDateLabel(d.toLocaleDateString("en-US", { dateStyle: "long" }));
+      setDateLabel(formatDateLocalized(d.toISOString(), locale) as string);
       setNow(d);
     };
     stamp();
     const timer = setInterval(stamp, 30_000);
     return () => clearInterval(timer);
-  }, []);
+  }, [locale]);
 
   // Only trips that have already left the dock, by the guest's own clock. The
   // list is empty for one frame before mount (and matches the server render),
@@ -79,11 +82,11 @@ export function CaptureForm({
     e.preventDefault();
     setError(null);
     if (!boatId) {
-      setError("Pick which boat you were on.");
+      setError(t(locale, "capture.err.pickBoat"));
       return;
     }
     if (!tripTime) {
-      setError("Pick your trip time.");
+      setError(t(locale, "capture.err.pickTime"));
       return;
     }
     setBusy(true);
@@ -104,15 +107,14 @@ export function CaptureForm({
         <div style={{ fontSize: "34px", lineHeight: 1 }} aria-hidden="true">
           {"✓"}
         </div>
-        <p style={{ margin: "12px 0 4px", fontWeight: 600, fontSize: "16px" }}>You are on the list.</p>
+        <p style={{ margin: "12px 0 4px", fontWeight: 600, fontSize: "16px" }}>{t(locale, "cf.onList")}</p>
         <p style={{ margin: 0, color: "#6b7a7d", fontSize: "13.5px", lineHeight: 1.55 }}>
-          {operatorName} will email your photos after the trip. If you do not
-          see them, check your spam or junk folder. You can close this page.
+          {t(locale, "cf.willEmail", { operator: operatorName })}
         </p>
         {socialLinks.length ? (
           <div style={{ marginTop: "20px", paddingTop: "18px", borderTop: "1px solid #eee5d8" }}>
             <div style={{ fontSize: "12.5px", color: "#8a938f", marginBottom: "12px" }}>
-              Follow {operatorName}
+              {t(locale, "cf.follow", { operator: operatorName })}
             </div>
             <div style={{ display: "flex", justifyContent: "center", gap: "16px", flexWrap: "wrap" }}>
               {socialLinks.map(({ p, url }) => (
@@ -132,9 +134,9 @@ export function CaptureForm({
     <form onSubmit={submit} style={{ background: "#fff", border: "1px solid #e7e0d4", borderRadius: "14px", padding: "22px" }}>
       {boats.length > 1 ? (
         <label style={label}>
-          <span style={labelText}>Which boat were you on?</span>
+          <span style={labelText}>{t(locale, "cf.whichBoat")}</span>
           <select value={boatId} onChange={(e) => setBoatId(e.target.value)} style={input}>
-            <option value="">Choose your boat</option>
+            <option value="">{t(locale, "cf.chooseBoat")}</option>
             {boats.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -145,9 +147,9 @@ export function CaptureForm({
       ) : null}
 
       <label style={label}>
-        <span style={labelText}>Which trip? (today, {dateLabel})</span>
+        <span style={labelText}>{t(locale, "cf.whichTrip", { date: dateLabel })}</span>
         <select value={tripTime} onChange={(e) => setTripTime(e.target.value)} style={input}>
-          <option value="">Choose your trip time</option>
+          <option value="">{t(locale, "cf.chooseTime")}</option>
           {visibleTimes.map((slot) => (
             <option key={slot} value={slot}>
               {formatTripTime(slot)}
@@ -157,22 +159,22 @@ export function CaptureForm({
         {!showAll ? (
           <span style={{ display: "block", fontSize: "12px", color: "#8a938f", marginTop: "6px" }}>
             {visibleTimes.length === 0 && now
-              ? "Trips show up here once they have left the dock. "
+              ? t(locale, "cf.tripsAppear")
               : null}
-            {"Don't see your trip? "}
+            {t(locale, "cf.dontSeeTrip")}
             <button
               type="button"
               onClick={() => setShowAll(true)}
               style={{ font: "inherit", fontWeight: 600, color: "#33464a", background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}
             >
-              Show all times
+              {t(locale, "cf.showAll")}
             </button>
           </span>
         ) : null}
       </label>
 
       <label style={label}>
-        <span style={labelText}>Your email</span>
+        <span style={labelText}>{t(locale, "cf.yourEmail")}</span>
         <input
           type="email"
           required
@@ -184,12 +186,12 @@ export function CaptureForm({
         />
       </label>
       <label style={{ ...label, marginBottom: "18px" }}>
-        <span style={labelText}>Your first name</span>
+        <span style={labelText}>{t(locale, "cf.yourFirstName")}</span>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="First name"
+          placeholder={t(locale, "cf.firstNamePlaceholder")}
           autoComplete="name"
           style={input}
         />
@@ -229,10 +231,10 @@ export function CaptureForm({
           opacity: busy ? 0.7 : 1,
         }}
       >
-        {busy ? "Saving..." : "Send me my photos"}
+        {busy ? t(locale, "cf.saving") : t(locale, "cf.submit")}
       </button>
       <p style={{ margin: "14px 0 0", color: "#33464a", fontSize: "13px", fontWeight: 700, lineHeight: 1.5, textAlign: "center" }}>
-        Make sure to check your spam folder.
+        {t(locale, "cf.checkSpam")}
       </p>
     </form>
   );

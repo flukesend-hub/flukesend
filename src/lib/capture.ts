@@ -11,6 +11,7 @@ import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tripTimesFor } from "@/lib/trip-times";
 import { type SocialLinks } from "@/lib/social";
+import { asLocale, type Locale } from "@/lib/i18n";
 
 export type CaptureContext = {
   link: { id: string; operator_id: string; boat_id: string | null };
@@ -26,6 +27,9 @@ export type CaptureContext = {
   // The operator's boats, so the guest can pick which one they were on. The
   // scanned link's boat, if any, is the default.
   boats: { id: string; name: string }[];
+  // The operator's chosen guest language, so every guest-facing string on the
+  // capture page renders in it. English by default.
+  locale: Locale;
 };
 
 // Resolve a public capture token to everything the /j page needs to render an
@@ -51,7 +55,7 @@ export async function getCaptureByToken(token: string): Promise<CaptureContext |
   const { data: branding } = await admin
     .from("branding")
     .select(
-      "logo_url, brand_color, default_message, trip_times, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+      "logo_url, brand_color, default_message, trip_times, guest_locale, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
     )
     .eq("operator_id", link.operator_id)
     .maybeSingle();
@@ -81,6 +85,7 @@ export async function getCaptureByToken(token: string): Promise<CaptureContext |
     },
     boatName,
     boats: boatList,
+    locale: asLocale(branding?.guest_locale),
   };
 }
 

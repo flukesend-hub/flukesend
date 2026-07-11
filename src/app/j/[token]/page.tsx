@@ -6,6 +6,7 @@
 */
 import { notFound } from "next/navigation";
 import { getCaptureByToken } from "@/lib/capture";
+import { t } from "@/lib/i18n";
 import { CaptureForm } from "./capture-form";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export default async function CapturePage({
     notFound();
   }
   const { operator, branding, boats } = ctx;
+  const locale = ctx.locale;
   const brand = branding?.brand_color ?? "#0b5563";
   const multiBoat = boats.length > 1;
 
@@ -38,12 +40,12 @@ export default async function CapturePage({
             </div>
           )}
           <div className="fl-display" style={{ fontWeight: 500, fontSize: "25px", lineHeight: 1.2, margin: "16px 0 8px", maxWidth: "20ch" }}>
-            Get your trip photos
+            {t(locale, "capture.title")}
           </div>
           <div style={{ fontSize: "13.5px", opacity: 0.85, lineHeight: 1.5 }}>
             {multiBoat
-              ? "Choose your boat and trip time, drop your email, and we will send your photos after the trip."
-              : "Choose your trip time, drop your email, and we will send your photos after the trip."}
+              ? t(locale, "capture.subMulti")
+              : t(locale, "capture.subSingle")}
           </div>
         </div>
 
@@ -56,6 +58,7 @@ export default async function CapturePage({
             tripTimes={ctx.tripTimes}
             social={ctx.social}
             defaultBoatId={ctx.link.boat_id ?? ""}
+            locale={locale}
           />
         </div>
       </div>

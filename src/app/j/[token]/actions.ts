@@ -14,6 +14,7 @@ import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCaptureByToken, hashIp } from "@/lib/capture";
 import { isTripTime } from "@/lib/trip-times";
+import { t, asLocale } from "@/lib/i18n";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -51,12 +52,13 @@ export async function captureGuest(input: {
 
   const ctx = await getCaptureByToken(input.token);
   if (!ctx) {
-    return { error: "This link is no longer active. Ask the crew for a fresh one." };
+    return { error: t(asLocale(null), "capture.err.inactive") };
   }
+  const locale = ctx.locale;
 
   const email = input.email.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) {
-    return { error: "That email does not look right. Give it another try." };
+    return { error: t(locale, "capture.err.email") };
   }
   const name = input.name.trim().slice(0, MAX_NAME) || null;
 
@@ -70,14 +72,14 @@ export async function captureGuest(input: {
     (ctx.boats.length === 1 ? ctx.boats[0].id : "");
   if (boatId) {
     if (!ctx.boats.some((b) => b.id === boatId)) {
-      return { error: "Pick which boat you were on." };
+      return { error: t(locale, "capture.err.pickBoat") };
     }
   } else if (ctx.boats.length > 0) {
-    return { error: "Pick which boat you were on." };
+    return { error: t(locale, "capture.err.pickBoat") };
   }
 
   if (!isTripTime(input.tripTime)) {
-    return { error: "Pick your trip time." };
+    return { error: t(locale, "capture.err.pickTime") };
   }
   const tripDate = validTripDate(input.tripDate)
     ? input.tripDate
@@ -96,7 +98,7 @@ export async function captureGuest(input: {
     .eq("ip_hash", ipHash)
     .gte("captured_at", since);
   if ((recent ?? 0) >= RATE_MAX) {
-    return { error: "Too many sign ups from here just now. Wait a minute and retry." };
+    return { error: t(locale, "capture.err.rate") };
   }
 
   // Dedupe: if this guest already sits un-consumed for this exact trip, treat
@@ -125,7 +127,7 @@ export async function captureGuest(input: {
     ip_hash: ipHash,
   });
   if (error) {
-    return { error: "Could not save that just now. Please try again." };
+    return { error: t(locale, "capture.err.save") };
   }
 
   return { ok: true };
