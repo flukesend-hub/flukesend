@@ -255,9 +255,18 @@ export function BrandingWorkbench({
   // observer has to re-attach. The width > 0 guard ignores the zero-width
   // measurement a detaching node reports, which would otherwise collapse the
   // scale to nothing and blank every email preview.
-  // The review email runs taller (crew row plus several review buttons), so
-  // give it more room than the delivery email to avoid clipping the footer.
-  const previewH = surface === "review" ? 1160 : 980;
+  // The email preview sizes to the real rendered height of the email, measured
+  // from the iframe, so there is no empty space scrolling below a short email.
+  // A sane default holds until the first measure lands (and while a new surface
+  // reloads). Scripts stay blocked (no allow-scripts) so same-origin is safe.
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [previewH, setPreviewH] = useState(980);
+  const measurePreview = () => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    const h = Math.max(doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
+    if (h > 0) setPreviewH(h);
+  };
   const previewBox = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.72);
   useEffect(() => {
@@ -821,9 +830,16 @@ export function BrandingWorkbench({
             ) : (
               <div ref={previewBox} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#fff", height: `${Math.round(previewH * scale)}px`, maxWidth: "600px", margin: "0 auto" }}>
                 <iframe
+                  ref={iframeRef}
                   title="Email preview"
-                  sandbox=""
+                  sandbox="allow-same-origin"
                   srcDoc={surface === "review" ? reviewHtml : deliveryHtml}
+                  onLoad={() => {
+                    // Measure now, then again after fonts and the logo settle.
+                    measurePreview();
+                    window.setTimeout(measurePreview, 200);
+                    window.setTimeout(measurePreview, 600);
+                  }}
                   style={{
                     width: "600px",
                     height: `${previewH}px`,
