@@ -17,6 +17,7 @@
   successful share. Preview mode suppresses both.
 */
 import { useEffect, useState } from "react";
+import { t, type Locale } from "@/lib/i18n";
 
 type Photo = { id: string; name: string; url: string; thumbUrl: string; size: number };
 
@@ -39,6 +40,7 @@ export function GalleryPhotos({
   reviewLinks,
   reviewAskText = "Loved the trip? A quick review means a lot to a small crew like ours.",
   thanksText = "Thanks for spending the day on the water with us.",
+  locale = "en",
   tip = null,
   reviewUnderTip = false,
   preview = false,
@@ -53,6 +55,7 @@ export function GalleryPhotos({
   // Post-save copy from the Branding tab, fill-ins already rendered.
   reviewAskText?: string;
   thanksText?: string;
+  locale?: Locale;
   // When set, the tip block is the primary ask in the post-save slot, in place
   // of the review links. Resolved server side (both flags already checked).
   tip?: { firstName: string; verb: string; href: string; photoUrl: string | null } | null;
@@ -111,7 +114,7 @@ export function GalleryPhotos({
       setSave({ phase: "ready", files });
     } catch {
       setSave(null);
-      setNote("Could not get the photos ready here.");
+      setNote(t(locale, "gp.couldNotPrepare"));
     }
   }
 
@@ -133,7 +136,7 @@ export function GalleryPhotos({
         return;
       }
       setSave(null);
-      setNote("Sharing did not work here.");
+      setNote(t(locale, "gp.shareFailed"));
     }
   }
 
@@ -169,27 +172,27 @@ export function GalleryPhotos({
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
         <span style={{ fontSize: "12.5px", color: "#6b7a7d" }}>
-          {photos.length} photos · live for {retentionDays} days
+          {t(locale, "gp.photosLive", { count: photos.length, days: retentionDays })}
         </span>
         {shareable ? (
           save?.phase === "fetching" ? (
             <button disabled style={{ ...allBtn, background: ui, opacity: 0.75 }}>
-              Getting photo {save.done} of {save.total}...
+              {t(locale, "gp.gettingPhoto", { done: save.done, total: save.total })}
             </button>
           ) : save?.phase === "ready" ? (
             <button onClick={() => shareNow(save.files)} style={{ ...allBtn, background: ui }}>
-              Ready. Tap to save {save.files.length} photos
+              {t(locale, "gp.readyTap", { count: save.files.length })}
             </button>
           ) : save?.phase === "sharing" ? (
             <button disabled style={{ ...allBtn, background: ui, opacity: 0.75 }}>
-              Opening...
+              {t(locale, "gp.opening")}
             </button>
           ) : (
             <button
               onClick={prepareShare}
               style={{ ...allBtn, background: ui, opacity: downloaded ? 0.7 : 1 }}
             >
-              {downloaded ? "Saved" : "Save all to Photos"}
+              {downloaded ? t(locale, "gp.saved") : t(locale, "gp.saveAll")}
             </button>
           )
         ) : (
@@ -198,7 +201,7 @@ export function GalleryPhotos({
             onClick={() => setDownloaded(true)}
             style={{ ...allBtn, background: ui, opacity: downloaded ? 0.7 : 1, textDecoration: "none", display: "inline-block" }}
           >
-            {downloaded ? "Downloaded" : "Download all photos"}
+            {downloaded ? t(locale, "gp.downloaded") : t(locale, "gp.downloadAll")}
           </a>
         )}
       </div>
@@ -210,7 +213,7 @@ export function GalleryPhotos({
         <div style={{ marginTop: "10px", textAlign: "right" }}>
           <p style={{ fontSize: "12.5px", color: "#a04435", margin: "0 0 5px" }}>{note}</p>
           <a href={zipUrl} onClick={() => setDownloaded(true)} style={zipLink}>
-            Download everything as a zip instead
+            {t(locale, "gp.zipInstead")}
           </a>
         </div>
       ) : null}
@@ -219,7 +222,7 @@ export function GalleryPhotos({
         <div className="fl-reveal" style={{ marginTop: "18px", borderTop: "1px solid #e7e0d4", paddingTop: "18px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: tip || reviewLinks.length ? "14px" : "0" }}>
             <span style={{ ...check, background: ui }}>✓</span>
-            <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#1c2b2e" }}>Saved to your phone.</span>
+            <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#1c2b2e" }}>{t(locale, "gp.savedToPhone")}</span>
           </div>
           {tip ? (
             // The tip is the primary ask for this operator. One human, one
@@ -235,7 +238,7 @@ export function GalleryPhotos({
                 </span>
               )}
               <p style={{ fontSize: "14px", lineHeight: 1.55, color: "#46555a", margin: 0, maxWidth: "34ch" }}>
-                Loved your trip? Your photos were shot by{" "}
+                {t(locale, "gp.tipLedePre")}
                 <strong style={{ color: "#1c2b2e" }}>{tip.firstName}</strong>.
               </p>
               <a
@@ -244,16 +247,16 @@ export function GalleryPhotos({
                 rel="noreferrer"
                 style={{ ...reviewBtn, background: ui, color: "#fff", width: "100%", maxWidth: "320px" }}
               >
-                Tip {tip.firstName}
+                {t(locale, "gp.tipButton", { name: tip.firstName })}
               </a>
               <span style={{ fontSize: "12px", color: "#8a938f" }}>
-                {tip.verb} · goes straight to {tip.firstName}
+                {tip.verb} · {t(locale, "gp.goesStraightTo", { name: tip.firstName })}
               </span>
               {reviewUnderTip && reviewLinks.length ? (
                 // Secondary, quiet: a small review link under the tip, so the
                 // tip stays the one primary button. Never a second big CTA.
                 <div style={{ marginTop: "8px", fontSize: "13px", color: "#6b7a7d" }}>
-                  Loved it?{" "}
+                  {t(locale, "gp.lovedIt")}{" "}
                   {reviewLinks.map((l, i) => (
                     <span key={l.href}>
                       {i > 0 ? " · " : null}

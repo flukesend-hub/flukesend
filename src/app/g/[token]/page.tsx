@@ -8,7 +8,8 @@ import { notFound } from "next/navigation";
 import { getGalleryByToken, isExpired, resolveGalleryTip } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fontPack, googleFontsHref, logoAlign } from "@/lib/brand-fonts";
-import { GALLERY_COPY, GALLERY_THANKS_DEFAULT, copyValue, renderTokens } from "@/lib/brand-copy";
+import { GALLERY_COPY, copyValue, renderTokens } from "@/lib/brand-copy";
+import { t, asLocale, formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { TrackOpen } from "./track-open";
 import { GalleryPhotos } from "./gallery-photos";
 
@@ -33,6 +34,7 @@ export default async function GalleryPage({
     notFound();
   }
   const { delivery, operator, branding } = data;
+  const locale = asLocale(branding?.guest_locale);
   const brand = branding?.brand_color ?? "#0b5563";
   // The Branding tab look: accent paints the buttons (falls back to brand),
   // the font pack sets the display type, and the post-save copy comes from
@@ -44,15 +46,17 @@ export default async function GalleryPage({
   const tokenCtx = {
     operatorName: operator.name,
     firstName: data.recipient.name?.trim().split(/\s+/)[0] ?? null,
-    species: delivery.species?.length ? delivery.species.join(" and ") : null,
-    date: delivery.trip_datetime
-      ? new Date(delivery.trip_datetime).toLocaleDateString("en-US", { dateStyle: "long" })
+    species: delivery.species?.length
+      ? delivery.species.join(` ${t(locale, "list.and")} `)
       : null,
+    date: formatDateLocalized(delivery.trip_datetime, locale),
     photographerName: delivery.photographer_name,
-    crew: delivery.captain_name ? `Captain ${delivery.captain_name}` : null,
+    crew: delivery.captain_name
+      ? t(locale, "trip.captain", { name: delivery.captain_name })
+      : null,
   };
   const galleryCopy = Object.fromEntries(
-    GALLERY_COPY.map((f) => [f.key, renderTokens(copyValue(branding?.copy_overrides, f), tokenCtx)]),
+    GALLERY_COPY.map((f) => [f.key, renderTokens(copyValue(branding?.copy_overrides, f, locale), tokenCtx)]),
   );
   const message = delivery.custom_message || branding?.default_message || "";
   const expired = isExpired(delivery.expires_at);
@@ -131,23 +135,18 @@ export default async function GalleryPage({
   }
 
   // Hero copy from the trip.
-  const time = delivery.trip_datetime
-    ? new Date(delivery.trip_datetime).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : null;
+  const time = formatTimeLocalized(delivery.trip_datetime, locale);
   const title =
     delivery.captain_name && time
-      ? `Your ${time} trip with Captain ${delivery.captain_name}`
+      ? t(locale, "gallery.heroWithTime", { time, name: delivery.captain_name })
       : delivery.captain_name
-        ? `Your trip with Captain ${delivery.captain_name}`
-        : "Your photos are ready";
+        ? t(locale, "gallery.heroWithCaptain", { name: delivery.captain_name })
+        : t(locale, "gallery.heroDefault");
   const facts: string[] = [];
-  if (delivery.species?.length) facts.push(delivery.species.join(" and "));
-  if (delivery.boat_name) facts.push(`aboard ${delivery.boat_name}`);
-  if (delivery.naturalist_name) facts.push(`naturalist ${delivery.naturalist_name}`);
-  if (delivery.photographer_name) facts.push(`photos by ${delivery.photographer_name}`);
+  if (delivery.species?.length) facts.push(delivery.species.join(` ${t(locale, "list.and")} `));
+  if (delivery.boat_name) facts.push(t(locale, "gallery.factAboard", { name: delivery.boat_name }));
+  if (delivery.naturalist_name) facts.push(t(locale, "gallery.factNaturalist", { name: delivery.naturalist_name }));
+  if (delivery.photographer_name) facts.push(t(locale, "gallery.factPhotosBy", { name: delivery.photographer_name }));
 
   return (
     <main style={{ minHeight: "100dvh", background: "var(--paper)", color: "var(--paper-ink)", padding: "0 0 60px" }}>
@@ -198,9 +197,9 @@ export default async function GalleryPage({
 
           {expired ? (
             <div style={{ padding: "24px", borderRadius: "14px", background: "#fff", border: "1px solid #e7e0d4", textAlign: "center" }}>
-              <p style={{ margin: 0, fontWeight: 600 }}>This gallery has expired.</p>
+              <p style={{ margin: 0, fontWeight: 600 }}>{t(locale, "gallery.expired")}</p>
               <p style={{ margin: "6px 0 0", color: "#6b7a7d", fontSize: "13px" }}>
-                Reach out to {operator.name} if you still need your photos.
+                {t(locale, "gallery.expiredHelp", { operator: operator.name })}
               </p>
             </div>
           ) : photos.length ? (
@@ -212,13 +211,14 @@ export default async function GalleryPage({
               photos={photos}
               reviewLinks={reviewLinks}
               reviewAskText={galleryCopy["gallery.review_ask"]}
-              thanksText={GALLERY_THANKS_DEFAULT}
+              thanksText={t(locale, "gallery.thanks")}
+              locale={locale}
               tip={tip}
               reviewUnderTip={Boolean(tip && data.operator.tips_show_review)}
               preview={preview}
             />
           ) : (
-            <p style={{ color: "#6b7a7d" }}>No photos in this gallery yet.</p>
+            <p style={{ color: "#6b7a7d" }}>{t(locale, "gallery.empty")}</p>
           )}
         </div>
       </div>
