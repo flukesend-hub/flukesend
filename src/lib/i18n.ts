@@ -34,6 +34,13 @@ export const LOCALE_LABELS: Record<Locale, string> = {
   es: "Español",
 };
 
+// Short codes for the compact language dropdown.
+export const LOCALE_SHORT: Record<Locale, string> = {
+  en: "ENG",
+  fr: "FR",
+  es: "ESP",
+};
+
 // BCP-47 tag for Intl date formatting.
 const LOCALE_TAG: Record<Locale, string> = {
   en: "en-US",

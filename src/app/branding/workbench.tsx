@@ -37,7 +37,7 @@ import {
   type CopyField,
   type TokenContext,
 } from "@/lib/brand-copy";
-import { LOCALES, LOCALE_LABELS, asLocale, formatDateLocalized, type Locale } from "@/lib/i18n";
+import { LOCALES, LOCALE_SHORT, asLocale, formatDateLocalized, type Locale } from "@/lib/i18n";
 import { type SocialLinks } from "@/lib/social";
 import { Swatches } from "@/app/_ui/controls";
 import { SocialLinksForm } from "@/app/settings/social-links-form";
@@ -655,36 +655,26 @@ export function BrandingWorkbench({
               </div>
             </div>
 
-            <div style={{ marginBottom: "16px" }}>
-              <span className="fl-label-text">Guest language</span>
-              <p className="fl-hint" style={{ margin: "0 0 8px" }}>
-                The language your guests read. It sets every email and page they
-                see, and the starting wording below, which you can edit.
-              </p>
-              <input type="hidden" name="guest_locale" value={locale} />
-              <div style={{ display: "flex", gap: "8px" }}>
-                {LOCALES.map((l) => (
-                  <button
-                    key={l}
-                    type="button"
-                    onClick={() => setLocale(l)}
-                    style={{
-                      flex: 1,
-                      font: "inherit",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      padding: "10px 0",
-                      borderRadius: "10px",
-                      cursor: "pointer",
-                      background: locale === l ? "var(--signal)" : "transparent",
-                      color: locale === l ? "var(--signal-ink)" : "var(--text)",
-                      border: `1px solid ${locale === l ? "var(--signal)" : "var(--line-strong)"}`,
-                    }}
-                  >
-                    {LOCALE_LABELS[l]}
-                  </button>
-                ))}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ minWidth: 0 }}>
+                <span className="fl-label-text">Guest language</span>
+                <p className="fl-hint" style={{ margin: "2px 0 0" }}>
+                  The language of every email and page your guests see.
+                </p>
               </div>
+              <select
+                name="guest_locale"
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as Locale)}
+                aria-label="Guest language"
+                style={localeSelect}
+              >
+                {LOCALES.map((l) => (
+                  <option key={l} value={l}>
+                    {LOCALE_SHORT[l]}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {warnings.map((w) => (
@@ -1149,6 +1139,18 @@ function CopyInput({
 }
 
 const cardTitle: React.CSSProperties = { fontSize: "15px", fontWeight: 600, marginBottom: "4px" };
+const localeSelect: React.CSSProperties = {
+  font: "inherit",
+  fontSize: "13px",
+  fontWeight: 600,
+  color: "var(--text)",
+  background: "transparent",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "9px",
+  padding: "7px 10px",
+  cursor: "pointer",
+  flex: "0 0 auto",
+};
 const errText: React.CSSProperties = { color: "var(--bad)", fontSize: "13px", margin: "0 0 12px" };
 const okText: React.CSSProperties = { color: "var(--good)", fontSize: "13px", margin: "0 0 12px" };
 const warnText: React.CSSProperties = { color: "#b98a2f", fontSize: "12.5px" };
