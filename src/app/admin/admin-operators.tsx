@@ -256,6 +256,13 @@ function OperatorCard({
             <div style={{ fontWeight: 700, fontSize: "14.5px", display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
               {r.name}
               {demo ? <span style={chipMuted}>Demo tenant</span> : null}
+              {/* Today's QR sign-ups, hidden entirely until there is at least
+                  one, so it reads as a live pulse and never as an empty zero. */}
+              {h.qrToday > 0 ? (
+                <span style={chipGood}>
+                  {h.qrToday} QR sign-up{h.qrToday === 1 ? "" : "s"} today
+                </span>
+              ) : null}
             </div>
             <div style={{ fontSize: "11.5px", color: "var(--muted-2)", overflowWrap: "anywhere" }}>
               {demo
@@ -497,6 +504,15 @@ const chipBad: React.CSSProperties = {
   color: "var(--bad)",
   background: "rgba(194,83,63,.10)",
   border: "1px solid rgba(194,83,63,.28)",
+  borderRadius: "999px",
+  padding: "2px 9px",
+};
+const chipGood: React.CSSProperties = {
+  fontSize: "11.5px",
+  fontWeight: 600,
+  color: "var(--good)",
+  background: "rgba(47,143,99,.10)",
+  border: "1px solid rgba(47,143,99,.28)",
   borderRadius: "999px",
   padding: "2px 9px",
 };
