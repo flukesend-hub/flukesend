@@ -24,6 +24,10 @@ export type OperatorHealth = {
   downloaded: number;
   reviewClicks: number;
   bounced: number;
+  // QR self-capture sign-ups recorded today (UTC), the count of guests who
+  // scanned the boat's QR and left their email since midnight. A live pulse
+  // for the admin: only shown when it is above zero.
+  qrToday: number;
   // The actual addresses that bounced this month (capped), so the triage card
   // can show who to fix without a single click.
   bouncedEmails: string[];
@@ -46,6 +50,7 @@ export function emptyHealth(): OperatorHealth {
     downloaded: 0,
     reviewClicks: 0,
     bounced: 0,
+    qrToday: 0,
     bouncedEmails: [],
     hasReviewLinks: false,
     hasLogo: false,
@@ -77,8 +82,13 @@ export async function getOperatorHealth(
   const lastMonthStart = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
   ).toISOString();
+  // Midnight UTC today, the floor for the QR sign-ups-today pulse. UTC keeps it
+  // in step with the month boundaries above; there is no per-operator timezone.
+  const dayStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  ).toISOString();
 
-  const [deliveries, recipients, dests, brandings, crews] = await Promise.all([
+  const [deliveries, recipients, dests, brandings, crews, qrToday] = await Promise.all([
     fetchAllRows<DeliveryRow>((from, to) =>
       admin.from("deliveries").select("id, operator_id, created_at").order("id").range(from, to),
     ),
@@ -102,6 +112,14 @@ export async function getOperatorHealth(
     ),
     fetchAllRows<OpIdRow>((from, to) =>
       admin.from("crew_members").select("operator_id").order("operator_id").range(from, to),
+    ),
+    fetchAllRows<OpIdRow>((from, to) =>
+      admin
+        .from("captured_guests")
+        .select("operator_id")
+        .gte("captured_at", dayStart)
+        .order("operator_id")
+        .range(from, to),
     ),
   ]);
 
@@ -171,6 +189,9 @@ export async function getOperatorHealth(
     if (b.brand_color?.trim()) h.brandColor = b.brand_color.trim();
   }
   for (const c of crews) ensure(c.operator_id).hasCrew = true;
+
+  // Today's QR sign-ups, one row per capture since midnight UTC.
+  for (const q of qrToday) ensure(q.operator_id).qrToday++;
 
   return health;
 }
