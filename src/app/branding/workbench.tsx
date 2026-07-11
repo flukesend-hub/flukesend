@@ -69,7 +69,7 @@ type Initial = {
 type Tips = {
   enabled: boolean;
   showReview: boolean;
-  myTip: { firstName: string; verb: string } | null;
+  myTip: { firstName: string; verb: string; photoUrl: string | null } | null;
 };
 
 const ALL_FIELDS: CopyField[] = [...DELIVERY_COPY, ...REVIEW_COPY, ...GALLERY_COPY];
@@ -938,9 +938,14 @@ function GalleryMini({
           </div>
           {showTip ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "8px" }}>
-              <span style={{ width: 32, height: 32, borderRadius: "50%", background: accent, color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: "14px" }}>
-                {(tipName[0] ?? "?").toUpperCase()}
-              </span>
+              {tips.myTip?.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={tips.myTip.photoUrl} alt={tipName} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", display: "block" }} />
+              ) : (
+                <span style={{ width: 32, height: 32, borderRadius: "50%", background: accent, color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: "14px" }}>
+                  {(tipName[0] ?? "?").toUpperCase()}
+                </span>
+              )}
               <p style={{ fontSize: "10.5px", lineHeight: 1.5, color: "#46555a", margin: 0, maxWidth: "30ch" }}>
                 Loved your trip? Your photos were shot by <strong style={{ color: "#1c2b2e" }}>{tipName}</strong>.
               </p>

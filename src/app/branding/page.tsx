@@ -64,14 +64,23 @@ export default async function BrandingPage() {
   }));
 
   const myTipSet = Boolean(isTipProvider(me?.tip_provider as string) && me?.tip_handle);
+  // The signed-in member's own face for the tip bubble preview: match their tip
+  // display name to their roster entry, the same way the real gallery shows the
+  // credited photographer's photo. Falls back to initials when unmatched.
+  const myName = ((me?.display_name as string | null) ?? "").trim();
+  const myPhotoUrl = myName
+    ? ((crewRows ?? []).find(
+        (c) => (c.name as string).trim().toLowerCase() === myName.toLowerCase(),
+      )?.photo_url as string | null) ?? null
+    : null;
   const tips = {
     enabled: Boolean(op?.tips_enabled),
     showReview: Boolean(op?.tips_show_review),
     myTip: myTipSet
       ? {
-          firstName:
-            ((me?.display_name as string | null) ?? "").trim().split(/\s+/)[0] || "your photographer",
+          firstName: myName.split(/\s+/)[0] || "your photographer",
           verb: tipProviderVerb(me?.tip_provider as TipProvider),
+          photoUrl: myPhotoUrl,
         }
       : null,
   };
