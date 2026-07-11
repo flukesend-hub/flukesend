@@ -23,7 +23,7 @@ import {
   useTransition,
 } from "react";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
-import { buildReviewEmail } from "@/lib/review-email";
+import { buildReviewEmail, tripLine } from "@/lib/review-email";
 import { FONT_PACKS, fontPack, TEXT_TONES, textTone, logoAlign, type LogoAlign } from "@/lib/brand-fonts";
 import {
   COPY_TOKENS,
@@ -256,10 +256,14 @@ export function BrandingWorkbench({
       textTone: tone,
       logoAlign: align,
       copyOverrides: copy,
+      guestLocale: locale,
       logoUrl: shownLogo,
       recipientName: "Alex",
-      tripLine: `${today} with Captain Ray`,
-      tripDate: today,
+      tripLine: tripLine(
+        { trip_datetime: new Date().toISOString(), species: null, captain_name: "Ray" },
+        locale,
+      ),
+      tripDate: localizedToday,
       captainName: "Ray",
       species: sampleSpecies,
       crew: shownFaces,
@@ -268,7 +272,7 @@ export function BrandingWorkbench({
       social: initial.social,
     }).html;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, shownLogo, reviewLinks, crew, showCrew, initial, today]);
+  }, [operatorName, brand, accentOn, accent, headerText, font, tone, align, copy, locale, shownLogo, reviewLinks, crew, showCrew, initial, localizedToday]);
 
   // The gallery preview's fill-ins, rendered with the same sample trip.
   const galleryCtx: TokenContext = {

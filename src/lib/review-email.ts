@@ -18,6 +18,7 @@ import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
 import { fontPack, googleFontsHref, textTone, logoAlign } from "@/lib/brand-fonts";
 import { crewAvatarHtml } from "@/lib/avatar";
+import { t, asLocale, formatDateLocalized, type Locale } from "@/lib/i18n";
 import {
   REVIEW_COPY,
   copyValue,
@@ -39,18 +40,20 @@ export function reviewDelayCutoffISO(now: number = Date.now()) {
 // Date and captain reference, shared by the instant ask and the nightly
 // sweep. Rendered as a small quiet line at the bottom of the email, not in
 // the body copy, where a mid sentence date breaks the flow.
-export function tripLine(d: {
-  trip_datetime: string | null;
-  species: string[] | null;
-  captain_name: string | null;
-}): string {
+export function tripLine(
+  d: {
+    trip_datetime: string | null;
+    species: string[] | null;
+    captain_name: string | null;
+  },
+  locale: Locale,
+): string {
   const parts: string[] = [];
   if (d.trip_datetime) {
-    parts.push(
-      new Date(d.trip_datetime).toLocaleDateString("en-US", { dateStyle: "long" }),
-    );
+    const date = formatDateLocalized(d.trip_datetime, locale);
+    if (date) parts.push(date);
   }
-  if (d.captain_name) parts.push(`with Captain ${d.captain_name}`);
+  if (d.captain_name) parts.push(t(locale, "trip.withCaptain", { name: d.captain_name }));
   return parts.join(" ");
 }
 
@@ -62,16 +65,17 @@ function pluralize(name: string): string {
   return `${n}s`;
 }
 
-export function speciesSentence(species: string[] | null): string {
+export function speciesSentence(species: string[] | null, locale: Locale): string {
   const plurals = (species ?? []).map(pluralize).filter(Boolean);
   if (!plurals.length) return "";
+  const and = t(locale, "list.and");
   const joined =
     plurals.length === 1
       ? plurals[0]
       : plurals.length === 2
-        ? `${plurals[0]} and ${plurals[1]}`
-        : `${plurals.slice(0, -1).join(", ")}, and ${plurals[plurals.length - 1]}`;
-  return ` It was a good one out there. ${joined}!`;
+        ? `${plurals[0]} ${and} ${plurals[1]}`
+        : `${plurals.slice(0, -1).join(", ")}, ${and} ${plurals[plurals.length - 1]}`;
+  return ` ${t(locale, "review.speciesLine", { species: joined })}`;
 }
 
 export type ReviewEmailInput = {
@@ -84,6 +88,8 @@ export type ReviewEmailInput = {
   textTone?: string | null;
   logoAlign?: string | null;
   copyOverrides?: CopyOverrides | null;
+  // The operator's guest language; null or absent renders English.
+  guestLocale?: string | null;
   logoUrl: string | null;
   recipientName: string | null;
   // Small date and captain reference for the bottom of the email.
@@ -110,7 +116,8 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   // Casual and evocative, like a text from the crew who took them out. Names
   // the thing they came for, carries a curiosity hook, and does not telegraph
   // a review request, so it gets opened. Opens are the funnel's biggest leak.
-  const subject = "How about those whales?";
+  const locale = asLocale(input.guestLocale);
+  const subject = t(locale, "review.subject");
   const brand = escapeHtml(input.brandColor);
   const accent = escapeHtml(input.accentColor || input.brandColor);
   const headerTextColor = escapeHtml(input.headerTextColor || "#ffffff");
@@ -129,19 +136,21 @@ export function buildReviewEmail(input: ReviewEmailInput): {
     species: input.species.length ? input.species.join(" and ") : null,
     date: input.tripDate ?? null,
     photographerName: null,
-    crew: input.captainName ? `Captain ${input.captainName}` : null,
+    crew: input.captainName ? t(locale, "trip.captain", { name: input.captainName }) : null,
   };
   const copy = Object.fromEntries(
     REVIEW_COPY.map((f) => [
       f.key,
-      escapeHtml(renderTokens(copyValue(input.copyOverrides, f), ctx)),
+      escapeHtml(renderTokens(copyValue(input.copyOverrides, f, locale), ctx)),
     ]),
   );
 
   // Greet by name when we have one; otherwise skip the greeting entirely
   // rather than a filler "Hi there," and open straight with the sentence.
-  const hi = input.recipientName ? `Hi ${escapeHtml(input.recipientName)}, we` : "We";
-  const seen = escapeHtml(speciesSentence(input.species));
+  const greeting = input.recipientName
+    ? t(locale, "review.greetingNamed", { name: escapeHtml(input.recipientName) })
+    : t(locale, "review.greetingPlain");
+  const seen = escapeHtml(speciesSentence(input.species, locale));
 
   const header = input.logoUrl
     ? `<img src="${escapeHtml(input.logoUrl)}" alt="${name}" style="height:30px;width:auto;display:inline-block" />`
@@ -156,7 +165,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
   const crewRow =
     input.showCrew && crew.length
       ? `<tr><td style="padding:2px 28px 10px">
-          <div style="font-size:12.5px;color:${tone.quiet};text-align:center;margin:0 0 12px">Your crew today</div>
+          <div style="font-size:12.5px;color:${tone.quiet};text-align:center;margin:0 0 12px">${t(locale, "review.crewToday")}</div>
           <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto"><tr>${crew
             .map(
               (c) =>
@@ -196,7 +205,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
             <tr>
               <td style="padding:30px 28px 6px">
                 <h1 style="font-family:${display};font-weight:600;font-size:25px;line-height:1.25;margin:0 0 14px;color:${tone.ink}">${copy["review.headline"]}</h1>
-                <p style="font-size:15px;color:${tone.body};margin:0 0 14px;line-height:1.55">${hi} hope you had an amazing time out on the water with us.${seen}</p>
+                <p style="font-size:15px;color:${tone.body};margin:0 0 14px;line-height:1.55">${greeting}${seen}</p>
                 <p style="font-size:15px;color:${tone.body};margin:0 0 18px;line-height:1.55">${copy["review.ask"]}</p>
               </td>
             </tr>
@@ -214,7 +223,7 @@ export function buildReviewEmail(input: ReviewEmailInput): {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
             ${socialRow ? `<tr><td align="center" style="padding:18px 8px 4px">${socialRow}</td></tr>` : ""}
             <tr><td align="center" style="padding:${socialRow ? "4px" : "16px"} 8px 0">
-              <p style="font-size:11px;color:#9aa6a8;margin:0">Sent by ${name}</p>
+              <p style="font-size:11px;color:#9aa6a8;margin:0">${t(locale, "email.sentBy", { name })}</p>
             </td></tr>
           </table>
         </td>

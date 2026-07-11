@@ -12,6 +12,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildReviewEmail, tripLine } from "@/lib/review-email";
+import { asLocale, formatDateLocalized } from "@/lib/i18n";
 import { brandLookFromRow } from "@/lib/brand-copy";
 import { resolveAboardCrew } from "@/lib/crew";
 import { sendEmail } from "@/lib/email";
@@ -68,7 +69,7 @@ export async function sendReviewAskAfterDownload(
     admin
       .from("branding")
       .select(
-        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, review_show_crew, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+        "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, copy_overrides, guest_locale, review_show_crew, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
       )
       .eq("operator_id", delivery.operator_id)
       .maybeSingle(),
@@ -89,10 +90,11 @@ export async function sendReviewAskAfterDownload(
     ...brandLookFromRow(branding),
     logoUrl: branding?.logo_url ?? null,
     recipientName: (r.name as string | null) ?? null,
-    tripLine: tripLine(delivery),
-    tripDate: delivery.trip_datetime
-      ? new Date(delivery.trip_datetime as string).toLocaleDateString("en-US", { dateStyle: "long" })
-      : null,
+    tripLine: tripLine(delivery, asLocale(branding?.guest_locale)),
+    tripDate: formatDateLocalized(
+      (delivery.trip_datetime as string | null) ?? null,
+      asLocale(branding?.guest_locale),
+    ),
     captainName: (delivery.captain_name as string | null) ?? null,
     species: (delivery.species ?? []) as string[],
     crew,

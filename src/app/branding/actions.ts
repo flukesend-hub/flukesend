@@ -20,7 +20,7 @@ import { sendEmail } from "@/lib/email";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { buildDeliveryEmail } from "@/lib/delivery-email";
 import { asLocale, formatDateLocalized, isLocale, type Locale } from "@/lib/i18n";
-import { buildReviewEmail } from "@/lib/review-email";
+import { buildReviewEmail, tripLine } from "@/lib/review-email";
 import { isFontKey, isTextTone, isLogoAlign } from "@/lib/brand-fonts";
 import {
   DELIVERY_COPY,
@@ -401,7 +401,8 @@ export async function sendTestReview(draft: ReviewTestDraft): Promise<BrandingSt
   }
   const operatorName = (operator?.name as string) ?? "Your crew";
   const species = ((branding?.species_options ?? []) as string[]).slice(0, 2);
-  const today = new Date().toLocaleDateString("en-US", { dateStyle: "long" });
+  const locale = asLocale(draft.guestLocale);
+  const today = formatDateLocalized(new Date().toISOString(), locale) ?? "";
   // The real shown roster, so the test mails exactly who guests would see.
   const crew = (crewRows ?? [])
     .filter((c) => c.show_to_guests !== false)
@@ -420,9 +421,13 @@ export async function sendTestReview(draft: ReviewTestDraft): Promise<BrandingSt
     textTone: draft.textTone,
     logoAlign: draft.logoAlign,
     copyOverrides: overrides,
+    guestLocale: draft.guestLocale,
     logoUrl: (branding?.logo_url as string | null) ?? null,
     recipientName: "Alex",
-    tripLine: `${today} with Captain Ray`,
+    tripLine: tripLine(
+      { trip_datetime: new Date().toISOString(), species: null, captain_name: "Ray" },
+      locale,
+    ),
     tripDate: today,
     captainName: "Ray",
     species: species.length ? species : ["Humpback whales"],
