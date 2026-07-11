@@ -12,6 +12,7 @@ import { escapeHtml } from "@/lib/email";
 import { socialFooterHtml } from "@/lib/email-social";
 import { type SocialLinks } from "@/lib/social";
 import { fontPack, googleFontsHref, textTone, logoAlign } from "@/lib/brand-fonts";
+import { t, asLocale } from "@/lib/i18n";
 
 export type ReminderEmailInput = {
   operatorName: string;
@@ -24,6 +25,8 @@ export type ReminderEmailInput = {
   fontKey?: string | null;
   textTone?: string | null;
   logoAlign?: string | null;
+  // The operator's guest language; null or absent renders English.
+  guestLocale?: string | null;
   logoUrl: string | null;
   recipientName: string | null;
   // "today" or "tomorrow", computed from expires_at by the caller.
@@ -40,10 +43,11 @@ export function buildReminderEmail(input: ReminderEmailInput): {
   subject: string;
   html: string;
 } {
+  const locale = asLocale(input.guestLocale);
   const fixedLink = input.variant === "fixed-link";
   const subject = fixedLink
-    ? "Your photo link may not have worked, here is a fresh one"
-    : "Don't let the whale slip away";
+    ? t(locale, "reminder.subject.fixed")
+    : t(locale, "reminder.subject.expiring");
   const brand = escapeHtml(input.brandColor);
   const accent = escapeHtml(input.accentColor || input.brandColor);
   const headerTextColor = escapeHtml(input.headerTextColor || "#ffffff");
@@ -57,17 +61,17 @@ export function buildReminderEmail(input: ReminderEmailInput): {
   const tone = textTone(input.textTone);
   const align = logoAlign(input.logoAlign);
   const headline = fixedLink
-    ? "That link may not have worked. This one does."
-    : "Don't let the whale slip away";
+    ? t(locale, "reminder.headline.fixed")
+    : t(locale, "reminder.headline.expiring");
   const bodyText = fixedLink
-    ? `The button in our last email was not working for some guests. Here is a fresh link straight to your photos from the trip. Your gallery closes ${when}, so save them to your phone while it is up.`
-    : `The photos from your trip are still waiting, but not for much longer. Your gallery closes ${when}. Make sure to download your photos to your phone before it does.`;
+    ? t(locale, "reminder.body.fixed", { when })
+    : t(locale, "reminder.body.expiring", { when });
   const preheader = fixedLink
-    ? "A fresh, working link to your trip photos. Save them before the gallery closes."
-    : "Your trip photos are still waiting. Save them before the gallery closes.";
+    ? t(locale, "reminder.preheader.fixed")
+    : t(locale, "reminder.preheader.expiring");
   // Greeting line only when we know the guest's name; no filler otherwise.
   const hiRow = input.recipientName
-    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 6px;color:${tone.body}">Hi ${escapeHtml(input.recipientName)},</p>`
+    ? `<p style="font-size:15px;line-height:1.55;margin:0 0 6px;color:${tone.body}">${t(locale, "email.greeting", { name: escapeHtml(input.recipientName) })}</p>`
     : "";
 
   const header = input.logoUrl
@@ -106,7 +110,7 @@ export function buildReminderEmail(input: ReminderEmailInput): {
                 <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%">
                   <tr>
                     <td align="center" style="border-radius:12px;background:${accent}">
-                      <a href="${url}" style="display:block;padding:15px 24px;font-family:${body};font-weight:600;font-size:15px;color:#ffffff;text-decoration:none">Save your photos</a>
+                      <a href="${url}" style="display:block;padding:15px 24px;font-family:${body};font-weight:600;font-size:15px;color:#ffffff;text-decoration:none">${t(locale, "reminder.button")}</a>
                     </td>
                   </tr>
                 </table>
@@ -114,14 +118,14 @@ export function buildReminderEmail(input: ReminderEmailInput): {
             </tr>
             <tr>
               <td style="padding:16px 28px 28px;text-align:center">
-                <p style="font-size:14.5px;line-height:1.6;font-weight:500;color:${tone.mid};margin:0">Reply any time, it reaches us directly. Thank you, the crew at ${name}.</p>
+                <p style="font-size:14.5px;line-height:1.6;font-weight:500;color:${tone.mid};margin:0">${t(locale, "reminder.signoff", { name })}</p>
               </td>
             </tr>
           </table>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
             ${socialRow ? `<tr><td align="center" style="padding:18px 8px 4px">${socialRow}</td></tr>` : ""}
             <tr><td align="center" style="padding:${socialRow ? "4px" : "16px"} 8px 0">
-              <p style="font-size:11px;color:#9aa6a8;margin:0">Sent by ${name}</p>
+              <p style="font-size:11px;color:#9aa6a8;margin:0">${t(locale, "email.sentBy", { name })}</p>
             </td></tr>
           </table>
         </td>

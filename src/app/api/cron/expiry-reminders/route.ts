@@ -22,6 +22,7 @@ import { brandLookFromRow } from "@/lib/brand-copy";
 import { resolveFromAddress } from "@/lib/sender-domain";
 import { PLANS } from "@/lib/plans";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
+import { t, asLocale } from "@/lib/i18n";
 
 export const maxDuration = 300;
 
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
       admin
         .from("branding")
         .select(
-          "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
+          "logo_url, brand_color, accent_color, header_text_color, font_key, text_tone, logo_align, guest_locale, reply_to_email, website_url, facebook_url, instagram_url, tiktok_url, youtube_url, x_url",
         )
         .eq("operator_id", operatorId)
         .maybeSingle(),
@@ -169,9 +170,12 @@ export async function GET(request: Request) {
       continue;
     }
 
-    // "today" when the gallery closes within 24h, "tomorrow" otherwise.
+    // "today" when the gallery closes within 24h, "tomorrow" otherwise,
+    // rendered in the operator's guest language.
+    const locale = asLocale(ctx.look.guestLocale);
     const hoursLeft = (new Date(d.expires_at as string).getTime() - now) / 3600000;
-    const expiresWhen = hoursLeft <= 24 ? "today" : "tomorrow";
+    const isToday = hoursLeft <= 24;
+    const expiresWhen = t(locale, isToday ? "time.today" : "time.tomorrow");
 
     for (const r of pending) {
       if (r.email_status === "bounced" || r.email_status === "complained") {

@@ -117,6 +117,10 @@ export const REVIEW_COPY: CopyField[] = [
     key: "review.headline",
     label: "Headline",
     default: "So glad you got your photos",
+    localized: {
+      fr: "Ravis que vous ayez vos photos",
+      es: "Nos alegra que ya tengas tus fotos",
+    },
     limit: 60,
   },
   {
@@ -125,6 +129,10 @@ export const REVIEW_COPY: CopyField[] = [
     hint: "The line that asks for the review, right above the buttons.",
     default:
       "If you have a moment, we would love to hear about your experience. A quick review helps us, and helps others find the whales.",
+    localized: {
+      fr: "Si vous avez un moment, nous aimerions beaucoup connaître votre avis. Un petit commentaire nous aide, et aide les autres à trouver les baleines.",
+      es: "Si tienes un momento, nos encantaría saber tu opinión. Una breve reseña nos ayuda, y ayuda a otros a encontrar las ballenas.",
+    },
     limit: 240,
     multiline: true,
   },
@@ -132,6 +140,10 @@ export const REVIEW_COPY: CopyField[] = [
     key: "review.signoff",
     label: "Sign-off",
     default: "Thanks for joining us. Hope to see you on the water again soon. The crew at {operator_name}.",
+    localized: {
+      fr: "Merci d'être venus avec nous. Au plaisir de vous revoir bientôt sur l'eau. L'équipage de {operator_name}.",
+      es: "Gracias por acompañarnos. Esperamos verte pronto de nuevo en el agua. La tripulación de {operator_name}.",
+    },
     limit: 240,
     multiline: true,
   },
@@ -143,6 +155,10 @@ export const GALLERY_COPY: CopyField[] = [
     label: "Review ask",
     hint: "Shown right after a guest saves their photos, above your review buttons.",
     default: "Loved the trip? A quick review means a lot to a small crew like ours.",
+    localized: {
+      fr: "Vous avez aimé la sortie ? Un petit commentaire compte beaucoup pour une petite équipe comme la nôtre.",
+      es: "¿Te encantó la salida? Una breve reseña significa mucho para un equipo pequeño como el nuestro.",
+    },
     limit: 140,
     multiline: true,
   },
