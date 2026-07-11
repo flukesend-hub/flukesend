@@ -122,8 +122,12 @@ export default async function SettingsPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
           <div>
             <h1 className="fl-h1">Settings</h1>
-            <p style={{ color: "var(--muted)", fontSize: "14px", margin: 0 }}>
-              Your brand, links, and roster. Set this up once.
+            <p style={{ color: "var(--muted)", fontSize: "14.5px", lineHeight: 1.55, margin: "4px 0 0", maxWidth: "60ch" }}>
+              <strong style={{ color: "var(--text)", fontWeight: 600 }}>
+                Your brand, links, and roster.
+              </strong>{" "}
+              Set it up once. Everything here is optional polish, Flukesend
+              already sends fine with sensible defaults.
             </p>
           </div>
           <a href="/billing" className="fl-btn-ghost" style={{ flex: "0 0 auto", marginTop: "8px" }}>
@@ -132,27 +136,6 @@ export default async function SettingsPage() {
         </div>
 
         <div style={{ maxWidth: "880px", marginTop: "20px" }}>
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              alignItems: "flex-start",
-              background: "rgba(34,160,90,.10)",
-              border: "1px solid rgba(34,160,90,.28)",
-              borderRadius: "12px",
-              padding: "12px 14px",
-              marginBottom: "18px",
-            }}
-          >
-            <span aria-hidden="true" style={{ color: "#1f8a55", fontSize: "14px", lineHeight: 1.5 }}>
-              {"✓"}
-            </span>
-            <div style={{ fontSize: "13px", color: "#2a5b43", lineHeight: 1.5 }}>
-              You are all set. Flukesend already sends fine with sensible defaults,
-              so everything here is optional polish you do once.
-            </div>
-          </div>
-
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <a
               href="/branding"
