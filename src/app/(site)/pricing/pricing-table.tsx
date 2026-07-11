@@ -30,16 +30,14 @@ const TIERS: Tier[] = [
     blurb: "Everything Flukesend does, one flat price.",
     whoFor: "From a single six-passenger boat to a busy multi-vessel fleet.",
     features: [
-      "Unlimited emails a month",
-      "Up to 100 emails per send",
+      "Unlimited emails a month, up to 100 per send",
       "Unlimited boats",
       "Branded photo galleries",
-      "Automatic review asks",
       "Guest sign-up QR for the boat",
+      "Automatic review asks",
       "Expiring-soon reminders recover missed downloads",
-      "Full analytics: trends, boats, photographers, CSV",
-      "Export your guest emails",
       "Branded social cards from the day's trips",
+      "Full analytics and guest-email export, down to boat and photographer",
       "Send from your own email domain",
       "Priority support",
     ],
@@ -86,7 +84,8 @@ export function PricingTable() {
               <ul style={featureList}>
                 {t.features.map((f) => (
                   <li key={f} style={featureItem}>
-                    <span style={tick}>✓</span> {f}
+                    <span style={tick}>✓</span>
+                    <span>{f}</span>
                   </li>
                 ))}
               </ul>
@@ -186,5 +185,8 @@ const whoForLine: React.CSSProperties = {
   textAlign: "center",
 };
 const featureList: React.CSSProperties = { listStyle: "none", margin: "20px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "10px" };
-const featureItem: React.CSSProperties = { display: "flex", gap: "9px", fontSize: "14px", color: "#3a4744" };
+// Left aligned and top anchored so a bullet that wraps to two lines keeps its
+// tick beside the first line and its text flush left, not centered by the
+// page's text-align (the pricing section centers everything else).
+const featureItem: React.CSSProperties = { display: "flex", gap: "9px", fontSize: "14px", color: "#3a4744", alignItems: "flex-start", textAlign: "left" };
 const tick: React.CSSProperties = { color: "#2f8f63", fontWeight: 700, flex: "0 0 auto" };
