@@ -385,20 +385,30 @@ export function BrandingWorkbench({
   const pack = fontPack(font);
 
   return (
-    <div>
+    <div className="fl-brandworkbench">
       {/* Font specimens for the picker and the gallery mini preview. */}
       <link rel="stylesheet" href={ALL_FAMILIES_HREF} />
       <style>{`
-        .fl-brandgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 440px); gap: 18px; align-items: start; }
-        .fl-brandprev { position: sticky; top: 84px; }
+        /* Lock the branding route to the viewport: the page never scrolls, only
+           each pane scrolls internally. So the editor scrolls under a fixed
+           preview instead of the whole page drifting past it. */
+        .fl-brandpage { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+        .fl-brandmain { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 16px 28px 0; }
+        .fl-brandworkbench { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .fl-brandgrid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 22px; align-items: stretch; max-width: 1280px; flex: 1; min-height: 0; }
+        .fl-brandcol { overflow-y: auto; min-height: 0; padding: 2px 10px 28px 0; }
+        .fl-brandprev { overflow-y: auto; min-height: 0; padding-bottom: 28px; }
         @media (max-width: 980px) {
-          .fl-brandgrid { grid-template-columns: 1fr; }
-          .fl-brandprev { position: static; }
+          .fl-brandpage { height: auto; display: block; overflow: visible; }
+          .fl-brandmain { display: block; padding: 16px 20px 80px; }
+          .fl-brandworkbench { display: block; }
+          .fl-brandgrid { grid-template-columns: 1fr; max-width: 640px; }
+          .fl-brandcol, .fl-brandprev { overflow: visible; padding: 0; }
         }
       `}</style>
 
       <div className="fl-brandgrid">
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px", minWidth: 0 }}>
+        <div className="fl-brandcol" style={{ display: "flex", flexDirection: "column", gap: "14px", minWidth: 0 }}>
           {/* ---- Brand identity ---- */}
           <form action={lookAction} className="fl-card" style={{ padding: "18px" }}>
             <div style={cardTitle}>Brand identity</div>
@@ -792,22 +802,24 @@ export function BrandingWorkbench({
             </div>
 
             {surface === "gallery" ? (
-              <GalleryMini
-                operatorName={operatorName}
-                brand={brand}
-                accent={effectiveAccent}
-                displayStack={pack.displayStack}
-                logoAlign={align}
-                logo={shownLogo}
-                intro={intro}
-                species={sampleSpecies}
-                reviewLinks={reviewLinks}
-                reviewAsk={galleryReviewAsk}
-                thanks={galleryThanks}
-                tips={tips}
-              />
+              <div style={{ maxWidth: "440px", margin: "0 auto" }}>
+                <GalleryMini
+                  operatorName={operatorName}
+                  brand={brand}
+                  accent={effectiveAccent}
+                  displayStack={pack.displayStack}
+                  logoAlign={align}
+                  logo={shownLogo}
+                  intro={intro}
+                  species={sampleSpecies}
+                  reviewLinks={reviewLinks}
+                  reviewAsk={galleryReviewAsk}
+                  thanks={galleryThanks}
+                  tips={tips}
+                />
+              </div>
             ) : (
-              <div ref={previewBox} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#fff", height: `${Math.round(previewH * scale)}px` }}>
+              <div ref={previewBox} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--line)", background: "#fff", height: `${Math.round(previewH * scale)}px`, maxWidth: "600px", margin: "0 auto" }}>
                 <iframe
                   title="Email preview"
                   sandbox=""

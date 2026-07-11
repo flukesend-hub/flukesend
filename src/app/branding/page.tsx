@@ -86,11 +86,11 @@ export default async function BrandingPage() {
   };
 
   return (
-    <>
+    <div className="fl-brandpage">
       <OperatorNav operatorName={operatorName ?? "Operator"} />
-      <main style={{ padding: "16px 28px 80px" }}>
+      <main className="fl-brandmain">
         <h1 className="fl-h1">Branding</h1>
-        <p style={{ color: "var(--muted)", fontSize: "14px", margin: "0 0 20px" }}>
+        <p style={{ color: "var(--muted)", fontSize: "14px", margin: "0 0 14px" }}>
           Your look and your words, everywhere a guest sees you. Everything here
           has a good default, so change only what you want.
         </p>
@@ -123,6 +123,6 @@ export default async function BrandingPage() {
           }}
         />
       </main>
-    </>
+    </div>
   );
 }

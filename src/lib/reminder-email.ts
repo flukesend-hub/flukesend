@@ -121,7 +121,7 @@ export function buildReminderEmail(input: ReminderEmailInput): {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
             ${socialRow ? `<tr><td align="center" style="padding:18px 8px 4px">${socialRow}</td></tr>` : ""}
             <tr><td align="center" style="padding:${socialRow ? "4px" : "16px"} 8px 0">
-              <p style="font-size:11px;color:#9aa6a8;margin:0">Sent by ${name}, delivered with Flukesend</p>
+              <p style="font-size:11px;color:#9aa6a8;margin:0">Sent by ${name}</p>
             </td></tr>
           </table>
         </td>
