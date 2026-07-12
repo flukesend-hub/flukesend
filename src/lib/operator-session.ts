@@ -13,6 +13,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/admin";
 
 export type OperatorSession = {
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -20,6 +21,33 @@ export type OperatorSession = {
   operatorId: string;
   operatorName: string | null;
 };
+
+// The right landing page for whoever is signed in: the admin console for the
+// platform admin (who has no operator by design), the send page for an
+// operator, onboarding for a brand new account, the login page for a guest.
+// Login and the login page both route through this, so nobody bounces through
+// a page that only redirects them somewhere else. Reads the locally verified
+// claims (email is in the JWT), so it costs at most one membership query.
+export async function postAuthDestination(
+  supabase?: Awaited<ReturnType<typeof createClient>>,
+): Promise<string> {
+  const sb = supabase ?? (await createClient());
+  const { data } = await sb.auth.getClaims();
+  const claims = data?.claims;
+  const userId = (claims?.sub as string | undefined) ?? null;
+  if (!userId) {
+    return "/login";
+  }
+  if (isAdminEmail(claims?.email as string | undefined)) {
+    return "/admin";
+  }
+  const { data: membership } = await sb
+    .from("operator_members")
+    .select("operator_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return membership ? "/send" : "/onboarding";
+}
 
 export async function requireOperator(): Promise<OperatorSession> {
   const supabase = await createClient();

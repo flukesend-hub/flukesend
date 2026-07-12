@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { postAuthDestination } from "@/lib/operator-session";
 
 export type AuthState = { error?: string; ok?: string } | undefined;
 
@@ -37,7 +38,9 @@ export async function login(
   }
 
   revalidatePath("/", "layout");
-  redirect("/send");
+  // Route by who they are: admin to the console, operator to send, a brand new
+  // account to onboarding. Avoids the send -> onboarding -> admin bounce.
+  redirect(await postAuthDestination(supabase));
 }
 
 export async function signup(
@@ -68,7 +71,7 @@ export async function signup(
   }
 
   revalidatePath("/", "layout");
-  redirect("/send");
+  redirect(await postAuthDestination(supabase));
 }
 
 export async function signout() {
@@ -126,5 +129,5 @@ export async function updatePassword(
   if (error) return { error: error.message };
 
   revalidatePath("/", "layout");
-  redirect("/send");
+  redirect(await postAuthDestination(supabase));
 }
