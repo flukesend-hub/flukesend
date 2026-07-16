@@ -117,6 +117,20 @@ internal plan key is still `fleet`; the customer facing display name is currentl
    all three current operators. Needed the day a non Pacific operator signs up.
 9. Guest facing upsell surface on the gallery page (merch, next trip discount,
    membership): raised once as a future revenue idea, never scoped.
+10. Anniversary re-send (raised by PacWhale in a meeting): a year after a trip,
+    email the guest "on this day last year you saw Humpback whales with us, come
+    back out", a rebooking nudge in the same DNA as the review ask. The catch is
+    storage. Today the 2 AM cleanup deletes photos after 3 to 90 days on purpose
+    to keep storage lean, so this needs photos held for a year, which is a
+    different cost curve. Two shapes. Lean: keep just one hero shot (or a few web
+    res thumbnails) per send for a year, pennies of storage, and the email is
+    nostalgia plus rebook. Full: keep all originals and re-deliver the whole
+    gallery, a real storage cost that belongs behind a paid add on, and the
+    feature that finally justifies the R2 cold storage swap the storage_key
+    abstraction already anticipates. Naturally a paid tier. Re-emailing a guest a
+    year later is a wider consent scope than a one time delivery, so bake in a
+    quiet opt out. The yearly cron matching trip dates and the email template are
+    easy; the storage backend and cost are the real decision.
 
 ## Known rough edges
 
