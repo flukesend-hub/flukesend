@@ -4,9 +4,8 @@
 */
 import QRCode from "qrcode";
 import { requireOperator } from "@/lib/operator-session";
-import { CANONICAL_ORIGIN } from "@/lib/base-url";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getOperatorCaptureToken, getBoatCaptureLinks } from "@/lib/capture";
+import { getOperatorCaptureToken, getBoatCaptureLinks, getCaptureOrigin } from "@/lib/capture";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { TeamManager } from "./team";
 import { TipsToggle } from "./tips-toggle";
@@ -37,7 +36,7 @@ export default async function SettingsPage() {
   // Independent reads all fire at once; the page waits for the slowest one,
   // not the sum. The capture link is the one lazy-creating call and is safe
   // to run alongside the reads.
-  const [{ data: branding }, { data: links }, { data: boats }, { data: crew }, captureToken] =
+  const [{ data: branding }, { data: links }, { data: boats }, { data: crew }, captureToken, captureOrigin] =
     await Promise.all([
       supabase
         .from("branding")
@@ -61,10 +60,14 @@ export default async function SettingsPage() {
         .order("sort_order", { ascending: true }),
       // One standing, operator wide capture link, rendered as a single QR.
       getOperatorCaptureToken(operatorId),
+      // The origin the QR links are built on: the operator's white-labeled
+      // subdomain if they have one, else the canonical www origin.
+      getCaptureOrigin(operatorId),
     ]);
   // The QR gets printed and lives on the boat for years: it must carry the
-  // canonical domain, never the host the operator happened to browse on.
-  const captureUrl = captureToken ? `${CANONICAL_ORIGIN}/j/${captureToken}` : null;
+  // operator's canonical capture origin, never the host they happened to
+  // browse on.
+  const captureUrl = captureToken ? `${captureOrigin}/j/${captureToken}` : null;
   // A PNG data URL (not SVG) so it renders as a real image the operator can save
   // to their phone's photos, and downloads as a .png. 512px stays crisp when
   // shown small on screen or printed larger.
@@ -81,7 +84,7 @@ export default async function SettingsPage() {
   const boatQrs = await Promise.all(
     boatLinks.map(async (b, i) => {
       const color = BOAT_QR_COLORS[i % BOAT_QR_COLORS.length];
-      const url = `${CANONICAL_ORIGIN}/j/${b.token}`;
+      const url = `${captureOrigin}/j/${b.token}`;
       const dataUrl = await QRCode.toDataURL(url, {
         margin: 1,
         width: 512,

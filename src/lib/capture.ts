@@ -9,6 +9,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CANONICAL_ORIGIN, CAPTURE_APEX } from "@/lib/base-url";
 import { tripTimesFor } from "@/lib/trip-times";
 import { type SocialLinks } from "@/lib/social";
 
@@ -172,6 +173,22 @@ export async function getBoatCaptureLinks(operatorId: string): Promise<BoatCaptu
     if (token) links.push({ boatId: boat.id, boatName: boat.name, token });
   }
   return links;
+}
+
+// The origin every one of an operator's capture QR links is built on. An
+// operator with a capture_subdomain gets the white-labeled {slug}.flukesend.com
+// (so the URL a guest lands on reads as them); everyone else stays on the
+// canonical www origin. Only the host differs: the token, and every already
+// printed www QR, keep working. Admin client since Settings needs it.
+export async function getCaptureOrigin(operatorId: string): Promise<string> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("operators")
+    .select("capture_subdomain")
+    .eq("id", operatorId)
+    .maybeSingle();
+  const slug = (data?.capture_subdomain as string | null)?.trim();
+  return slug ? `https://${slug}.${CAPTURE_APEX}` : CANONICAL_ORIGIN;
 }
 
 // Salted hash of a submitter IP. Stored only to rate limit, never the raw IP.
