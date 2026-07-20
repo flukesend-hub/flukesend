@@ -22,6 +22,7 @@ export function CaptureForm({
   tripTimes,
   social,
   defaultBoatId,
+  lockedBoatName,
 }: {
   token: string;
   brand: string;
@@ -30,6 +31,10 @@ export function CaptureForm({
   tripTimes: string[];
   social: SocialLinks;
   defaultBoatId: string;
+  // When the scanned code is a specific boat's, the boat is fixed and the guest
+  // never picks: we show the name and hide the picker. Null for the operator
+  // wide code, where the guest still chooses their boat.
+  lockedBoatName: string | null;
 }) {
   const [boatId, setBoatId] = useState(defaultBoatId || (boats.length === 1 ? boats[0].id : ""));
   const [tripTime, setTripTime] = useState("");
@@ -130,7 +135,30 @@ export function CaptureForm({
 
   return (
     <form onSubmit={submit} style={{ background: "#fff", border: "1px solid #e7e0d4", borderRadius: "14px", padding: "22px" }}>
-      {boats.length > 1 ? (
+      {lockedBoatName ? (
+        <div style={label}>
+          <span style={labelText}>Your boat</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "9px",
+              border: "1px solid #d7cfbf",
+              borderRadius: "10px",
+              padding: "12px 13px",
+              background: "#fdfcf9",
+              fontSize: "16px",
+              fontWeight: 600,
+              color: "#10221f",
+            }}
+          >
+            <span aria-hidden="true" style={{ color: brand }}>
+              {"✓"}
+            </span>
+            {lockedBoatName}
+          </div>
+        </div>
+      ) : boats.length > 1 ? (
         <label style={label}>
           <span style={labelText}>Which boat were you on?</span>
           <select value={boatId} onChange={(e) => setBoatId(e.target.value)} style={input}>

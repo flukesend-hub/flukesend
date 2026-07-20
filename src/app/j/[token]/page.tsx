@@ -22,7 +22,10 @@ export default async function CapturePage({
   }
   const { operator, branding, boats } = ctx;
   const brand = branding?.brand_color ?? "#0b5563";
-  const multiBoat = boats.length > 1;
+  // A boat scoped code fixes the boat, so the guest only picks a time. The boat
+  // picker copy is only for the operator wide code with more than one boat.
+  const lockedBoatName = ctx.boatName;
+  const multiBoat = boats.length > 1 && !lockedBoatName;
 
   return (
     <main style={{ minHeight: "100dvh", background: "var(--paper)", color: "var(--paper-ink)", padding: "0 0 60px" }}>
@@ -56,6 +59,7 @@ export default async function CapturePage({
             tripTimes={ctx.tripTimes}
             social={ctx.social}
             defaultBoatId={ctx.link.boat_id ?? ""}
+            lockedBoatName={lockedBoatName}
           />
         </div>
       </div>
