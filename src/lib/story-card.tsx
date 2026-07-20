@@ -135,19 +135,20 @@ export function storyCardImage(input: StoryCardInput): ImageResponse {
         {/* Hero photo in a fixed box, so the info below always lands in the same
             place regardless of the photo's shape. The whole photo is always
             shown, never cropped: a portrait or 8x10 letterboxes onto the brand
-            color instead of shoving the sighting info off the card. */}
-        <div style={{ width: STORY_W, height: HERO_H, flex: "0 0 auto", display: "flex", position: "relative", overflow: "hidden" }}>
+            color. No overlay, so the letterbox bars are the same brand color as
+            everything around them, with no dark strip or seam under the photo. */}
+        <div style={{ width: STORY_W, height: HERO_H, flex: "0 0 auto", display: "flex", overflow: "hidden" }}>
           {input.heroUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={input.heroUrl} width={STORY_W} height={HERO_H} style={{ width: STORY_W, height: HERO_H, objectFit: "contain", display: "block" }} alt="" />
           ) : null}
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 240, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.72) 100%)" }} />
-          <div style={{ position: "absolute", left: 64, right: 64, bottom: 44, display: "flex", fontSize: 30, fontWeight: 600, letterSpacing: 7, lineHeight: 1.25, textTransform: "uppercase" }}>{input.label ?? "Photo of the day"}</div>
         </div>
 
-        {/* Date, trip time, species, website, sitting just under the hero. */}
-        <div style={{ flex: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "48px 64px 64px", textAlign: "center" }}>
+        {/* Caption, date, trip time, species, website, on the brand band under
+            the hero. The caption is the eyebrow above the date. */}
+        <div style={{ flex: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "44px 64px 64px", textAlign: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ display: "flex", maxWidth: 920, marginBottom: 22, fontSize: 30, fontWeight: 600, letterSpacing: 6, lineHeight: 1.3, textTransform: "uppercase", color: SOFT, textAlign: "center" }}>{input.label ?? "Photo of the day"}</div>
             <div style={{ display: "flex", fontSize: 54, fontWeight: 700 }}>{input.dateText}</div>
             {input.timeText ? (
               <div style={{ display: "flex", marginTop: 16, fontSize: 28, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase", color: SOFT }}>{input.timeText}</div>
