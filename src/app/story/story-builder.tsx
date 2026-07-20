@@ -56,6 +56,11 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
   const [sharing, setSharing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
+  // The operator's own caption for the line across the photo. Debounced before
+  // it hits the render URL, so typing does not fire a card render per keystroke.
+  const [caption, setCaption] = useState("");
+  const [captionQ, setCaptionQ] = useState("");
+
   // Post mode state.
   const [postSel, setPostSel] = useState<Set<string>>(new Set());
   const [savingPost, setSavingPost] = useState(false);
@@ -227,9 +232,18 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
     [slideIdsKey, selectedPhotos],
   );
 
-  const cardSrc = day && heroId ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${heroId}&v=${CARD_V}` : null;
+  // Debounce the caption 400ms so the preview re-renders once the operator
+  // pauses, not on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setCaptionQ(caption.trim()), 400);
+    return () => clearTimeout(id);
+  }, [caption]);
+
+  // Only add the param when set, so the default card keeps its stable cached URL.
+  const capParam = captionQ ? `&caption=${encodeURIComponent(captionQ)}` : "";
+  const cardSrc = day && heroId ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${heroId}${capParam}&v=${CARD_V}` : null;
   function cardUrlFor(photoId: string) {
-    return day ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${photoId}&kind=slideshow&v=${CARD_V}` : "";
+    return day ? `/story/card?d=${day.date}&t=${[...selected].join(",")}&hero=${photoId}&kind=slideshow${capParam}&v=${CARD_V}` : "";
   }
 
   // Cycle the (already-loaded) slideshow frames by index only, so switching is
@@ -511,6 +525,24 @@ export function StoryBuilder({ days }: { days: StoryDay[] }) {
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Operator's own caption for the line across the photo. */}
+                  <div style={{ marginTop: "18px", maxWidth: "420px" }}>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--muted)", marginBottom: "8px" }}>
+                      Caption
+                    </label>
+                    <input
+                      type="text"
+                      value={caption}
+                      onChange={(e) => setCaption(e.target.value)}
+                      maxLength={40}
+                      placeholder={storyKind === "single" ? "Photo of the day" : "Photos from today"}
+                      style={{ width: "100%", boxSizing: "border-box", border: "1px solid var(--line)", borderRadius: "10px", padding: "11px 13px", fontSize: "15px", font: "inherit", color: "#1c2b2e", background: "#fff" }}
+                    />
+                    <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "6px" }}>
+                      The line shown across the photo. Leave blank for the default.
+                    </div>
                   </div>
 
                   {storyKind === "single" ? (

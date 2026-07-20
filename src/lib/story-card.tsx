@@ -142,7 +142,7 @@ export function storyCardImage(input: StoryCardInput): ImageResponse {
             <img src={input.heroUrl} width={STORY_W} height={HERO_H} style={{ width: STORY_W, height: HERO_H, objectFit: "contain", display: "block" }} alt="" />
           ) : null}
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 240, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.72) 100%)" }} />
-          <div style={{ position: "absolute", left: 64, bottom: 44, display: "flex", fontSize: 30, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase" }}>{input.label ?? "Photo of the day"}</div>
+          <div style={{ position: "absolute", left: 64, right: 64, bottom: 44, display: "flex", fontSize: 30, fontWeight: 600, letterSpacing: 7, lineHeight: 1.25, textTransform: "uppercase" }}>{input.label ?? "Photo of the day"}</div>
         </div>
 
         {/* Date, trip time, species, website, sitting just under the hero. */}
