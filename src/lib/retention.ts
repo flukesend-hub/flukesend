@@ -68,6 +68,18 @@ function zonedMidnightUtc(
   return new Date(result);
 }
 
+// The UTC instant (ISO) of the start of the local calendar day that `instant`
+// falls on, in the given zone. For "today" windows like the admin QR sign-ups
+// counter, which should track the operator's day, not a UTC day that rolls over
+// mid-afternoon on the Pacific coast. DST-safe via the same Intl logic.
+export function startOfLocalDayUtc(
+  instant: Date = new Date(),
+  timeZone: string = OPERATOR_TZ,
+): string {
+  const { y, m, d } = zonedYmd(instant, timeZone);
+  return zonedMidnightUtc(y, m, d, timeZone).toISOString();
+}
+
 // The moment a send made at sentAt should expire: local midnight after the last
 // live day, which is retentionDays after the send's local day.
 export function deliveryExpiresAt(

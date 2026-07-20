@@ -13,6 +13,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllRows, loadEventsForRecipients } from "@/lib/db-page";
+import { startOfLocalDayUtc } from "@/lib/retention";
 
 export type OperatorHealth = {
   totalSends: number;
@@ -82,11 +83,11 @@ export async function getOperatorHealth(
   const lastMonthStart = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
   ).toISOString();
-  // Midnight UTC today, the floor for the QR sign-ups-today pulse. UTC keeps it
-  // in step with the month boundaries above; there is no per-operator timezone.
-  const dayStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  ).toISOString();
+  // Start of today in the operator's local zone (Pacific), the floor for the QR
+  // sign-ups-today pulse. A UTC day would roll over mid-afternoon on the Pacific
+  // coast, so a busy morning would read as almost nothing by evening; the local
+  // day keeps "today" meaning the operator's actual day.
+  const dayStart = startOfLocalDayUtc(now);
 
   const [deliveries, recipients, dests, brandings, crews, qrToday] = await Promise.all([
     fetchAllRows<DeliveryRow>((from, to) =>
