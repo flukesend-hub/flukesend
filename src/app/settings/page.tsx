@@ -6,7 +6,7 @@ import QRCode from "qrcode";
 import { requireOperator } from "@/lib/operator-session";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getOperatorCaptureToken } from "@/lib/capture";
+import { getOperatorCaptureToken, getBoatCaptureLinks } from "@/lib/capture";
 import { OperatorNav } from "@/app/_ui/operator-nav";
 import { TeamManager } from "./team";
 import { TipsToggle } from "./tips-toggle";
@@ -19,13 +19,17 @@ import { TripTimesPicker } from "./trip-times-picker";
 import { SettingsSection } from "./settings-section";
 import { RosterList } from "./roster-list";
 import { CrewRoster } from "./crew-roster";
-import { CaptureQr } from "./qr-cards";
+import { CaptureQrs } from "./qr-cards";
 import { addBoat, deleteBoat, addCrew, deleteCrew, setCrewRoles, setCrewPhoto, removeCrewPhoto, setCrewShowToGuests } from "./actions";
 
 // Sub-block styling inside a combined section: a hairline divider and a small
 // heading, so several related editors read as one calm card.
 const subDivider = { borderTop: "1px solid var(--line)", margin: "20px 0 16px" };
 const subHead = { margin: "0 0 10px", fontSize: "14px", fontWeight: 600 };
+
+// One dark, high-contrast color per boat, assigned in boat order. Dark keeps
+// every QR scannable; the color is just so the crew can tell the codes apart.
+const BOAT_QR_COLORS = ["#1f3a8a", "#0f5a4e", "#8a2b3a", "#5b3a8a", "#7a4a12", "#245a3a"];
 
 export default async function SettingsPage() {
   const { supabase, userId, operatorId, operatorName } = await requireOperator();
@@ -67,6 +71,25 @@ export default async function SettingsPage() {
   const captureDataUrl = captureUrl
     ? await QRCode.toDataURL(captureUrl, { margin: 1, width: 512 })
     : null;
+
+  // With more than one boat, each boat gets its own colored code so the crew
+  // can tell them apart and a scan locks the guest to that boat. Colors stay
+  // dark for high contrast, so every code still scans reliably. Single-boat
+  // operators keep just the one operator wide code, no per-boat clutter.
+  const boatLinks =
+    (boats?.length ?? 0) >= 2 ? await getBoatCaptureLinks(operatorId) : [];
+  const boatQrs = await Promise.all(
+    boatLinks.map(async (b, i) => {
+      const color = BOAT_QR_COLORS[i % BOAT_QR_COLORS.length];
+      const url = `${CANONICAL_ORIGIN}/j/${b.token}`;
+      const dataUrl = await QRCode.toDataURL(url, {
+        margin: 1,
+        width: 512,
+        color: { dark: color, light: "#ffffff" },
+      });
+      return { boatName: b.boatName, dataUrl, color };
+    }),
+  );
 
   // One line summaries so each collapsed section says what is set without
   // opening it. Most of this is set once; species is the part that changes.
@@ -250,10 +273,18 @@ export default async function SettingsPage() {
 
             <SettingsSection
               title="Guest sign-up QR"
-              summary="One code guests scan aboard to get their photos"
+              summary={
+                boatQrs.length
+                  ? "A code per boat, plus one for the whole operation"
+                  : "One code guests scan aboard to get their photos"
+              }
               chip={{ label: "Recommended", tone: "good" }}
             >
-              <CaptureQr operatorName={operatorName ?? "Operator"} dataUrl={captureDataUrl} />
+              <CaptureQrs
+                operatorName={operatorName ?? "Operator"}
+                operatorDataUrl={captureDataUrl}
+                boats={boatQrs}
+              />
             </SettingsSection>
 
             <SettingsSection

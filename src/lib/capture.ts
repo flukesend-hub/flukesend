@@ -117,6 +117,63 @@ export async function getOperatorCaptureToken(operatorId: string): Promise<strin
   return (again?.token as string) ?? null;
 }
 
+export type BoatCaptureLink = { boatId: string; boatName: string; token: string };
+
+// One standing capture link per boat, created on first read. Each boat's link
+// carries its boat_id, so a guest who scans it is locked to that boat and never
+// picks the wrong one. Mirrors getOperatorCaptureToken but keyed by boat; the
+// partial unique on boat_id keeps each boat to a single link even under a race.
+// Returned in the operator's boat order, so the settings cards line up with the
+// boat roster. Admin client, since Settings needs it to render the QR codes.
+export async function getBoatCaptureLinks(operatorId: string): Promise<BoatCaptureLink[]> {
+  const admin = createAdminClient();
+
+  const { data: boats } = await admin
+    .from("boats")
+    .select("id, name")
+    .eq("operator_id", operatorId)
+    .order("sort_order", { ascending: true });
+  const boatList = (boats ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
+  if (boatList.length === 0) return [];
+
+  // One read for every existing per-boat link, then only the missing boats get
+  // an insert, so a fully provisioned operator makes no writes.
+  const { data: existing } = await admin
+    .from("capture_links")
+    .select("token, boat_id")
+    .eq("operator_id", operatorId)
+    .not("boat_id", "is", null);
+  const byBoat = new Map<string, string>();
+  for (const row of existing ?? []) {
+    if (row.boat_id) byBoat.set(row.boat_id as string, row.token as string);
+  }
+
+  const links: BoatCaptureLink[] = [];
+  for (const boat of boatList) {
+    let token = byBoat.get(boat.id) ?? null;
+    if (!token) {
+      const { data: created } = await admin
+        .from("capture_links")
+        .insert({ operator_id: operatorId, boat_id: boat.id })
+        .select("token")
+        .maybeSingle();
+      token = (created?.token as string) ?? null;
+      if (!token) {
+        // Lost a race to a concurrent insert; the winner's row is there now.
+        const { data: again } = await admin
+          .from("capture_links")
+          .select("token")
+          .eq("operator_id", operatorId)
+          .eq("boat_id", boat.id)
+          .maybeSingle();
+        token = (again?.token as string) ?? null;
+      }
+    }
+    if (token) links.push({ boatId: boat.id, boatName: boat.name, token });
+  }
+  return links;
+}
+
 // Salted hash of a submitter IP. Stored only to rate limit, never the raw IP.
 // The salt is a static server side constant; this is bucketing, not a secret.
 const IP_SALT = "flukesend-capture-v1";
