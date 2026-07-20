@@ -17,6 +17,14 @@ export const STORY_H = 1920;
 // logo. Reserve a safe band at the top so everything starts below it.
 const SAFE_TOP = 180;
 
+// The hero sits in a fixed box, so the date, sightings, and website below never
+// move no matter the photo's shape. A landscape shot fills it nearly full bleed;
+// a portrait or 8x10 shows whole, letterboxed onto the brand color, instead of
+// growing tall and pushing the sighting info off the bottom of the card. Chosen
+// against SAFE_TOP and the 268 logo band so the info band under it keeps room:
+// 1920 - 180 - 268 - 800 = 672 for the date, sightings, and website.
+const HERO_H = 800;
+
 const INK = "#f7f6f3";
 const SOFT = "rgba(247,246,243,0.72)";
 
@@ -124,11 +132,14 @@ export function storyCardImage(input: StoryCardInput): ImageResponse {
           )}
         </div>
 
-        {/* Hero photo, natural aspect, full bleed, never cropped. */}
-        <div style={{ flex: "0 0 auto", display: "flex", position: "relative", overflow: "hidden" }}>
+        {/* Hero photo in a fixed box, so the info below always lands in the same
+            place regardless of the photo's shape. The whole photo is always
+            shown, never cropped: a portrait or 8x10 letterboxes onto the brand
+            color instead of shoving the sighting info off the card. */}
+        <div style={{ width: STORY_W, height: HERO_H, flex: "0 0 auto", display: "flex", position: "relative", overflow: "hidden" }}>
           {input.heroUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={input.heroUrl} width={STORY_W} style={{ display: "block" }} alt="" />
+            <img src={input.heroUrl} width={STORY_W} height={HERO_H} style={{ width: STORY_W, height: HERO_H, objectFit: "contain", display: "block" }} alt="" />
           ) : null}
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 240, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.72) 100%)" }} />
           <div style={{ position: "absolute", left: 64, bottom: 44, display: "flex", fontSize: 30, fontWeight: 600, letterSpacing: 7, textTransform: "uppercase" }}>{input.label ?? "Photo of the day"}</div>
