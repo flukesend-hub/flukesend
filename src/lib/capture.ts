@@ -84,9 +84,11 @@ export async function getCaptureByToken(token: string): Promise<CaptureContext |
   };
 }
 
-// The operator's single standing capture token, created on first read. One link
-// per operator (boat_id left null); the unique index on operator_id keeps it to
-// one even under a race. Admin client, since Settings needs it to render the QR.
+// The operator's standing operator-wide capture token, created on first read.
+// The operator-wide link is the one with boat_id null; the partial unique index
+// on operator_id where boat_id is null keeps it to one even under a race, while
+// still leaving room for a link per boat. Admin client, since Settings needs it
+// to render the QR.
 export async function getOperatorCaptureToken(operatorId: string): Promise<string | null> {
   const admin = createAdminClient();
 
@@ -94,6 +96,7 @@ export async function getOperatorCaptureToken(operatorId: string): Promise<strin
     .from("capture_links")
     .select("token")
     .eq("operator_id", operatorId)
+    .is("boat_id", null)
     .maybeSingle();
   if (existing?.token) return existing.token as string;
 
@@ -109,6 +112,7 @@ export async function getOperatorCaptureToken(operatorId: string): Promise<strin
     .from("capture_links")
     .select("token")
     .eq("operator_id", operatorId)
+    .is("boat_id", null)
     .maybeSingle();
   return (again?.token as string) ?? null;
 }
