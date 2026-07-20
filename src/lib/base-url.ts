@@ -11,3 +11,11 @@
 */
 export const CANONICAL_ORIGIN =
   (process.env.APP_BASE_URL ?? "").replace(/\/+$/, "") || "https://www.flukesend.com";
+
+// The apex domain that per-operator capture subdomains live on, e.g.
+// princess-whale-watching.flukesend.com. Always the real production domain
+// (never a preview host): a printed QR lives on a boat for years, and the
+// wildcard *.flukesend.com only resolves here. Used only to build capture URLs
+// for operators that have a capture_subdomain set; everyone else stays on
+// CANONICAL_ORIGIN.
+export const CAPTURE_APEX = "flukesend.com";
