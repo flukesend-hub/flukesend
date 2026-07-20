@@ -25,9 +25,12 @@ export async function GET(request: Request) {
   // Absent means the whole day.
   const tParam = url.searchParams.get("t");
   const wanted = tParam ? new Set(tParam.split(",").filter(Boolean)) : null;
-  // A slideshow frame labels the hero "Photos from today" instead of the single
-  // card's "Photo of the day".
-  const label = url.searchParams.get("kind") === "slideshow" ? "Photos from today" : "Photo of the day";
+  // The operator's own caption for the line across the photo. Blank falls back
+  // to the default: a slideshow frame says "Photos from today", the single card
+  // "Photo of the day". Capped so it always fits on one line of the card.
+  const kind = url.searchParams.get("kind");
+  const caption = (url.searchParams.get("caption") ?? "").trim().slice(0, 40);
+  const label = caption || (kind === "slideshow" ? "Photos from today" : "Photo of the day");
   if (!DATE_RE.test(d)) {
     return new Response("Bad date", { status: 400 });
   }
