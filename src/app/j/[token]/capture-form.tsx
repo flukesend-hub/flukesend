@@ -33,6 +33,10 @@ export function CaptureForm({
 }) {
   const [boatId, setBoatId] = useState(defaultBoatId || (boats.length === 1 ? boats[0].id : ""));
   const [tripTime, setTripTime] = useState("");
+  // Whether the current trip time was pre-filled by us (the most recent
+  // departure) rather than chosen by the guest. Drives the "confirm or change"
+  // nudge, which should only show while they are still on our suggestion.
+  const [tripAutoPicked, setTripAutoPicked] = useState(false);
   const [tripDate, setTripDate] = useState("");
   const [dateLabel, setDateLabel] = useState("today");
   const [now, setNow] = useState<Date | null>(null);
@@ -67,11 +71,16 @@ export function CaptureForm({
   const visibleTimes =
     showAll ? tripTimes : now ? departedTripTimes(tripTimes, now) : [];
 
-  // One departed trip means it is theirs; select it so the common case
-  // (scanning mid-trip) is zero taps.
+  // Pre-select the most recent departure (the last one in chronological order).
+  // A guest scanning aboard just left on it, so it is almost always theirs, and
+  // pre-filling turns the common case into zero taps instead of a pick from a
+  // long list. It is a starting point, not a lock: the helper below tells them
+  // to change it if they were on an earlier trip. Only fills while nothing is
+  // picked yet, so it never overrides a guest's own choice.
   useEffect(() => {
-    if (!showAll && visibleTimes.length === 1 && !tripTime) {
-      setTripTime(visibleTimes[0]);
+    if (!showAll && visibleTimes.length && !tripTime) {
+      setTripTime(visibleTimes[visibleTimes.length - 1]);
+      setTripAutoPicked(true);
     }
   }, [showAll, visibleTimes, tripTime]);
 
@@ -146,7 +155,14 @@ export function CaptureForm({
 
       <label style={label}>
         <span style={labelText}>Which trip? (today, {dateLabel})</span>
-        <select value={tripTime} onChange={(e) => setTripTime(e.target.value)} style={input}>
+        <select
+          value={tripTime}
+          onChange={(e) => {
+            setTripTime(e.target.value);
+            setTripAutoPicked(false);
+          }}
+          style={input}
+        >
           <option value="">Choose your trip time</option>
           {visibleTimes.map((slot) => (
             <option key={slot} value={slot}>
@@ -156,9 +172,14 @@ export function CaptureForm({
         </select>
         {!showAll ? (
           <span style={{ display: "block", fontSize: "12px", color: "#8a938f", marginTop: "6px" }}>
-            {visibleTimes.length === 0 && now
-              ? "Trips show up here once they have left the dock. "
-              : null}
+            {tripAutoPicked && tripTime ? (
+              <span style={{ color: "#33464a", fontWeight: 600 }}>
+                We started you on your most recent departure. Were you on an
+                earlier trip? Change it above.{" "}
+              </span>
+            ) : visibleTimes.length === 0 && now ? (
+              "Trips show up here once they have left the dock. "
+            ) : null}
             {"Don't see your trip? "}
             <button
               type="button"
