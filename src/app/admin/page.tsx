@@ -17,14 +17,23 @@ export default async function AdminPage() {
 
   const [operatorsRes, membersRes, subsRes, usersRes, health] = await Promise.all([
     admin.from("operators").select("id, name, created_at").order("created_at", { ascending: true }),
-    admin.from("operator_members").select("operator_id, user_id"),
+    admin.from("operator_members").select("operator_id, user_id, role"),
     admin.from("subscriptions").select("operator_id, status, tier, stripe_customer_id"),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     getOperatorHealth(admin),
   ]);
 
   const emailById = new Map((usersRes.data?.users ?? []).map((u) => [u.id, u.email ?? ""]));
-  const ownerByOp = new Map((membersRes.data ?? []).map((m) => [m.operator_id, emailById.get(m.user_id) ?? ""]));
+  // The email on each card is the operator's own: the owner's. Without the role
+  // filter this Map kept whichever member happened to be iterated last, so an
+  // operator with team members could show a crew member's email instead. Prefer
+  // the owner; fall back to any member only when no owner row exists.
+  const ownerByOp = new Map<string, string>();
+  for (const m of membersRes.data ?? []) {
+    const email = emailById.get(m.user_id) ?? "";
+    if (!email) continue;
+    if (m.role === "owner" || !ownerByOp.has(m.operator_id)) ownerByOp.set(m.operator_id, email);
+  }
   const subByOp = new Map((subsRes.data ?? []).map((s) => [s.operator_id, s]));
 
   const rows: OperatorRow[] = (operatorsRes.data ?? []).map((o) => {
