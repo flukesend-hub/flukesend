@@ -90,12 +90,11 @@ export async function buildGuestCard(data: GalleryData): Promise<ImageResponse |
   const heroKey = (photos?.[0]?.storage_key as string | undefined) ?? null;
   if (!heroKey) return null;
 
-  // Sign the hero resized to the card frame, not the full resolution original.
-  // The render only needs a 1080x1920 cover, so pulling the multi-megabyte
-  // original just slowed every card down. Same Supabase transform the gallery
-  // thumbnails use.
+  // Sign the hero downscaled but WHOLE (contain, not cropped): the card shows
+  // the full photo in the middle, and pulling the multi-megabyte original just
+  // slowed every card down. Same Supabase transform the gallery thumbnails use.
   const { data: signed } = await admin.storage.from("photos").createSignedUrl(heroKey, 600, {
-    transform: { width: 1080, height: 1920, resize: "cover", quality: 80 },
+    transform: { width: 1200, height: 1200, resize: "contain", quality: 80 },
   });
   const heroUrl = signed?.signedUrl ?? null;
   if (!heroUrl) return null;
@@ -131,37 +130,39 @@ export function guestCardImage(input: GuestCardInput): ImageResponse {
 
   return new ImageResponse(
     (
-      <div style={{ width: STORY_W, height: STORY_H, display: "flex", position: "relative", background: input.brandColor, color: INK, fontFamily }}>
-        {/* Full bleed hero: the photo is the card. Cover, so it fills the story
-            frame; the operator's ordering already put the lead photo first. */}
-        {input.heroUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={input.heroUrl} width={STORY_W} height={STORY_H} style={{ position: "absolute", inset: 0, width: STORY_W, height: STORY_H, objectFit: "cover", display: "block" }} alt="" />
-        ) : null}
+      <div style={{ width: STORY_W, height: STORY_H, display: "flex", flexDirection: "column", background: input.brandColor, color: INK, fontFamily }}>
+        {/* Safe top band for the platform's own story chrome. */}
+        <div style={{ height: 150, flex: "0 0 auto", display: "flex" }} />
 
-        {/* Top scrim so a logo in the corner reads on a bright sky. */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 360, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)" }} />
-        {/* Bottom scrim so the guest copy reads on any photo. */}
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 1180, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.9) 100%)" }} />
+        {/* Operator logo on the brand band. No logo: the name in type instead,
+            so the brand still leads and nothing renders broken. */}
+        <div style={{ height: 220, flex: "0 0 auto", display: "flex", alignItems: "center", padding: "0 72px" }}>
+          {input.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={input.logoUrl} height={72} style={{ height: 72, objectFit: "contain" }} alt="" />
+          ) : (
+            <div style={{ display: "flex", fontSize: 50, fontWeight: 700, letterSpacing: 1 }}>{input.operatorName}</div>
+          )}
+        </div>
 
-        {/* Operator logo, small, top-left, inside the story-safe top band. No
-            logo means no corner mark: the name still rides in the copy below,
-            so branding travels either way and nothing renders broken. */}
-        {input.logoUrl ? (
-          <div style={{ position: "absolute", top: 150, left: 72, display: "flex" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={input.logoUrl} height={78} style={{ height: 78, objectFit: "contain" }} alt="" />
-          </div>
-        ) : null}
+        {/* The photo, WHOLE and centered in a fixed band: never cropped or
+            zoomed, so any trip photo looks right. It letterboxes onto the brand
+            color, and the band is fixed so the copy below never moves. */}
+        <div style={{ height: 900, flex: "0 0 auto", display: "flex", overflow: "hidden" }}>
+          {input.heroUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={input.heroUrl} width={STORY_W} height={900} style={{ width: STORY_W, height: 900, objectFit: "contain", display: "block" }} alt="" />
+          ) : null}
+        </div>
 
-        {/* Guest copy, bottom, inside the story-safe band (clear of the reply
-            bar). Eyebrow, the sighting in big type, then the attribution. */}
-        <div style={{ position: "absolute", left: 72, right: 72, bottom: 300, display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", fontSize: 36, fontWeight: 600, letterSpacing: 8, textTransform: "uppercase", color: SOFT, marginBottom: 18 }}>{eyebrow}</div>
-          <div style={{ display: "flex", fontSize: bigSize, fontWeight: 700, lineHeight: 1.04, marginBottom: 26, maxWidth: 936 }}>{bigLine}</div>
-          <div style={{ display: "flex", fontSize: 44, fontWeight: 600, color: "rgba(255,255,255,0.92)" }}>with {input.operatorName}</div>
+        {/* Guest voice, under the photo on the brand band. Eyebrow, the sighting
+            in big type, then the attribution and date. */}
+        <div style={{ flex: "1", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "48px 72px 72px" }}>
+          <div style={{ display: "flex", fontSize: 34, fontWeight: 600, letterSpacing: 8, textTransform: "uppercase", color: SOFT, marginBottom: 18 }}>{eyebrow}</div>
+          <div style={{ display: "flex", fontSize: bigSize, fontWeight: 700, lineHeight: 1.04, marginBottom: 22, maxWidth: 936 }}>{bigLine}</div>
+          <div style={{ display: "flex", fontSize: 42, fontWeight: 600, color: "rgba(255,255,255,0.92)" }}>with {input.operatorName}</div>
           {input.dateText ? (
-            <div style={{ display: "flex", marginTop: 20, fontSize: 26, fontWeight: 500, letterSpacing: 5, textTransform: "uppercase", color: "rgba(255,255,255,0.68)" }}>{input.dateText}</div>
+            <div style={{ display: "flex", marginTop: 18, fontSize: 26, fontWeight: 500, letterSpacing: 5, textTransform: "uppercase", color: "rgba(255,255,255,0.66)" }}>{input.dateText}</div>
           ) : null}
         </div>
       </div>
