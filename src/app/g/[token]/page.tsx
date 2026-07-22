@@ -9,11 +9,8 @@ import { getGalleryByToken, isExpired, resolveGalleryTip } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fontPack, googleFontsHref, logoAlign } from "@/lib/brand-fonts";
 import { GALLERY_COPY, GALLERY_THANKS_DEFAULT, copyValue, renderTokens } from "@/lib/brand-copy";
-import { instagramHandle } from "@/lib/social";
-import { guestShareCaption } from "@/lib/guest-card";
 import { TrackOpen } from "./track-open";
 import { GalleryPhotos } from "./gallery-photos";
-import { ShareSighting } from "./share-sighting";
 
 function retentionDaysLeft(expiresAt: string) {
   const ms = new Date(expiresAt).getTime() - Date.now();
@@ -75,19 +72,6 @@ export default async function GalleryPage({
     label: l.label as string,
     href: `/g/${token}/review?d=${l.id}`,
   }));
-
-  // The guest sighting card: forced onto every gallery, guest-chosen to post.
-  // The pre-filled caption tags the operator's Instagram when we have it.
-  const { data: socialRow } = await admin
-    .from("branding")
-    .select("instagram_url")
-    .eq("operator_id", delivery.operator_id)
-    .maybeSingle();
-  const shareCaption = guestShareCaption(
-    delivery.species ?? [],
-    operator.name,
-    instagramHandle(socialRow?.instagram_url as string | null),
-  );
 
   // The tip, when both flags line up (operator tips on, this send's
   // photographer has a link). When present it becomes the primary ask in the
@@ -220,24 +204,22 @@ export default async function GalleryPage({
               </p>
             </div>
           ) : photos.length ? (
-            <>
-              <GalleryPhotos
-                token={token}
-                brand={brand}
-                accent={accent}
-                retentionDays={retentionDaysLeft(delivery.expires_at)}
-                photos={photos}
-                reviewLinks={reviewLinks}
-                reviewAskText={galleryCopy["gallery.review_ask"]}
-                thanksText={GALLERY_THANKS_DEFAULT}
-                tip={tip}
-                reviewUnderTip={Boolean(tip && data.operator.tips_show_review)}
-                preview={preview}
-              />
-              {/* Below the photos and the post-save review slot, on its own, so
-                  it never competes with the review ask. */}
-              <ShareSighting cardUrl={`/g/${token}/card`} caption={shareCaption} brand={brand} accent={accent} />
-            </>
+            <GalleryPhotos
+              token={token}
+              brand={brand}
+              accent={accent}
+              retentionDays={retentionDaysLeft(delivery.expires_at)}
+              photos={photos}
+              // The shareable story card sits in the grid like another photo,
+              // and saves along with them.
+              cardUrl={`/g/${token}/card`}
+              reviewLinks={reviewLinks}
+              reviewAskText={galleryCopy["gallery.review_ask"]}
+              thanksText={GALLERY_THANKS_DEFAULT}
+              tip={tip}
+              reviewUnderTip={Boolean(tip && data.operator.tips_show_review)}
+              preview={preview}
+            />
           ) : (
             <p style={{ color: "#6b7a7d" }}>No photos in this gallery yet.</p>
           )}
