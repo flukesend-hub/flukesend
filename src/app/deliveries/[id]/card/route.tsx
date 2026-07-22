@@ -7,7 +7,7 @@
 */
 import { requireOperator } from "@/lib/operator-session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { loadStoryFonts, storyCardImage } from "@/lib/story-card";
+import { HERO_H, STORY_W, loadStoryFonts, storyCardImage } from "@/lib/story-card";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,8 +48,20 @@ export async function GET(
   let heroUrl: string | null = null;
   if (hero?.storage_key) {
     const admin = createAdminClient();
-    const { data: signed } = await admin.storage.from("photos").createSignedUrl(hero.storage_key as string, 600);
+    // Sign the hero resized to the card's hero box, not the full resolution
+    // original: the box letterboxes with objectFit contain, so "contain" keeps
+    // the whole photo uncropped and the render only fetches what it draws. If
+    // the transform signing ever fails, fall back to the full-size URL so the
+    // card still renders.
+    const key = hero.storage_key as string;
+    const { data: signed } = await admin.storage.from("photos").createSignedUrl(key, 600, {
+      transform: { width: STORY_W, height: HERO_H, resize: "contain", quality: 80 },
+    });
     heroUrl = signed?.signedUrl ?? null;
+    if (!heroUrl) {
+      const { data: full } = await admin.storage.from("photos").createSignedUrl(key, 600);
+      heroUrl = full?.signedUrl ?? null;
+    }
   }
 
   const trip = delivery.trip_datetime ? new Date(delivery.trip_datetime as string) : null;
