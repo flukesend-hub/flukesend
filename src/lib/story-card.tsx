@@ -23,7 +23,8 @@ const SAFE_TOP = 180;
 // growing tall and pushing the sighting info off the bottom of the card. Chosen
 // against SAFE_TOP and the 268 logo band so the info band under it keeps room:
 // 1920 - 180 - 268 - 800 = 672 for the date, sightings, and website.
-const HERO_H = 800;
+// Exported so the card routes can sign the hero resized to this box.
+export const HERO_H = 800;
 
 const INK = "#f7f6f3";
 const SOFT = "rgba(247,246,243,0.72)";
