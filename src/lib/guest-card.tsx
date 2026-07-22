@@ -26,15 +26,29 @@ export type GuestCardInput = {
   fonts?: StoryFont[];
 };
 
-// The guest-voice species line: names only, pluralized, kept short. One or two
-// species read in full; three or more trail off with "& more" so the headline
-// stays punchy. Null when there are no species (the caller shows the fallback).
+// The guest-voice species line: names only, pluralized. Every species is
+// shown ("Humpback Whales, Common Dolphins, Orcas & Blue Whales"), and the
+// headline font shrinks to fit (headlineFontSize) so a full sighting reads in
+// the guest's voice without ever bleeding off the card. Null when there are no
+// species (the caller shows the fallback line).
 export function speciesHeadline(species: string[]): string | null {
   const names = pluralizeSpecies(species);
   if (!names.length) return null;
   if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} & ${names[1]}`;
-  return `${names[0]}, ${names[1]} & more`;
+  return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+}
+
+// The headline size steps down as the list grows, so one species stays big and
+// bold and four or five still fit cleanly in the same space. The copy block is
+// bottom anchored, so the attribution and date never move: only the headline
+// scales within its own area.
+function headlineFontSize(species: string[]): number {
+  const n = pluralizeSpecies(species).length;
+  if (n >= 5) return 46;
+  if (n === 4) return 54;
+  if (n === 3) return 64;
+  if (n === 2) return 78;
+  return 92;
 }
 
 export function guestCardImage(input: GuestCardInput): ImageResponse {
@@ -44,6 +58,7 @@ export function guestCardImage(input: GuestCardInput): ImageResponse {
   // still-branded fallback so a thin trip never renders an empty species slot.
   const eyebrow = headline ? "Today I saw" : "Today I was";
   const bigLine = headline ?? "On the water";
+  const bigSize = headlineFontSize(input.species);
 
   return new ImageResponse(
     (
@@ -74,7 +89,7 @@ export function guestCardImage(input: GuestCardInput): ImageResponse {
             bar). Eyebrow, the sighting in big type, then the attribution. */}
         <div style={{ position: "absolute", left: 72, right: 72, bottom: 300, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 36, fontWeight: 600, letterSpacing: 8, textTransform: "uppercase", color: SOFT, marginBottom: 18 }}>{eyebrow}</div>
-          <div style={{ display: "flex", fontSize: 92, fontWeight: 700, lineHeight: 1.04, marginBottom: 26, maxWidth: 936 }}>{bigLine}</div>
+          <div style={{ display: "flex", fontSize: bigSize, fontWeight: 700, lineHeight: 1.04, marginBottom: 26, maxWidth: 936 }}>{bigLine}</div>
           <div style={{ display: "flex", fontSize: 44, fontWeight: 600, color: "rgba(255,255,255,0.92)" }}>with {input.operatorName}</div>
           {input.dateText ? (
             <div style={{ display: "flex", marginTop: 20, fontSize: 26, fontWeight: 500, letterSpacing: 5, textTransform: "uppercase", color: "rgba(255,255,255,0.68)" }}>{input.dateText}</div>
