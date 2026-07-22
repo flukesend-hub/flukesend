@@ -43,6 +43,22 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
 // only read the social columns do not need the whole row shape.
 export type SocialLinks = Partial<Record<SocialColumn, string | null>>;
 
+// The operator's Instagram handle ("@name") derived from their Instagram link,
+// for tagging in a guest's pre-filled share caption. Null when there is no
+// Instagram link or it is not parseable, so the caption just drops the tag.
+export function instagramHandle(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+    if (!/(^|\.)instagram\.com$/i.test(u.hostname)) return null;
+    const seg = u.pathname.split("/").filter(Boolean)[0];
+    const handle = seg?.replace(/^@/, "").trim();
+    return handle ? `@${handle}` : null;
+  } catch {
+    return null;
+  }
+}
+
 // Normalize one entered value. Blank becomes null (the operator cleared it).
 // A bare host gets https:// so "yourtours.com" is accepted. Returns an error
 // string when it cannot be parsed as a URL.

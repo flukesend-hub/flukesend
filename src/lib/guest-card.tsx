@@ -51,6 +51,27 @@ function headlineFontSize(species: string[]): number {
   return 92;
 }
 
+// The pre-filled caption for the guest's share sheet, in their own voice, with
+// the operator named and their Instagram tagged when we have it. Lower cased
+// species read naturally mid sentence ("Today I saw humpback whales..."). No
+// species falls back to the on-the-water line, so it is never empty.
+export function guestShareCaption(
+  species: string[],
+  operatorName: string,
+  handle: string | null,
+): string {
+  const names = pluralizeSpecies(species).map((s) => s.toLowerCase());
+  let phrase: string | null = null;
+  if (names.length === 1) phrase = names[0];
+  else if (names.length === 2) phrase = `${names[0]} and ${names[1]}`;
+  else if (names.length >= 3) phrase = `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+
+  const lead = phrase
+    ? `Today I saw ${phrase} with ${operatorName}! 🐋`
+    : `Today I was on the water with ${operatorName}! 🐋`;
+  return handle ? `${lead} ${handle}` : lead;
+}
+
 export function guestCardImage(input: GuestCardInput): ImageResponse {
   const fontFamily = input.fonts ? "Archivo" : "sans-serif";
   const headline = speciesHeadline(input.species);
