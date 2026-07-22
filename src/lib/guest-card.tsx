@@ -90,7 +90,13 @@ export async function buildGuestCard(data: GalleryData): Promise<ImageResponse |
   const heroKey = (photos?.[0]?.storage_key as string | undefined) ?? null;
   if (!heroKey) return null;
 
-  const { data: signed } = await admin.storage.from("photos").createSignedUrl(heroKey, 600);
+  // Sign the hero resized to the card frame, not the full resolution original.
+  // The render only needs a 1080x1920 cover, so pulling the multi-megabyte
+  // original just slowed every card down. Same Supabase transform the gallery
+  // thumbnails use.
+  const { data: signed } = await admin.storage.from("photos").createSignedUrl(heroKey, 600, {
+    transform: { width: 1080, height: 1920, resize: "cover", quality: 80 },
+  });
   const heroUrl = signed?.signedUrl ?? null;
   if (!heroUrl) return null;
 
