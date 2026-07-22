@@ -36,6 +36,7 @@ export function GalleryPhotos({
   accent,
   retentionDays,
   photos,
+  cardUrl,
   reviewLinks,
   reviewAskText = "Loved the trip? A quick review means a lot to a small crew like ours.",
   thanksText = "Thanks for spending the day on the water with us.",
@@ -49,6 +50,9 @@ export function GalleryPhotos({
   accent?: string;
   retentionDays: number;
   photos: Photo[];
+  // The shareable story card, rendered by /g/[token]/card. Shown as the first
+  // tile in the grid and saved along with the photos.
+  cardUrl?: string;
   reviewLinks: { label: string; href: string }[];
   // Post-save copy from the Branding tab, fill-ins already rendered.
   reviewAskText?: string;
@@ -108,6 +112,19 @@ export function GalleryPhotos({
         files.push(new File([blob], p.name, { type: blob.type || "image/jpeg" }));
         setSave({ phase: "fetching", done: i + 1, total: photos.length });
       }
+      // The story card rides along, saved with the photos. A failed card fetch
+      // is not fatal: the photos are the point, so ship them without it.
+      if (cardUrl) {
+        try {
+          const res = await fetch(cardUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            files.push(new File([blob], "my-sighting.png", { type: blob.type || "image/png" }));
+          }
+        } catch {
+          // Skip the card, keep the photos.
+        }
+      }
       setSave({ phase: "ready", files });
     } catch {
       setSave(null);
@@ -140,6 +157,26 @@ export function GalleryPhotos({
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+        {/* The shareable story card, first in the grid, saved like any photo.
+            A badge marks it so a guest knows it is their share card, not a
+            trip photo; the thumbnail center-crops it, the download is the full
+            9:16 card. */}
+        {cardUrl ? (
+          <div style={card}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={cardUrl} alt="Your shareable story card" loading="eager" decoding="async" style={tileImg} />
+            <span style={cardBadge}>Story card</span>
+            <a
+              href={cardUrl}
+              download="my-sighting.png"
+              onClick={() => setDownloaded(true)}
+              style={{ ...dlBtn, background: ui }}
+              aria-label="Download story card"
+            >
+              ↓
+            </a>
+          </div>
+        ) : null}
         {photos.map((p, i) => (
           <div key={p.id} style={card}>
             {/* Real img tags so the grid can lazy load: only the first few
@@ -320,6 +357,18 @@ const tileImg: React.CSSProperties = {
   height: "100%",
   objectFit: "cover",
   display: "block",
+};
+const cardBadge: React.CSSProperties = {
+  position: "absolute",
+  top: "7px",
+  left: "7px",
+  fontSize: "11px",
+  fontWeight: 700,
+  color: "#1c2b2e",
+  background: "rgba(255,255,255,0.92)",
+  borderRadius: "999px",
+  padding: "3px 9px",
+  letterSpacing: "0.02em",
 };
 const dlBtn: React.CSSProperties = {
   position: "absolute",
