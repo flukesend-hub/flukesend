@@ -16,6 +16,7 @@
 import { after } from "next/server";
 import { getGalleryByToken, isExpired } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildGuestCard } from "@/lib/guest-card";
 import { sendReviewAskAfterDownload } from "@/lib/review-ask";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
@@ -129,36 +130,47 @@ function entryNames(photos: { filename: string | null }[]): string[] {
   });
 }
 
+// An entry is either a photo pulled from storage, or an in-memory buffer (the
+// generated story card), so the card zips in alongside the photos.
+type ZipEntry = { name: string; storage_key?: string; buffer?: Uint8Array };
+
 async function* zipParts(
   admin: ReturnType<typeof createAdminClient>,
-  photos: { storage_key: string; name: string }[],
+  entries: ZipEntry[],
 ): AsyncGenerator<Uint8Array> {
   const enc = new TextEncoder();
   const { time, date } = dosTime(new Date());
   const central: Uint8Array[] = [];
   let offset = 0;
 
-  for (const p of photos) {
+  for (const p of entries) {
     const nameBytes = enc.encode(p.name);
     const local = localHeader(nameBytes, time, date);
     const localOffset = offset;
     yield local;
     offset += local.length;
 
-    const { data: blob, error } = await admin.storage.from("photos").download(p.storage_key);
-    if (error || !blob) {
-      throw new Error(`zip: download failed for ${p.storage_key}: ${error?.message ?? "no data"}`);
-    }
     let crc = 0xffffffff;
     let size = 0;
-    const reader = blob.stream().getReader();
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      crc = crc32Update(crc, value);
-      size += value.length;
-      offset += value.length;
-      yield value;
+    if (p.buffer) {
+      crc = crc32Update(crc, p.buffer);
+      size = p.buffer.length;
+      offset += p.buffer.length;
+      yield p.buffer;
+    } else {
+      const { data: blob, error } = await admin.storage.from("photos").download(p.storage_key!);
+      if (error || !blob) {
+        throw new Error(`zip: download failed for ${p.storage_key}: ${error?.message ?? "no data"}`);
+      }
+      const reader = blob.stream().getReader();
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        crc = crc32Update(crc, value);
+        size += value.length;
+        offset += value.length;
+        yield value;
+      }
     }
     const finalCrc = (crc ^ 0xffffffff) >>> 0;
     const desc = dataDescriptor(finalCrc, size);
@@ -219,8 +231,20 @@ export async function GET(
     after(() => sendReviewAskAfterDownload(data.recipient.id, CANONICAL_ORIGIN));
   }
 
+  // The shareable story card zips in as the first file, so "Download all"
+  // carries it just like the grid tile and the mobile Save all do. A card
+  // render failure is not fatal: ship the photos without it.
+  let cardEntry: ZipEntry | null = null;
+  try {
+    const card = await buildGuestCard(data);
+    if (card) cardEntry = { name: "story-card.png", buffer: new Uint8Array(await card.arrayBuffer()) };
+  } catch (e) {
+    console.error("zip: story card render failed", e instanceof Error ? e.message : e);
+  }
+
   const names = entryNames(photos);
-  const entries = photos.map((p, i) => ({ storage_key: p.storage_key as string, name: names[i] }));
+  const photoEntries: ZipEntry[] = photos.map((p, i) => ({ storage_key: p.storage_key as string, name: names[i] }));
+  const entries: ZipEntry[] = cardEntry ? [cardEntry, ...photoEntries] : photoEntries;
   const it = zipParts(admin, entries);
   const stream = new ReadableStream<Uint8Array>({
     async pull(controller) {
