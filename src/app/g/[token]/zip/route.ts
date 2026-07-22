@@ -10,12 +10,17 @@
   computed while streaming and emitted in data descriptors, the standard zip
   streaming shape every unzipper understands.
 
+  The story card PNG rides along as the last entry, the same way the phone
+  share flow saves it next to the photos. A failed card render is not fatal:
+  the photos are the point, so the zip ships without it.
+
   Public, keyed by the recipient token like the per photo route. Writes the
   downloaded event once (the review ask trigger) unless preview=1.
 */
 import { after } from "next/server";
 import { getGalleryByToken, isExpired } from "@/lib/gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { renderGuestCard } from "@/lib/guest-card-render";
 import { sendReviewAskAfterDownload } from "@/lib/review-ask";
 import { CANONICAL_ORIGIN } from "@/lib/base-url";
 
@@ -132,6 +137,7 @@ function entryNames(photos: { filename: string | null }[]): string[] {
 async function* zipParts(
   admin: ReturnType<typeof createAdminClient>,
   photos: { storage_key: string; name: string }[],
+  card: { name: string; render: () => Promise<Uint8Array | null> } | null,
 ): AsyncGenerator<Uint8Array> {
   const enc = new TextEncoder();
   const { time, date } = dosTime(new Date());
@@ -165,6 +171,31 @@ async function* zipParts(
     yield desc;
     offset += desc.length;
     central.push(centralHeader(nameBytes, time, date, finalCrc, size, localOffset));
+  }
+
+  // The story card, last, after every photo has streamed. Rendered lazily here
+  // so a slow composite never delays the first photo bytes, and skipped on any
+  // failure so the photos always ship.
+  if (card) {
+    try {
+      const bytes = await card.render();
+      if (bytes) {
+        const nameBytes = enc.encode(card.name);
+        const local = localHeader(nameBytes, time, date);
+        const localOffset = offset;
+        yield local;
+        offset += local.length;
+        const crc = (crc32Update(0xffffffff, bytes) ^ 0xffffffff) >>> 0;
+        yield bytes;
+        offset += bytes.length;
+        const desc = dataDescriptor(crc, bytes.length);
+        yield desc;
+        offset += desc.length;
+        central.push(centralHeader(nameBytes, time, date, crc, bytes.length, localOffset));
+      }
+    } catch {
+      // Skip the card, keep the photos.
+    }
   }
 
   const cdOffset = offset;
@@ -221,7 +252,16 @@ export async function GET(
 
   const names = entryNames(photos);
   const entries = photos.map((p, i) => ({ storage_key: p.storage_key as string, name: names[i] }));
-  const it = zipParts(admin, entries);
+  // Same filename the share flow uses; nudged only if a photo already took it.
+  const cardName = names.includes("my-sighting.png") ? "my-sighting-card.png" : "my-sighting.png";
+  const card = {
+    name: cardName,
+    render: async () => {
+      const res = await renderGuestCard(data);
+      return res ? new Uint8Array(await res.arrayBuffer()) : null;
+    },
+  };
+  const it = zipParts(admin, entries, card);
   const stream = new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
