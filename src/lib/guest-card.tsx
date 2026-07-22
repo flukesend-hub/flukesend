@@ -11,7 +11,9 @@
 */
 import "server-only";
 import { ImageResponse } from "next/og";
-import { STORY_W, STORY_H, pluralizeSpecies, type StoryFont } from "@/lib/story-card";
+import { STORY_W, STORY_H, pluralizeSpecies, loadStoryFonts, type StoryFont } from "@/lib/story-card";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { GalleryData } from "@/lib/gallery";
 
 const INK = "#ffffff";
 const SOFT = "rgba(255,255,255,0.82)";
@@ -70,6 +72,46 @@ export function guestShareCaption(
     ? `Today I saw ${phrase} with ${operatorName}! 🐋`
     : `Today I was on the water with ${operatorName}! 🐋`;
   return handle ? `${lead} ${handle}` : lead;
+}
+
+// Build the gallery's story card from its data: first photo as the hero,
+// signed just for the render, plus the operator's brand and the trip's species.
+// Returns null when there is no usable photo, so callers skip it cleanly. Shared
+// by the /card route (served) and the zip route (bytes), so the card is built
+// one way everywhere.
+export async function buildGuestCard(data: GalleryData): Promise<ImageResponse | null> {
+  const admin = createAdminClient();
+  const { data: photos } = await admin
+    .from("photos")
+    .select("storage_key")
+    .eq("delivery_id", data.delivery.id)
+    .order("sort_order", { ascending: true })
+    .limit(1);
+  const heroKey = (photos?.[0]?.storage_key as string | undefined) ?? null;
+  if (!heroKey) return null;
+
+  const { data: signed } = await admin.storage.from("photos").createSignedUrl(heroKey, 600);
+  const heroUrl = signed?.signedUrl ?? null;
+  if (!heroUrl) return null;
+
+  const dateText = data.delivery.trip_datetime
+    ? new Date(data.delivery.trip_datetime).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : null;
+
+  return guestCardImage({
+    operatorName: data.operator.name,
+    logoUrl: data.branding?.logo_url ?? null,
+    brandColor: data.branding?.brand_color || "#0b5563",
+    species: (data.delivery.species ?? []) as string[],
+    dateText,
+    heroUrl,
+    fonts: await loadStoryFonts(),
+  });
 }
 
 export function guestCardImage(input: GuestCardInput): ImageResponse {
